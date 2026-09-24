@@ -13,9 +13,13 @@ import com.github.cerealklla.lyfe.location.LocationTracker;
 import com.github.cerealklla.lyfe.registration.ModAttachments;
 import com.github.cerealklla.lyfe.skill.Skills;
 
+import net.minecraft.core.Holder;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.enchantment.Enchantment;
+import net.minecraft.world.item.enchantment.Enchantments;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.ModContainer;
@@ -85,6 +89,17 @@ public class LyfeMod {
         player.addItem(new ItemStack(Items.OAK_SIGN, 16));
         player.addItem(new ItemStack(Items.OAK_FENCE, 16));
         player.addItem(new ItemStack(Items.MAP, 8));
-        LOGGER.info("Granted debug sign/fence/map testing items to {}", player.getName().getString());
+
+        // Fire Aspect sword, for testing Survivalist/Cook's burn-kill XP trigger (design doc Section
+        // 10.2, .hunger.HungerListener#onLivingDrops) without needing flint and steel every time.
+        ItemStack fireSword = new ItemStack(Items.IRON_SWORD);
+        Holder<Enchantment> fireAspect = player.level().registryAccess()
+                .lookupOrThrow(Registries.ENCHANTMENT)
+                .get(Enchantments.FIRE_ASPECT)
+                .orElseThrow();
+        fireSword.enchant(fireAspect, 2);
+        player.addItem(fireSword);
+
+        LOGGER.info("Granted debug sign/fence/map/fire-sword testing items to {}", player.getName().getString());
     }
 }

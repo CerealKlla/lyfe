@@ -123,6 +123,29 @@ public final class HungerListener {
         tickTimers.put(playerId, timer);
     }
 
+    /**
+     * Blocks eating (not just withholding XP) once true hunger is already at the player's current
+     * max -- previously food could be consumed and wasted while full, since decoupling means
+     * vanilla's own "can't eat when full" gate no longer means anything (it's checked against the
+     * pinned real food level, not true hunger). {@code canAlwaysEat()} foods (golden apples, etc.)
+     * are exempt, matching vanilla's own intent for them.
+     */
+    @SubscribeEvent
+    public void onUseItemStart(LivingEntityUseItemEvent.Start event) {
+        if (!(event.getEntity() instanceof ServerPlayer player)) {
+            return;
+        }
+        FoodProperties food = event.getItem().get(DataComponents.FOOD);
+        if (food == null || food.canAlwaysEat()) {
+            return;
+        }
+        PlayerHunger hunger = player.getData(ModAttachments.PLAYER_HUNGER);
+        int currentMax = currentMaxHunger(player);
+        if (hunger.getTrueHunger() >= currentMax) {
+            event.setCanceled(true);
+        }
+    }
+
     @SubscribeEvent
     public void onUseItemFinish(LivingEntityUseItemEvent.Finish event) {
         Entity entity = event.getEntity();
@@ -213,7 +236,7 @@ public final class HungerListener {
     }
 
     /** Section 10.1: grows linearly from vanilla's baseline to the design doc's 30-icon/60-point cap as Survivalist levels. */
-    static int currentMaxHunger(ServerPlayer player) {
+    public static int currentMaxHunger(ServerPlayer player) {
         int level = Lyfe.getLevel(player, Skills.SURVIVALIST_ID);
         int growth = HungerConstants.MAX_HUNGER_AT_MAX_LEVEL - HungerConstants.BASE_MAX_HUNGER;
         return HungerConstants.BASE_MAX_HUNGER + growth * level / Skills.MAX_LEVEL;

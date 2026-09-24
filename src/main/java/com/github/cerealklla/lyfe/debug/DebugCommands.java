@@ -5,6 +5,9 @@ import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 
 import com.github.cerealklla.lyfe.api.Lyfe;
+import com.github.cerealklla.lyfe.hunger.HungerListener;
+import com.github.cerealklla.lyfe.hunger.PlayerHunger;
+import com.github.cerealklla.lyfe.registration.ModAttachments;
 import com.github.cerealklla.lyfe.skill.SkillId;
 import com.github.cerealklla.lyfe.skill.SkillRegistry;
 
@@ -21,9 +24,10 @@ import net.minecraft.server.level.ServerPlayer;
  * is currently also one of the only ways to see a skill's XP/level at all. Remove or gate more
  * strictly before any real release.
  *
- * <p>{@code /lyfe xp <skill> <amount> [target]} -- requires gamemaster permission (same level
- * vanilla's own {@code /xp} command requires; verified against the decompiled 26.1.2.109 source,
- * where the old integer permission levels were replaced by named {@code Commands.LEVEL_*} checks).
+ * <p>{@code /lyfe xp <skill> <amount> [target]} and {@code /lyfe hunger <amount> [target]} --
+ * requires gamemaster permission (same level vanilla's own {@code /xp} command requires; verified
+ * against the decompiled 26.1.2.109 source, where the old integer permission levels were replaced
+ * by named {@code Commands.LEVEL_*} checks).
  */
 public final class DebugCommands {
 
@@ -53,9 +57,23 @@ public final class DebugCommands {
                 })
                 .then(amountArgument);
 
+        var hungerWithTarget = Commands.argument("target", EntityArgument.player())
+                .executes(context -> adjustHunger(
+                        context.getSource(),
+                        EntityArgument.getPlayer(context, "target"),
+                        IntegerArgumentType.getInteger(context, "amount")));
+
+        var hungerAmountArgument = Commands.argument("amount", IntegerArgumentType.integer())
+                .executes(context -> adjustHunger(
+                        context.getSource(),
+                        context.getSource().getPlayerOrException(),
+                        IntegerArgumentType.getInteger(context, "amount")))
+                .then(hungerWithTarget);
+
         dispatcher.register(Commands.literal("lyfe")
                 .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
-                .then(Commands.literal("xp").then(skillArgument)));
+                .then(Commands.literal("xp").then(skillArgument))
+                .then(Commands.literal("hunger").then(hungerAmountArgument)));
     }
 
     private static int addXp(CommandSourceStack source, ServerPlayer target, String skillIdValue, int amount) {
@@ -69,5 +87,16 @@ public final class DebugCommands {
         source.sendSuccess(() -> Component.literal(
                 target.getName().getString() + "'s " + skillIdValue + " XP is now " + newXp + " (Level " + newLevel + ")"), true);
         return (int) newXp;
+    }
+
+    /** Adjusts true hunger by {@code amount} (positive or negative), clamped to [0, current max]. */
+    private static int adjustHunger(CommandSourceStack source, ServerPlayer target, int amount) {
+        PlayerHunger hunger = target.getData(ModAttachments.PLAYER_HUNGER);
+        int currentMax = HungerListener.currentMaxHunger(target);
+        hunger.eat(amount, 0.0F, currentMax);
+        int newHunger = hunger.getTrueHunger();
+        source.sendSuccess(() -> Component.literal(
+                target.getName().getString() + "'s true hunger is now " + newHunger + "/" + currentMax), true);
+        return newHunger;
     }
 }
