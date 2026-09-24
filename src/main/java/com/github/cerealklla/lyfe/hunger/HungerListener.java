@@ -16,12 +16,14 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.Difficulty;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.food.FoodData;
 import net.minecraft.world.food.FoodProperties;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.gamerules.GameRules;
 import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.neoforge.event.entity.living.LivingDropsEvent;
 import net.neoforged.neoforge.event.entity.living.LivingEntityUseItemEvent;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 
@@ -40,6 +42,7 @@ public final class HungerListener {
 
     private static final long SURVIVALIST_XP_PER_POINT = 1;
     private static final long COOK_XP_PER_BONUS_POINT = 1;
+    private static final long COOK_XP_PER_BURN_KILL_POINT = 1;
     private static final double COOK_BONUS_PER_LEVEL = 0.02; // +2%/level, up to +100% at level 50 -- placeholder, tunable
 
     // Session-only: whether we've pinned a given player's real food level at least once. Skipped on
@@ -157,6 +160,40 @@ public final class HungerListener {
         }
 
         debugAnnounce(player, actualGain, cooked, bonusNutrition);
+    }
+
+    /**
+     * Free cooking, from killing an animal while it's on fire so it drops already-cooked meat
+     * (vanilla's own burnt-drop mechanic) -- grants Cook XP at the moment of the kill, separate
+     * from and in addition to the XP granted later if that meat is actually eaten (design doc
+     * Section 10.2, per the user's explicit request: unintentional cooking should count too, not
+     * just smelting/campfire cooking). Attribution is simple, not exhaustive: only credits a direct
+     * player kill (`DamageSource#getEntity() instanceof ServerPlayer`) -- a mob that dies later from
+     * residual fire damage with no attacking entity on the final blow won't be credited to anyone.
+     * That's an accepted, documented gap, not a bug to chase down for a first version.
+     */
+    @SubscribeEvent
+    public void onLivingDrops(LivingDropsEvent event) {
+        if (!(event.getSource().getEntity() instanceof ServerPlayer player)) {
+            return;
+        }
+
+        long totalXp = 0;
+        for (ItemEntity drop : event.getDrops()) {
+            ItemStack stack = drop.getItem();
+            if (!CookedFoods.isCooked(stack.getItem())) {
+                continue;
+            }
+            FoodProperties food = stack.get(DataComponents.FOOD);
+            int nutrition = food != null ? food.nutrition() : 1;
+            totalXp += (long) nutrition * stack.getCount() * COOK_XP_PER_BURN_KILL_POINT;
+        }
+
+        if (totalXp > 0) {
+            Lyfe.addXp(player, Skills.COOK_ID, totalXp);
+            int cookLevel = Lyfe.getLevel(player, Skills.COOK_ID);
+            player.sendSystemMessage(Component.literal("+" + totalXp + " Cook XP (Level " + cookLevel + ") — free cooking!"));
+        }
     }
 
     /** DEBUG ONLY -- same stand-in used by GatheringListener until design doc Section 12's real XP feedback exists. */
