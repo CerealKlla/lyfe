@@ -100,6 +100,13 @@ neoForge {
             sourceSet(sourceSets.main)
         }
     }
+
+    // Wires Minecraft/NeoForge onto the src/test/java classpath so JUnit tests can reference
+    // vanilla/NeoForge classes (Codec round-trip tests here, not full game-bootstrap tests).
+    unitTest {
+        enable()
+        testedMod = mods.named(mod_id)
+    }
 }
 
 // Sets up a dependency configuration called 'localRuntime'.
@@ -132,6 +139,15 @@ dependencies {
     // For more info:
     // http://www.gradle.org/docs/current/userguide/artifact_dependencies_tutorial.html
     // http://www.gradle.org/docs/current/userguide/dependency_management.html
+
+    // Plain JUnit 5 for pure Codec round-trip tests (no live server/registry needed, so
+    // ModDevGradle's neoForge { unitTest {} } FML-bootstrap machinery isn't required here).
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.7.1'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.named('test', Test) {
+    useJUnitPlatform()
 }
 
 // This block of code expands all declared replace properties in the specified resource targets.

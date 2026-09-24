@@ -4,6 +4,9 @@ import org.slf4j.Logger;
 
 import com.mojang.logging.LogUtils;
 
+import com.github.cerealklla.lyfe.registration.ModAttachments;
+import com.github.cerealklla.lyfe.skill.Skills;
+
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -22,6 +25,9 @@ public class LyfeMod {
     public static final Logger LOGGER = LogUtils.getLogger();
 
     public LyfeMod(IEventBus modEventBus, ModContainer modContainer) {
+        ModAttachments.ATTACHMENT_TYPES.register(modEventBus);
+        Skills.bootstrap();
+
         modEventBus.addListener(this::commonSetup);
 
         NeoForge.EVENT_BUS.register(this);

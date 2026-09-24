@@ -88,7 +88,9 @@ subjective knowledge of the world.
     modId="cartographyr"
     type="optional"
     reason="Enables the Cartographyr and Historian skills, which are hidden from the skill tree without it."
-    versionRange=""
+    # No versionRange: an empty string is not "accept any version" here, it's an invalid range that
+    # makes FML reject an installed Cartographyr outright (confirmed via a failed runServer boot test
+    # with both mods present, 2026-09-24) -- omitting the field entirely is what actually means "any".
     ordering="NONE"
     side="BOTH"
 

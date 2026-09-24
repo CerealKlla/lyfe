@@ -22,8 +22,8 @@ git clone https://github.com/CerealKlla/lyfe-context.git context
 
 ## Status
 
-Design phase — design-document.md drafted 2026-09-24, nothing implemented yet. No loader/version/toolchain decided for this mod specifically yet (expected to reuse Cartographyr's NeoForge 26.1.2 / JDK 25, per Section 14 Phase 0, but not confirmed).
+Project scaffolded (NeoForge 26.1.2.109 / JDK 25, mirroring Cartographyr's toolchain exactly). No real game mechanics implemented yet — the only runtime behavior so far is a debug-only login listener (`LyfeMod`) that grants oak signs, oak fences, and maps for manually testing the future sign/map mechanic. `neoforge.mods.toml` already declares Cartographyr as an optional soft dependency per Section 8.
 
-Confirmed first implementation milestone: **Lumberjack and Miner** (Appendix B) — no external dependency, first real exercise of the core XP/leveling system. Cartographyr skill + Historian come next, blocked on Cartographyr gaining settlement-detection functionality first (design-document.md Section 14, Phase 3.5 — that's Cartographyr repo work, not Lyfe).
+Confirmed first implementation milestone: **Lumberjack and Miner** (Appendix B) — no external dependency, first real exercise of the core XP/leveling system (Phase 1, not yet started). Cartographyr skill + Historian come next, blocked on Cartographyr gaining settlement-detection functionality first (design-document.md Section 14, Phase 3.5 — that's Cartographyr repo work, not Lyfe).
 
-Next: scaffold the actual Gradle/NeoForge project (mirroring Cartographyr's setup) when ready to start Phase 1 (core skill data model).
+Next: implement Phase 1 (core skill/XP/leveling data model), then Lumberjack and Miner.
