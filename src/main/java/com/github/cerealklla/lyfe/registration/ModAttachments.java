@@ -4,6 +4,7 @@ import java.util.function.Supplier;
 
 import com.github.cerealklla.lyfe.LyfeMod;
 import com.github.cerealklla.lyfe.data.PlayerSkills;
+import com.github.cerealklla.lyfe.hunger.PlayerHunger;
 
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.neoforged.neoforge.attachment.AttachmentType;
@@ -26,6 +27,16 @@ public final class ModAttachments {
             () -> AttachmentType.builder(PlayerSkills::new)
                     .serialize(PlayerSkills.CODEC)
                     .sync(ByteBufCodecs.fromCodecWithRegistries(PlayerSkills.CODEC.codec()))
+                    .build()
+    );
+
+    // Synced: the custom hunger overlay (client-rendered) needs each player's own true hunger value
+    // to display (design doc Section 10.0).
+    public static final Supplier<AttachmentType<PlayerHunger>> PLAYER_HUNGER = ATTACHMENT_TYPES.register(
+            "player_hunger",
+            () -> AttachmentType.builder(PlayerHunger::new)
+                    .serialize(PlayerHunger.CODEC)
+                    .sync(ByteBufCodecs.fromCodecWithRegistries(PlayerHunger.CODEC.codec()))
                     .build()
     );
 }

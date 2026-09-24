@@ -14,20 +14,31 @@ import java.util.Optional;
  */
 public final class Skills {
 
+    public static final SkillId LUMBERJACK_ID = new SkillId("lumberjack");
+    public static final SkillId MINER_ID = new SkillId("miner");
+    public static final SkillId SURVIVALIST_ID = new SkillId("survivalist");
+    public static final SkillId COOK_ID = new SkillId("cook");
+
+    // Shared by every curve below; also the level Survivalist's true-hunger-max scaling (see
+    // .hunger.HungerListener) treats as "max level" when computing capacity growth.
+    public static final int MAX_LEVEL = 50;
+
     private Skills() {
     }
 
     public static void bootstrap() {
         SkillRegistry.register(lumberjack());
         SkillRegistry.register(miner());
+        SkillRegistry.register(survivalist());
+        SkillRegistry.register(cook());
     }
 
     // Placeholder curve, deliberately easy to retune (mirrors the design doc's own framing of the
-    // Section 6 tier-unlock levels as "placeholder, easy to retune"). Lumberjack/Miner are meant to
-    // level much faster than Historian (Section 3) — a shallow 50-level curve reflects that.
-    private static XpCurve gatheringCurve() {
+    // Section 6 tier-unlock levels as "placeholder, easy to retune"). Lumberjack/Miner/Survivalist/
+    // Cook are meant to level much faster than Historian (Section 3) — a shallow curve reflects that.
+    private static XpCurve fastCurve() {
         List<Long> thresholds = new ArrayList<>();
-        for (int level = 1; level <= 50; level++) {
+        for (int level = 1; level <= MAX_LEVEL; level++) {
             thresholds.add(Math.round(10 * Math.pow(level, 1.5)));
         }
         return new XpCurve(thresholds);
@@ -35,22 +46,48 @@ public final class Skills {
 
     private static SkillDefinition lumberjack() {
         return new SkillDefinition(
-                new SkillId("lumberjack"),
+                LUMBERJACK_ID,
                 "Lumberjack",
                 SkillCategory.GATHERING,
                 Optional.empty(),
-                gatheringCurve(),
+                fastCurve(),
                 List.of()
         );
     }
 
     private static SkillDefinition miner() {
         return new SkillDefinition(
-                new SkillId("miner"),
+                MINER_ID,
                 "Miner",
                 SkillCategory.GATHERING,
                 Optional.empty(),
-                gatheringCurve(),
+                fastCurve(),
+                List.of()
+        );
+    }
+
+    // Effects lists are empty for the same reason Lumberjack/Miner's are: the mechanics (Section 10)
+    // are computed directly by .hunger.HungerListener rather than by consulting SkillEffect data,
+    // matching the established precedent (SPEED_MULTIPLIER etc. are also plain formulas, not
+    // SkillEffect-driven) rather than inventing a new EffectType kind for a single use.
+    private static SkillDefinition survivalist() {
+        return new SkillDefinition(
+                SURVIVALIST_ID,
+                "Survivalist",
+                SkillCategory.SURVIVAL_CRAFT,
+                Optional.empty(),
+                fastCurve(),
+                List.of()
+        );
+    }
+
+    private static SkillDefinition cook() {
+        return new SkillDefinition(
+                COOK_ID,
+                "Cook",
+                SkillCategory.SURVIVAL_CRAFT,
+                Optional.empty(),
+                fastCurve(),
                 List.of()
         );
     }

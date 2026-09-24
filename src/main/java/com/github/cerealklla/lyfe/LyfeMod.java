@@ -6,6 +6,7 @@ import com.mojang.logging.LogUtils;
 
 import com.github.cerealklla.lyfe.debug.DebugCommands;
 import com.github.cerealklla.lyfe.gathering.GatheringListener;
+import com.github.cerealklla.lyfe.hunger.HungerListener;
 import com.github.cerealklla.lyfe.location.ClientLocationState;
 import com.github.cerealklla.lyfe.location.LocationPayload;
 import com.github.cerealklla.lyfe.location.LocationTracker;
@@ -41,6 +42,7 @@ public class LyfeMod {
 
         NeoForge.EVENT_BUS.register(this);
         NeoForge.EVENT_BUS.register(new GatheringListener());
+        NeoForge.EVENT_BUS.register(new HungerListener());
         NeoForge.EVENT_BUS.addListener((RegisterCommandsEvent event) -> DebugCommands.register(event.getDispatcher()));
 
         // Soft dependency (design doc Section 8): LocationTracker's class compiles against
