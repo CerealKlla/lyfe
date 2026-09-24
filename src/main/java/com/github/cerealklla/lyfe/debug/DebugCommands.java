@@ -24,7 +24,8 @@ import net.minecraft.server.level.ServerPlayer;
  * is currently also one of the only ways to see a skill's XP/level at all. Remove or gate more
  * strictly before any real release.
  *
- * <p>{@code /lyfe xp <skill> <amount> [target]} and {@code /lyfe hunger <amount> [target]} --
+ * <p>{@code /lyfe xp <skill> <amount> [target]} (adds {@code amount} XP) and
+ * {@code /lyfe hunger <amount> [target]} (sets true hunger directly to {@code amount}) --
  * deliberately requires no permission ({@code Commands.LEVEL_ALL}), not gamemaster, despite these
  * being privileged-feeling commands. Originally gated at gamemaster, but the dev test user was
  * never actually opped in `run/ops.json` (empty by default, gitignored, easy to lose on a fresh
@@ -92,11 +93,11 @@ public final class DebugCommands {
         return (int) newXp;
     }
 
-    /** Adjusts true hunger by {@code amount} (positive or negative), clamped to [0, current max]. */
+    /** Sets true hunger directly to {@code amount}, clamped to [0, current max]. */
     private static int adjustHunger(CommandSourceStack source, ServerPlayer target, int amount) {
         PlayerHunger hunger = target.getData(ModAttachments.PLAYER_HUNGER);
         int currentMax = HungerListener.currentMaxHunger(target);
-        hunger.eat(amount, 0.0F, currentMax);
+        hunger.setTrueHunger(amount, currentMax);
         target.syncData(ModAttachments.PLAYER_HUNGER); // Mutating in place doesn't auto-sync -- see Lyfe#addXp's note.
         int newHunger = hunger.getTrueHunger();
         source.sendSuccess(() -> Component.literal(

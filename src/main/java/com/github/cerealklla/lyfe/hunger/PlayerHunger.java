@@ -56,6 +56,12 @@ public final class PlayerHunger {
         trueSaturation = Mth.clamp(saturationGained + trueSaturation, 0.0F, (float) trueHunger);
     }
 
+    /** Sets true hunger directly to {@code amount}, clamped to {@code [0, currentMax]} -- for debug tooling, not gameplay. */
+    public void setTrueHunger(int amount, int currentMax) {
+        trueHunger = Mth.clamp(amount, 0, currentMax);
+        trueSaturation = Mth.clamp(trueSaturation, 0.0F, (float) trueHunger);
+    }
+
     /** Spends saturation directly (the fast-regen tier "fuel"). Never below 0. */
     public void spendSaturation(float amount) {
         trueSaturation = Math.max(0.0F, trueSaturation - amount);

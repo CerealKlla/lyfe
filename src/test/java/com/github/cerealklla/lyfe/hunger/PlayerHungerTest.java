@@ -49,6 +49,22 @@ class PlayerHungerTest {
     }
 
     @Test
+    void setTrueHungerSetsAbsoluteValueNotDelta() {
+        PlayerHunger hunger = new PlayerHunger(); // starts at 20/20
+        hunger.setTrueHunger(2, 20);
+        assertEquals(2, hunger.getTrueHunger());
+    }
+
+    @Test
+    void setTrueHungerClampsToRange() {
+        PlayerHunger hunger = new PlayerHunger();
+        hunger.setTrueHunger(-5, 20);
+        assertEquals(0, hunger.getTrueHunger());
+        hunger.setTrueHunger(999, 20);
+        assertEquals(20, hunger.getTrueHunger());
+    }
+
+    @Test
     void survivesEncodeDecodeRoundTrip() {
         PlayerHunger original = new PlayerHunger();
         original.applyRealHungerDrop(7);
