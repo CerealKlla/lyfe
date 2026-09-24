@@ -1,16 +1,21 @@
 package com.github.cerealklla.lyfe.location;
 
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
 import com.github.cerealklla.cartographyr.api.Cartography;
+import com.github.cerealklla.cartographyr.geo.Classification;
 import com.github.cerealklla.cartographyr.geo.EntityId;
 import com.github.cerealklla.cartographyr.geo.GeographicEntity;
+import com.github.cerealklla.cartographyr.geo.Layer;
 
 import com.github.cerealklla.lyfe.LyfeMod;
 
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -19,16 +24,20 @@ import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
 
 /**
- * Detects the player's current geographic entity (via Cartographyr's public, read-only API) and
- * sends it to their client as a {@link LocationPayload} for {@link LocationOverlay}. Only ever
- * registered when Cartographyr is actually loaded -- see {@code LyfeMod}'s soft-dependency gate.
+ * Detects the player's current geographic entities (via Cartographyr's public, read-only API),
+ * one per {@code layerId}, and sends them to their client as a placement-sorted {@link
+ * LocationPayload} for {@link LocationOverlay}. Only ever registered when Cartographyr is
+ * actually loaded -- see {@code LyfeMod}'s soft-dependency gate.
  *
  * <p>Moved here from Cartographyr 2026-09-24 at the user's request (see decisions.md): a player's
  * on-screen location readout is player *knowledge*, not world truth, so it belongs to Lyfe even
- * though the underlying place data still comes from Cartographyr. This first cut still just
- * mirrors whatever Cartographyr reports live, though -- it isn't yet gated by, or recorded into, a
- * real persisted player-knowledge store (design doc Section 9.3), which is the natural next step
- * here (see the "noted for later" decisions.md entry on the Explorer skill/minimap idea).
+ * though the underlying place data still comes from Cartographyr. This still just mirrors
+ * whatever Cartographyr reports live -- it isn't yet gated by, or recorded into, a real persisted
+ * player-knowledge store (design doc Section 9.3), which is the natural next step here (see the
+ * "noted for later" decisions.md entry on the Explorer skill/minimap idea).
+ *
+ * <p>Reworked 2026-09-24 (same date, second pass) to render one line per {@code Layer} instead of
+ * a single arbitrary entity -- see decisions.md for the Layer registry this consumes.
  */
 public final class LocationTracker {
 
@@ -37,19 +46,20 @@ public final class LocationTracker {
     private static final int CHECK_INTERVAL_TICKS = 4;
 
     // Session-only (in-memory, never persisted) -- see the class doc: this is a live mirror of
-    // Cartographyr's truth, not yet real persisted player knowledge.
-    private final Map<UUID, EntityId> lastNotifiedRegion = new HashMap<>();
+    // Cartographyr's truth, not yet real persisted player knowledge. Keyed by layerId -> the
+    // chosen entity's id, so a change in any one layer (not just the whole snapshot) is detected.
+    private final Map<UUID, Map<Identifier, EntityId>> lastNotifiedRegion = new HashMap<>();
 
-    // Debounce: a candidate must be seen on two consecutive checks before it's announced, so
-    // briefly clipping a jagged biome border doesn't repeatedly re-fire the update. Ported as-is
+    // Debounce: a candidate snapshot must be seen on two consecutive checks before it's announced,
+    // so briefly clipping a jagged biome border doesn't repeatedly re-fire the update. Ported as-is
     // from Cartographyr's original implementation -- see that mod's decisions.md for why this
     // exists.
-    private final Map<UUID, EntityId> pendingRegion = new HashMap<>();
+    private final Map<UUID, Map<Identifier, EntityId>> pendingRegion = new HashMap<>();
 
     /**
      * Proactively syncs the current location on (re)join. Without this, a player reconnecting
      * without having moved would see a blank overlay indefinitely: the tick handler only sends an
-     * update when the detected region *changes*, but the client's overlay state is fresh/blank on
+     * update when the detected snapshot *changes*, but the client's overlay state is fresh/blank on
      * every new connection regardless of whether the server-side state for them is unchanged.
      */
     @SubscribeEvent
@@ -58,21 +68,16 @@ public final class LocationTracker {
             return;
         }
         ServerLevel level = (ServerLevel) player.level();
-        int x = player.getBlockX();
-        int z = player.getBlockZ();
 
-        Set<GeographicEntity> here = Cartography.getEntitiesAt(level, x, z);
-        GeographicEntity entity = here.isEmpty()
-                ? Cartography.discoverNaturalRegion(level, player.blockPosition()).orElse(null)
-                : here.iterator().next();
-        if (entity == null) {
+        Map<Identifier, GeographicEntity> byLayer = detectCandidates(level, player);
+        if (byLayer.isEmpty()) {
             return;
         }
 
         UUID playerId = player.getUUID();
         pendingRegion.remove(playerId);
-        lastNotifiedRegion.put(playerId, entity.id());
-        sendLocation(player, entity);
+        lastNotifiedRegion.put(playerId, toSnapshot(byLayer));
+        sendLocation(player, byLayer);
     }
 
     @SubscribeEvent
@@ -88,44 +93,104 @@ public final class LocationTracker {
         }
 
         ServerLevel level = (ServerLevel) player.level();
-        int x = player.getBlockX();
-        int z = player.getBlockZ();
-
-        Set<GeographicEntity> here = Cartography.getEntitiesAt(level, x, z);
-        if (!here.isEmpty()) {
-            notifyIfChanged(player, here.iterator().next());
+        Map<Identifier, GeographicEntity> byLayer = detectCandidates(level, player);
+        if (byLayer.isEmpty()) {
             return;
         }
 
-        Cartography.discoverNaturalRegion(level, player.blockPosition())
-                .ifPresent(entity -> notifyIfChanged(player, entity));
+        notifyIfChanged(player, byLayer);
     }
 
-    private void notifyIfChanged(ServerPlayer player, GeographicEntity entity) {
+    /**
+     * Queries what's at the player's position, grouped by {@code layerId}. Within a single layer,
+     * more than one entity can legitimately be present at once (e.g. a settlement inside its
+     * surrounding natural region both use the built-in {@code Layer.LOCATION_ID}) -- prefers the
+     * {@link Classification#CONSTRUCTED} one over {@link Classification#NATURAL} in that case
+     * (being in a town is more specific/informative than the region around it), otherwise keeps
+     * whichever was seen first. A small, explicit judgment call, not an exhaustive priority system.
+     */
+    private Map<Identifier, GeographicEntity> detectCandidates(ServerLevel level, ServerPlayer player) {
+        Set<GeographicEntity> here = Cartography.getEntitiesAt(level, player.getBlockX(), player.getBlockZ());
+        if (here.isEmpty()) {
+            here = Cartography.discoverNaturalRegion(level, player.blockPosition())
+                    .map(Set::of)
+                    .orElse(Set.of());
+        }
+
+        Map<Identifier, GeographicEntity> byLayer = new HashMap<>();
+        for (GeographicEntity entity : here) {
+            byLayer.merge(entity.layerId(), entity, LocationTracker::preferWithinLayer);
+        }
+        return byLayer;
+    }
+
+    private static GeographicEntity preferWithinLayer(GeographicEntity a, GeographicEntity b) {
+        if (a.classification().equals(Classification.CONSTRUCTED)) {
+            return a;
+        }
+        if (b.classification().equals(Classification.CONSTRUCTED)) {
+            return b;
+        }
+        return a;
+    }
+
+    private static Map<Identifier, EntityId> toSnapshot(Map<Identifier, GeographicEntity> byLayer) {
+        Map<Identifier, EntityId> snapshot = new HashMap<>();
+        byLayer.forEach((layerId, entity) -> snapshot.put(layerId, entity.id()));
+        return snapshot;
+    }
+
+    private void notifyIfChanged(ServerPlayer player, Map<Identifier, GeographicEntity> byLayer) {
         UUID playerId = player.getUUID();
-        EntityId lastNotified = lastNotifiedRegion.get(playerId);
-        if (entity.id().equals(lastNotified)) {
+        Map<Identifier, EntityId> snapshot = toSnapshot(byLayer);
+
+        Map<Identifier, EntityId> lastNotified = lastNotifiedRegion.get(playerId);
+        if (snapshot.equals(lastNotified)) {
             pendingRegion.remove(playerId);
             return;
         }
 
-        EntityId pending = pendingRegion.get(playerId);
-        if (!entity.id().equals(pending)) {
-            // First sighting of this candidate -- wait for a second consecutive match before
+        Map<Identifier, EntityId> pending = pendingRegion.get(playerId);
+        if (!snapshot.equals(pending)) {
+            // First sighting of this snapshot -- wait for a second consecutive match before
             // announcing it, rather than firing immediately.
-            pendingRegion.put(playerId, entity.id());
+            pendingRegion.put(playerId, snapshot);
             return;
         }
 
-        // Confirmed: this candidate was also seen on the previous check.
+        // Confirmed: this snapshot was also seen on the previous check.
         pendingRegion.remove(playerId);
-        lastNotifiedRegion.put(playerId, entity.id());
-        sendLocation(player, entity);
+        lastNotifiedRegion.put(playerId, snapshot);
+        sendLocation(player, byLayer);
     }
 
-    private void sendLocation(ServerPlayer player, GeographicEntity entity) {
-        String name = entity.name().orElse("an unnamed place");
-        LyfeMod.LOGGER.info("Player {} entered {} ('{}')", player.getName().getString(), entity.id(), name);
-        PacketDistributor.sendToPlayer(player, new LocationPayload(name));
+    private void sendLocation(ServerPlayer player, Map<Identifier, GeographicEntity> byLayer) {
+        List<LocationPayload.LocationLine> lines = byLayer.entrySet().stream()
+                .sorted(Comparator.comparingInt((Map.Entry<Identifier, GeographicEntity> e) -> placementFor(e.getKey())).reversed())
+                .map(e -> new LocationPayload.LocationLine(labelFor(e.getKey()), e.getValue().name().orElse("an unnamed place")))
+                .toList();
+
+        LyfeMod.LOGGER.info("Player {} location updated: {}", player.getName().getString(), lines);
+        PacketDistributor.sendToPlayer(player, new LocationPayload(lines));
+    }
+
+    private static int placementFor(Identifier layerId) {
+        return Cartography.getLayer(layerId).map(Layer::placement).orElse(0);
+    }
+
+    /** Falls back to a title-cased version of the layer id's path if the layer isn't registered
+     * this session (e.g. the mod that owns it isn't loaded) -- so a dangling reference still shows
+     * something reasonable instead of silently dropping the line. */
+    private static String labelFor(Identifier layerId) {
+        return Cartography.getLayer(layerId)
+                .map(Layer::label)
+                .orElseGet(() -> capitalize(layerId.getPath()));
+    }
+
+    private static String capitalize(String path) {
+        if (path.isEmpty()) {
+            return path;
+        }
+        return Character.toUpperCase(path.charAt(0)) + path.substring(1);
     }
 }

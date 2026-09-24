@@ -1,26 +1,24 @@
 package com.github.cerealklla.lyfe.location;
 
-import org.jspecify.annotations.Nullable;
+import java.util.List;
 
 /**
- * Client-side holder for the current player's location name, updated whenever a
+ * Client-side holder for the current player's location lines, updated whenever a
  * {@link LocationPayload} arrives. No client-only imports, so it's harmless if classloaded on a
  * dedicated server -- it just never gets written to there.
  */
 public final class ClientLocationState {
 
-    @Nullable
-    private static volatile String currentName;
+    private static volatile List<LocationPayload.LocationLine> currentLines = List.of();
 
     private ClientLocationState() {
     }
 
-    public static void set(String name) {
-        currentName = name;
+    public static void set(List<LocationPayload.LocationLine> lines) {
+        currentLines = lines;
     }
 
-    @Nullable
-    public static String get() {
-        return currentName;
+    public static List<LocationPayload.LocationLine> get() {
+        return currentLines;
     }
 }
