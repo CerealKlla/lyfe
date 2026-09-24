@@ -22,8 +22,21 @@ git clone https://github.com/CerealKlla/lyfe-context.git context
 
 ## Status
 
-Project scaffolded (NeoForge 26.1.2.109 / JDK 25, mirroring Cartographyr's toolchain exactly). No real game mechanics implemented yet — the only runtime behavior so far is a debug-only login listener (`LyfeMod`) that grants oak signs, oak fences, and maps for manually testing the future sign/map mechanic. `neoforge.mods.toml` already declares Cartographyr as an optional soft dependency per Section 8.
+Project scaffolded (NeoForge 26.1.2.109 / JDK 25, mirroring Cartographyr's toolchain exactly). `neoforge.mods.toml` declares Cartographyr as an optional soft dependency per Section 8 (no `versionRange` field — an empty string there is an invalid range that makes FML reject an installed Cartographyr outright, not "accept any version"; confirmed via a failed boot test, 2026-09-24).
 
-Confirmed first implementation milestone: **Lumberjack and Miner** (Appendix B) — no external dependency, first real exercise of the core XP/leveling system (Phase 1, not yet started). Cartographyr skill + Historian come next, blocked on Cartographyr gaining settlement-detection functionality first (design-document.md Section 14, Phase 3.5 — that's Cartographyr repo work, not Lyfe).
+**Phase 1 (Core Skill Data Model) implemented, 2026-09-24** — see [context/decisions.md](context/decisions.md):
+- `.skill` package: `SkillId`, `SkillCategory`, `EffectType`, `SkillEffect`, `XpCurve`, `SkillDefinition`, `SkillRegistry` (in-memory, soft-dependency-aware `available()` filtering for Section 8).
+- `.data.PlayerSkills` — per-player XP, persisted via NeoForge's Data Attachment API, schema-versioned `MapCodec`.
+- `.registration.ModAttachments` — the `DeferredRegister<AttachmentType<?>>`.
+- `.api.Lyfe` — the stable public facade (`getXp`/`addXp`/`getLevel`/`getAvailableSkills`), mirrors Cartographyr's `Cartography` facade pattern.
+- Lumberjack and Miner registered as `SkillDefinition`s (id/category/curve) with an intentionally empty effects list — the Section 6 tool-tier gates are Phase 2 work (need real vanilla `Tiers` mapping + block-break event hooks), not invented ahead of that.
+- 12 unit tests (XP curve math, effect stacking, registry filtering, attachment codec round-trip). Boot-smoke-tested via `runServer` with both Cartographyr and Lyfe loaded.
+**Phase 2 (Lumberjack & Miner) implemented 2026-09-24, minus tool-tier gating** — see [context/decisions.md](context/decisions.md):
+- New `.gathering` package: `GatheringSkill` (block -> Lumberjack/Miner via `BlockTags.LOGS`/NeoForge's `Tags.Blocks.ORES`), `WholeStructureClear` (pure flood-fill, needs a live level so not unit-tested — same limitation as Cartographyr's `NaturalRegionDiscovery`), `GatheringListener` (the event wiring: `BlockDropsEvent` for XP/bonus-yield/whole-structure-clear, `PlayerEvent.BreakSpeed` for speed scaling).
+- `PLAYER_SKILLS` attachment now also syncs to the client (`ModAttachments`) — needed because `Player#getDestroySpeed` runs both sides.
+- **Tool-tier gating (Section 7) is deliberately NOT implemented** — deferred until the crafting overhaul (Section 10) has a concrete tool-tier design to gate against; `EffectType.TOOL_TIER_GATE` carries a doc comment explaining this so it doesn't read as an oversight.
+- Boot-smoke-tested via `runServer` with both mods loaded, clean.
 
-Next: implement Phase 1 (core skill/XP/leveling data model), then Lumberjack and Miner.
+Next: manual in-game playtest of the gathering behavior (chop/mine XP, speed feel, bonus yield, whole-structure clear on a tree/ore vein) — not yet done. After that: Cartographyr skill + Historian, blocked on Cartographyr gaining settlement-detection functionality first (design-document.md Section 14, Phase 3.5 — Cartographyr repo work, not Lyfe). Also worth eventually revisiting: the placeholder XP/speed/yield/whole-structure-chance magnitudes are all untuned guesses, flagged as such in code.
+
+**Multi-mod dev testing**: `C:\Users\benja\MinecraftMods\sync-mods.sh` (outside both repos, not committed to either) builds every mod in the suite and cross-copies jars into each other's `run/mods/`, so any one project's `runClient`/`runServer` loads the whole suite together. Re-run it after code changes in either mod before a combined playtest.

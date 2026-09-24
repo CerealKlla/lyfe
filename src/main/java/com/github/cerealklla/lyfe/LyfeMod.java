@@ -4,6 +4,7 @@ import org.slf4j.Logger;
 
 import com.mojang.logging.LogUtils;
 
+import com.github.cerealklla.lyfe.gathering.GatheringListener;
 import com.github.cerealklla.lyfe.registration.ModAttachments;
 import com.github.cerealklla.lyfe.skill.Skills;
 
@@ -31,6 +32,7 @@ public class LyfeMod {
         modEventBus.addListener(this::commonSetup);
 
         NeoForge.EVENT_BUS.register(this);
+        NeoForge.EVENT_BUS.register(new GatheringListener());
     }
 
     private void commonSetup(FMLCommonSetupEvent event) {
