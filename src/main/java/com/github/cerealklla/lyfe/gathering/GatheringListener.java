@@ -4,10 +4,13 @@ import java.util.List;
 import java.util.Set;
 
 import com.github.cerealklla.lyfe.api.Lyfe;
+import com.github.cerealklla.lyfe.skill.SkillDefinition;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.GlobalPos;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
@@ -131,12 +134,30 @@ public final class GatheringListener {
 
         Lyfe.addXp(player, skill.skillId(), XP_PER_BLOCK);
         int level = Lyfe.getLevel(player, skill.skillId());
+        debugAnnounceXpGain(player, skill, level);
 
         rollBonusYield(event, level);
 
         if (!withinWholeStructureClear) {
             rollWholeStructureClear(event, player, level);
         }
+    }
+
+    /**
+     * DEBUG ONLY -- a chat message stand-in for the real XP feedback (design doc Section 11's
+     * planned custom particle/sound effect, not yet implemented, and Section 12's skill tree UI,
+     * also not yet implemented). Without either, XP gain is otherwise completely invisible to the
+     * player. Remove once Section 11 lands.
+     */
+    private void debugAnnounceXpGain(Player player, GatheringSkill skill, int level) {
+        if (!(player instanceof ServerPlayer serverPlayer)) {
+            return;
+        }
+        String displayName = Lyfe.getSkillDefinition(skill.skillId())
+                .map(SkillDefinition::displayName)
+                .orElse(skill.skillId().value());
+        serverPlayer.sendSystemMessage(Component.literal(
+                "+" + XP_PER_BLOCK + " " + displayName + " XP (Level " + level + ")"));
     }
 
     private void rollBonusYield(BlockDropsEvent event, int level) {
