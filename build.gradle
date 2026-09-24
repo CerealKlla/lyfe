@@ -136,6 +136,16 @@ dependencies {
     // Example project dependency using a sister or child project:
     // implementation project(":myproject")
 
+    // Cartographyr is an optional soft dependency at the mod-loading level (see
+    // neoforge.mods.toml), but code that calls its real API -- location.LocationTracker -- still
+    // needs to compile against it. compileOnly keeps it off the runtime classpath/out of the
+    // shipped jar entirely; actual optional-ness at runtime is enforced by gating every use behind
+    // ModList.get().isLoaded("cartographyr") (see LyfeMod), same pattern as the JEI example above.
+    // Sibling repo, not published anywhere, so this points at its locally-built jar directly --
+    // run ../Cartographyr's own build (or the suite's sync-mods.sh) at least once before building
+    // this project, or this dependency won't resolve.
+    compileOnly files("../Cartographyr/build/libs/cartographyr-${cartographyr_version}.jar")
+
     // For more info:
     // http://www.gradle.org/docs/current/userguide/artifact_dependencies_tutorial.html
     // http://www.gradle.org/docs/current/userguide/dependency_management.html
