@@ -151,7 +151,12 @@ public final class HungerListener {
 
         int actualGain = hunger.getTrueHunger() - before;
         if (actualGain <= 0) {
-            return; // Already full -- no XP, matching the anti-farming approach used elsewhere.
+            // Already full -- no XP, matching the anti-farming approach used elsewhere. DEBUG ONLY:
+            // said out loud specifically because a silent no-op here is indistinguishable from the
+            // whole mechanism being broken -- confirmed via a real "I ate food, saw nothing" report.
+            player.sendSystemMessage(Component.literal(
+                    "(already at " + before + "/" + currentMax + " true hunger -- no XP)"));
+            return;
         }
 
         Lyfe.addXp(player, Skills.SURVIVALIST_ID, actualGain * SURVIVALIST_XP_PER_POINT);
