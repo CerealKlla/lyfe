@@ -66,10 +66,15 @@ public final class HungerListener {
         if (!initialized.contains(playerId)) {
             realFood.setFoodLevel(HungerConstants.REAL_FOOD_PIN);
             initialized.add(playerId);
+            player.syncData(ModAttachments.PLAYER_HUNGER); // First sync so the client sees the true starting value at all.
         } else {
             int drop = HungerConstants.REAL_FOOD_PIN - realFood.getFoodLevel();
             if (drop > 0) {
                 hunger.applyRealHungerDrop(drop);
+                // Mutating the attachment in place does not auto-sync (confirmed against the
+                // decompiled AttachmentHolder source, 2026-09-24) -- without this the client's
+                // overlay silently shows a stale value forever after the first tick.
+                player.syncData(ModAttachments.PLAYER_HUNGER);
             }
             realFood.setFoodLevel(HungerConstants.REAL_FOOD_PIN);
         }
@@ -171,6 +176,7 @@ public final class HungerListener {
         // Mirrors vanilla's FoodConstants#saturationByModifier exactly: saturation gained = nutrition * modifier * 2.
         float saturationGained = (food.nutrition() + bonusNutrition) * food.saturation() * 2.0F;
         hunger.eat(food.nutrition() + bonusNutrition, saturationGained, currentMax);
+        player.syncData(ModAttachments.PLAYER_HUNGER);
 
         int actualGain = hunger.getTrueHunger() - before;
         if (actualGain <= 0) {
@@ -191,18 +197,24 @@ public final class HungerListener {
     }
 
     /**
-     * Free cooking, from killing an animal while it's on fire so it drops already-cooked meat
-     * (vanilla's own burnt-drop mechanic) -- grants Cook XP at the moment of the kill, separate
-     * from and in addition to the XP granted later if that meat is actually eaten (design doc
-     * Section 10.2, per the user's explicit request: unintentional cooking should count too, not
-     * just smelting/campfire cooking). Attribution is simple, not exhaustive: only credits a direct
-     * player kill (`DamageSource#getEntity() instanceof ServerPlayer`) -- a mob that dies later from
-     * residual fire damage with no attacking entity on the final blow won't be credited to anyone.
-     * That's an accepted, documented gap, not a bug to chase down for a first version.
+     * Free cooking, from an animal dying with already-cooked meat in its drops (vanilla's own
+     * burnt-drop mechanic: a mob that dies while on fire drops the cooked version) -- grants Cook
+     * XP at the moment of death, separate from and in addition to the XP granted later if that meat
+     * is actually eaten (design doc Section 10.2).
+     *
+     * <p>Attribution uses {@link net.minecraft.world.entity.LivingEntity#getLastHurtByPlayer()},
+     * not the killing blow's damage source -- this is vanilla's own general "who gets credit for
+     * this death" tracking (used for loot/advancement attribution), and it stays set for 100 ticks
+     * (5s) after a player's hit regardless of what actually lands the final blow. That's the
+     * difference that matters here: igniting an animal with a Fire Aspect weapon, then letting it
+     * wander off and die from the burning itself (no player entity on the final damage source),
+     * still credits the igniting player as long as death happens within that window. A kill that
+     * happens outside the window, or where the player never actually hit the animal (e.g. lit it
+     * with flint and steel without landing a hit), won't be credited -- an accepted, documented gap.
      */
     @SubscribeEvent
     public void onLivingDrops(LivingDropsEvent event) {
-        if (!(event.getSource().getEntity() instanceof ServerPlayer player)) {
+        if (!(event.getEntity().getLastHurtByPlayer() instanceof ServerPlayer player)) {
             return;
         }
 

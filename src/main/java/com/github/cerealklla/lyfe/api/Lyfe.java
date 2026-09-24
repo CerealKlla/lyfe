@@ -28,7 +28,14 @@ public final class Lyfe {
 
     /** Adds XP for a skill and returns the new total. Amounts that would take XP below 0 are clamped. */
     public static long addXp(Player player, SkillId skillId, long amount) {
-        return player.getData(ModAttachments.PLAYER_SKILLS).addXp(skillId, amount);
+        long newXp = player.getData(ModAttachments.PLAYER_SKILLS).addXp(skillId, amount);
+        // Mutating the attachment object in place does NOT trigger a client resync on its own --
+        // NeoForge's IAttachmentHolder only syncs from setData()/removeData(), never from an
+        // external caller mutating an already-fetched instance (confirmed against the decompiled
+        // AttachmentHolder source, 2026-09-24). Without this, effects that depend on a synced level
+        // client-side (e.g. GatheringListener's SpeedMultiplier) would silently use stale data.
+        player.syncData(ModAttachments.PLAYER_SKILLS);
+        return newXp;
     }
 
     /** The player's current level in a skill, per that skill's own XP curve (design doc Section 3). Unregistered skills report level 0. */

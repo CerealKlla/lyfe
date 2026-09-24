@@ -25,9 +25,12 @@ import net.minecraft.server.level.ServerPlayer;
  * strictly before any real release.
  *
  * <p>{@code /lyfe xp <skill> <amount> [target]} and {@code /lyfe hunger <amount> [target]} --
- * requires gamemaster permission (same level vanilla's own {@code /xp} command requires; verified
- * against the decompiled 26.1.2.109 source, where the old integer permission levels were replaced
- * by named {@code Commands.LEVEL_*} checks).
+ * deliberately requires no permission ({@code Commands.LEVEL_ALL}), not gamemaster, despite these
+ * being privileged-feeling commands. Originally gated at gamemaster, but the dev test user was
+ * never actually opped in `run/ops.json` (empty by default, gitignored, easy to lose on a fresh
+ * checkout -- see decisions.md, 2026-09-24) and this is explicitly debug-only tooling anyway
+ * ("remove or gate more strictly before any real release," same as the rest of this class) -- not
+ * worth fighting local dev-environment permission setup for a tool nobody but the developer runs.
  */
 public final class DebugCommands {
 
@@ -71,7 +74,7 @@ public final class DebugCommands {
                 .then(hungerWithTarget);
 
         dispatcher.register(Commands.literal("lyfe")
-                .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
+                .requires(Commands.hasPermission(Commands.LEVEL_ALL))
                 .then(Commands.literal("xp").then(skillArgument))
                 .then(Commands.literal("hunger").then(hungerAmountArgument)));
     }
@@ -94,6 +97,7 @@ public final class DebugCommands {
         PlayerHunger hunger = target.getData(ModAttachments.PLAYER_HUNGER);
         int currentMax = HungerListener.currentMaxHunger(target);
         hunger.eat(amount, 0.0F, currentMax);
+        target.syncData(ModAttachments.PLAYER_HUNGER); // Mutating in place doesn't auto-sync -- see Lyfe#addXp's note.
         int newHunger = hunger.getTrueHunger();
         source.sendSuccess(() -> Component.literal(
                 target.getName().getString() + "'s true hunger is now " + newHunger + "/" + currentMax), true);
