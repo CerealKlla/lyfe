@@ -4,6 +4,7 @@ import org.slf4j.Logger;
 
 import com.mojang.logging.LogUtils;
 
+import com.github.cerealklla.lyfe.debug.DebugCommands;
 import com.github.cerealklla.lyfe.gathering.GatheringListener;
 import com.github.cerealklla.lyfe.registration.ModAttachments;
 import com.github.cerealklla.lyfe.skill.Skills;
@@ -17,6 +18,7 @@ import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.RegisterCommandsEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 
 // The value here must match the modId entry in META-INF/neoforge.mods.toml (sourced from mod_id in gradle.properties)
@@ -33,6 +35,7 @@ public class LyfeMod {
 
         NeoForge.EVENT_BUS.register(this);
         NeoForge.EVENT_BUS.register(new GatheringListener());
+        NeoForge.EVENT_BUS.addListener((RegisterCommandsEvent event) -> DebugCommands.register(event.getDispatcher()));
     }
 
     private void commonSetup(FMLCommonSetupEvent event) {
