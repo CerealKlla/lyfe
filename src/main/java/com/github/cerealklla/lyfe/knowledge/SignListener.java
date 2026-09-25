@@ -224,25 +224,23 @@ public final class SignListener {
     }
 
     /**
+     * The arrow glyph a reader should see for a given {@code targetIsRight}. Briefly "corrected"
+     * to a mirrored mapping on 2026-09-24 based on a playtest report that turned out to be a false
+     * alarm -- the reporter had gotten turned around at night and the original, unmirrored mapping
+     * (kept here) was actually correct all along. See decisions.md, 2026-09-24 (the "retraction"
+     * entry), for the full story. Package-visible for {@code SignListenerTest}.
+     */
+    static String arrowFor(boolean targetIsRight) {
+        return targetIsRight ? ARROW_RIGHT : ARROW_LEFT;
+    }
+
+    /**
      * Whether {@code (towardX, towardZ)} is to the right of facing direction {@code (forwardX,
      * forwardZ)} (both MC-convention direction vectors: north=-Z, south=+Z, east=+X, west=-X).
      * Verified against a concrete example: facing north {@code (0,-1)} with something due east
      * {@code (1,0)} of the observer must read as "right" (east is right of north) -- confirmed
      * {@code cross = 0*0 - (-1)*1 = 1 > 0}. Package-visible for {@code SignListenerTest}.
      */
-    /**
-     * The arrow glyph a reader should see, given {@code targetIsRight} was computed against the
-     * *placer's* original outward-facing direction. Mirrored relative to that value, not equal to
-     * it: the rotation fix ({@link #frontFacingBearingDegrees}, negating the front-normal vector)
-     * makes the sign readable from the correct/expected side, but that same 180° flip means a
-     * reader actually facing the sign experiences left/right reversed from the placer's own
-     * original perspective -- confirmed by playtest, see decisions.md, 2026-09-24 (second
-     * rotation-bug entry). Package-visible for {@code SignListenerTest}.
-     */
-    static String arrowFor(boolean targetIsRight) {
-        return targetIsRight ? ARROW_LEFT : ARROW_RIGHT;
-    }
-
     static boolean isRightOf(double forwardX, double forwardZ, double towardX, double towardZ) {
         double cross = forwardX * towardZ - forwardZ * towardX;
         return cross >= 0;

@@ -68,15 +68,14 @@ class SignListenerTest {
     }
 
     /**
-     * Confirmed by playtest (2026-09-24, second rotation-bug entry in decisions.md): once the
-     * rotation fix above made signs readable from the correct side, the arrow glyph came out
-     * backwards in both cases -- {@code arrowFor} must be mirrored relative to {@code
-     * targetIsRight}, not equal to it.
+     * A same-day playtest report claiming this needed mirroring turned out to be a false alarm
+     * (the reporter had gotten turned around at night) -- see decisions.md, 2026-09-24 (the
+     * "retraction" entry). Locks in the original, correct mapping.
      */
     @Test
-    void arrowForIsMirroredRelativeToTargetIsRight() {
-        assertEquals("<---", SignListener.arrowFor(true));
-        assertEquals("--->", SignListener.arrowFor(false));
+    void arrowForMatchesTargetIsRightDirectly() {
+        assertEquals("--->", SignListener.arrowFor(true));
+        assertEquals("<---", SignListener.arrowFor(false));
     }
 
     @Test
