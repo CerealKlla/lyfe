@@ -13,6 +13,7 @@ import com.github.cerealklla.cartographyr.geo.Geometry;
 
 import com.github.cerealklla.lyfe.LyfeMod;
 import com.github.cerealklla.lyfe.api.Lyfe;
+import com.github.cerealklla.lyfe.geo.DisplayText;
 import com.github.cerealklla.lyfe.registration.ModAttachments;
 import com.github.cerealklla.lyfe.registration.ModItems;
 import com.github.cerealklla.lyfe.skill.Skills;
@@ -191,7 +192,7 @@ public final class SignListener {
                 continue;
             }
             LocationPrecision embeddable = known.get().isAtLeastAsPreciseAs(cap) ? cap : known.get();
-            String name = geo.get().name().orElse("an unnamed place");
+            String name = DisplayText.forEntity(geo.get());
             knownPlaces.add(new OpenWritingScreenPayload.KnownPlace(entry.getKey(), name, embeddable));
         }
 
@@ -212,7 +213,7 @@ public final class SignListener {
         LocationPrecision embeddable = entry.get().locationPrecision().get().isAtLeastAsPreciseAs(levelCap(skillLevel))
                 ? levelCap(skillLevel)
                 : entry.get().locationPrecision().get();
-        KnowledgeReference reference = new KnowledgeReference(placeId, embeddable, geo.get().name().orElse("an unnamed place"));
+        KnowledgeReference reference = new KnowledgeReference(placeId, embeddable, DisplayText.forEntity(geo.get()));
 
         WritingTarget target = payload.target();
 

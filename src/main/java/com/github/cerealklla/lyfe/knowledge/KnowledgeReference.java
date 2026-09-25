@@ -24,8 +24,10 @@ import net.minecraft.network.codec.StreamCodec;
  * @param embeddedPrecision the precision the writer embedded (capped by their own skill level and
  *                          their own knowledge of the place — see {@code SignListener}'s
  *                          writer-quality-cap helper)
- * @param displayText the place's name at write time (a snapshot, not a live lookup — a name can
- *                    change later without updating already-placed signs/maps)
+ * @param displayText the place's fully-composed display text at write time (see {@code
+ *                    geo.DisplayText#forEntity} — includes designation/ruin-prefix, not just the
+ *                    bare name) — a snapshot, not a live lookup, so it doesn't update if the
+ *                    place's name/designation/lifecycle state changes after this was written
  */
 public record KnowledgeReference(long entityId, LocationPrecision embeddedPrecision, String displayText) {
 

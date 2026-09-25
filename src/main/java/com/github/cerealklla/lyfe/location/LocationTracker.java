@@ -14,6 +14,7 @@ import com.github.cerealklla.cartographyr.geo.GeographicEntity;
 import com.github.cerealklla.cartographyr.geo.Layer;
 
 import com.github.cerealklla.lyfe.LyfeMod;
+import com.github.cerealklla.lyfe.geo.DisplayText;
 import com.github.cerealklla.lyfe.knowledge.PlayerKnowledge;
 import com.github.cerealklla.lyfe.registration.ModAttachments;
 
@@ -179,7 +180,7 @@ public final class LocationTracker {
     private void sendLocation(ServerPlayer player, Map<Identifier, GeographicEntity> byLayer) {
         List<LocationPayload.LocationLine> lines = byLayer.entrySet().stream()
                 .sorted(Comparator.comparingInt((Map.Entry<Identifier, GeographicEntity> e) -> placementFor(e.getKey())).reversed())
-                .map(e -> new LocationPayload.LocationLine(labelFor(e.getKey()), e.getValue().name().orElse("an unnamed place")))
+                .map(e -> new LocationPayload.LocationLine(labelFor(e.getKey()), DisplayText.forEntity(e.getValue())))
                 .toList();
 
         LyfeMod.LOGGER.info("Player {} location updated: {}", player.getName().getString(), lines);
