@@ -67,6 +67,18 @@ class SignListenerTest {
         assertEquals(8, RotationSegment.convertToSegment((float) degrees));
     }
 
+    /**
+     * Confirmed by playtest (2026-09-24, second rotation-bug entry in decisions.md): once the
+     * rotation fix above made signs readable from the correct side, the arrow glyph came out
+     * backwards in both cases -- {@code arrowFor} must be mirrored relative to {@code
+     * targetIsRight}, not equal to it.
+     */
+    @Test
+    void arrowForIsMirroredRelativeToTargetIsRight() {
+        assertEquals("<---", SignListener.arrowFor(true));
+        assertEquals("--->", SignListener.arrowFor(false));
+    }
+
     @Test
     void lowLevelCapsAtRelative() {
         assertEquals(LocationPrecision.RELATIVE, SignListener.levelCap(1));

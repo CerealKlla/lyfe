@@ -217,7 +217,7 @@ public final class SignListener {
             if (reference.embeddedPrecision() == LocationPrecision.EXACT) {
                 text = text.setMessage(2, Component.literal(Math.round(distance) + " blocks"));
             }
-            text = text.setMessage(3, Component.literal(targetIsRight ? ARROW_RIGHT : ARROW_LEFT));
+            text = text.setMessage(3, Component.literal(arrowFor(targetIsRight)));
             sign.setText(text, true);
             sign.setData(ModAttachments.SIGN_REFERENCE, reference);
         }
@@ -230,6 +230,19 @@ public final class SignListener {
      * {@code (1,0)} of the observer must read as "right" (east is right of north) -- confirmed
      * {@code cross = 0*0 - (-1)*1 = 1 > 0}. Package-visible for {@code SignListenerTest}.
      */
+    /**
+     * The arrow glyph a reader should see, given {@code targetIsRight} was computed against the
+     * *placer's* original outward-facing direction. Mirrored relative to that value, not equal to
+     * it: the rotation fix ({@link #frontFacingBearingDegrees}, negating the front-normal vector)
+     * makes the sign readable from the correct/expected side, but that same 180° flip means a
+     * reader actually facing the sign experiences left/right reversed from the placer's own
+     * original perspective -- confirmed by playtest, see decisions.md, 2026-09-24 (second
+     * rotation-bug entry). Package-visible for {@code SignListenerTest}.
+     */
+    static String arrowFor(boolean targetIsRight) {
+        return targetIsRight ? ARROW_LEFT : ARROW_RIGHT;
+    }
+
     static boolean isRightOf(double forwardX, double forwardZ, double towardX, double towardZ) {
         double cross = forwardX * towardZ - forwardZ * towardX;
         return cross >= 0;
