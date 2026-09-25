@@ -10,11 +10,17 @@ import com.github.cerealklla.lyfe.hunger.HungerListener;
 import com.github.cerealklla.lyfe.location.ClientLocationState;
 import com.github.cerealklla.lyfe.location.LocationPayload;
 import com.github.cerealklla.lyfe.location.LocationTracker;
+import com.github.cerealklla.lyfe.knowledge.ClientWritingRequest;
+import com.github.cerealklla.lyfe.knowledge.OpenWritingScreenPayload;
+import com.github.cerealklla.lyfe.knowledge.SignListener;
+import com.github.cerealklla.lyfe.knowledge.SubmitWritingPayload;
 import com.github.cerealklla.lyfe.registration.ModAttachments;
+import com.github.cerealklla.lyfe.registration.ModItems;
 import com.github.cerealklla.lyfe.skill.Skills;
 
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -39,6 +45,8 @@ public class LyfeMod {
 
     public LyfeMod(IEventBus modEventBus, ModContainer modContainer) {
         ModAttachments.ATTACHMENT_TYPES.register(modEventBus);
+        ModItems.ITEMS.register(modEventBus);
+        ModItems.DATA_COMPONENTS.register(modEventBus);
         Skills.bootstrap();
 
         modEventBus.addListener(this::commonSetup);
@@ -49,12 +57,15 @@ public class LyfeMod {
         NeoForge.EVENT_BUS.register(new HungerListener());
         NeoForge.EVENT_BUS.addListener((RegisterCommandsEvent event) -> DebugCommands.register(event.getDispatcher()));
 
-        // Soft dependency (design doc Section 8): LocationTracker's class compiles against
-        // Cartographyr's real API (a compileOnly dependency, see build.gradle), but is only ever
-        // constructed/registered -- and so only ever actually calls that API -- when Cartographyr
-        // is confirmed loaded at runtime.
+        // Soft dependency (design doc Section 8): LocationTracker and SignListener both compile
+        // against Cartographyr's real API (a compileOnly dependency, see build.gradle), but are
+        // only ever constructed/registered -- and so only ever actually call that API -- when
+        // Cartographyr is confirmed loaded at runtime. The sign/map items themselves (ModItems)
+        // stay registered unconditionally, same as PlayerSkills et al -- only the interaction
+        // logic that reads Cartographyr's data needs the gate.
         if (ModList.get().isLoaded("cartographyr")) {
             NeoForge.EVENT_BUS.register(new LocationTracker());
+            NeoForge.EVENT_BUS.register(new SignListener());
         }
     }
 
@@ -70,15 +81,33 @@ public class LyfeMod {
     private void registerPayloads(RegisterPayloadHandlersEvent event) {
         event.registrar("1").playToClient(LocationPayload.TYPE, LocationPayload.STREAM_CODEC,
                 (payload, context) -> ClientLocationState.set(payload.lines()));
+
+        // Client-side handler writes into the zero-Cartographyr-refs ClientWritingRequest bridge
+        // (see its own class doc) rather than opening the Screen directly here -- this method must
+        // stay harmless to class-load on a dedicated server, and Screen/Minecraft are client-only.
+        event.registrar("1").playToClient(OpenWritingScreenPayload.TYPE, OpenWritingScreenPayload.STREAM_CODEC,
+                (payload, context) -> ClientWritingRequest.request(
+                        new ClientWritingRequest.Request(payload.target(), payload.knownPlaces())));
+
+        // Guarded even though SignListener is only ever registered as a listener when Cartographyr
+        // is loaded -- this handler could otherwise still be invoked by a stray/malicious packet on
+        // a Cartographyr-less server, and this keeps that path an explicit no-op rather than relying
+        // solely on the listener-registration gate.
+        event.registrar("1").playToServer(SubmitWritingPayload.TYPE, SubmitWritingPayload.STREAM_CODEC,
+                (payload, context) -> {
+                    if (ModList.get().isLoaded("cartographyr") && context.player() instanceof ServerPlayer serverPlayer) {
+                        SignListener.handleSubmit(serverPlayer, payload);
+                    }
+                });
     }
 
     /**
-     * DEBUG ONLY — grants raw materials for testing the sign/map mechanic (design doc Section 9.1)
-     * before that mechanic exists: oak signs, oak fences (to place as mounting posts), and blank
-     * maps. Deliberately naive: fires on every login, not just a brand-new character, since
-     * re-supplying test items each session is a minor inconvenience at worst and precisely
-     * detecting "first-ever spawn" adds complexity not worth it for throwaway debug tooling. Must
-     * be removed or gated behind a real debug flag before any actual release.
+     * DEBUG ONLY — grants testing items for the sign/map mechanic (design doc Section 9.1): the
+     * real Cartographyr sign/map items (not vanilla stand-ins, now that the mechanic itself exists)
+     * plus oak fences to place them on. Deliberately naive: fires on every login, not just a
+     * brand-new character, since re-supplying test items each session is a minor inconvenience at
+     * worst and precisely detecting "first-ever spawn" adds complexity not worth it for throwaway
+     * debug tooling. Must be removed or gated behind a real debug flag before any actual release.
      */
     @SubscribeEvent
     public void onPlayerLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {
@@ -86,9 +115,9 @@ public class LyfeMod {
         if (player.level().isClientSide()) {
             return;
         }
-        player.addItem(new ItemStack(Items.OAK_SIGN, 16));
+        player.addItem(new ItemStack(ModItems.CARTOGRAPHYR_SIGN.get(), 16));
+        player.addItem(new ItemStack(ModItems.CARTOGRAPHYR_MAP.get(), 8));
         player.addItem(new ItemStack(Items.OAK_FENCE, 16));
-        player.addItem(new ItemStack(Items.MAP, 8));
 
         // Fire Aspect sword, for testing Survivalist/Cook's burn-kill XP trigger (design doc Section
         // 10.2, .hunger.HungerListener#onLivingDrops) without needing flint and steel every time.

@@ -5,6 +5,8 @@ import java.util.function.Supplier;
 import com.github.cerealklla.lyfe.LyfeMod;
 import com.github.cerealklla.lyfe.data.PlayerSkills;
 import com.github.cerealklla.lyfe.hunger.PlayerHunger;
+import com.github.cerealklla.lyfe.knowledge.KnowledgeReference;
+import com.github.cerealklla.lyfe.knowledge.PlayerKnowledge;
 
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.neoforged.neoforge.attachment.AttachmentType;
@@ -37,6 +39,26 @@ public final class ModAttachments {
             () -> AttachmentType.builder(PlayerHunger::new)
                     .serialize(PlayerHunger.CODEC)
                     .sync(ByteBufCodecs.fromCodecWithRegistries(PlayerHunger.CODEC.codec()))
+                    .build()
+    );
+
+    // Not synced -- nothing client-side ever reads this directly (design doc Section 9.3, see
+    // PlayerKnowledge's own class doc).
+    public static final Supplier<AttachmentType<PlayerKnowledge>> PLAYER_KNOWLEDGE = ATTACHMENT_TYPES.register(
+            "player_knowledge",
+            () -> AttachmentType.builder(PlayerKnowledge::new)
+                    .serialize(PlayerKnowledge.CODEC)
+                    .build()
+    );
+
+    // Attached to a placed sign's SignBlockEntity (block entities are AttachmentHolders too, same
+    // as Entity -- see knowledge.SignListener). No default value is ever actually used: readers
+    // always check getExistingData first, since a random vanilla sign has no attachment at all.
+    // Not synced -- only server-side read logic (SignListener) ever looks at it.
+    public static final Supplier<AttachmentType<KnowledgeReference>> SIGN_REFERENCE = ATTACHMENT_TYPES.register(
+            "sign_reference",
+            () -> AttachmentType.builder(holder -> KnowledgeReference.freeText(""))
+                    .serialize(KnowledgeReference.CODEC.fieldOf("data"))
                     .build()
     );
 }

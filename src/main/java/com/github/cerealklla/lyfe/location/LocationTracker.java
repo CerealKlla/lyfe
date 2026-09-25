@@ -14,6 +14,8 @@ import com.github.cerealklla.cartographyr.geo.GeographicEntity;
 import com.github.cerealklla.cartographyr.geo.Layer;
 
 import com.github.cerealklla.lyfe.LyfeMod;
+import com.github.cerealklla.lyfe.knowledge.PlayerKnowledge;
+import com.github.cerealklla.lyfe.registration.ModAttachments;
 
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
@@ -31,13 +33,14 @@ import net.neoforged.neoforge.network.PacketDistributor;
  *
  * <p>Moved here from Cartographyr 2026-09-24 at the user's request (see decisions.md): a player's
  * on-screen location readout is player *knowledge*, not world truth, so it belongs to Lyfe even
- * though the underlying place data still comes from Cartographyr. This still just mirrors
- * whatever Cartographyr reports live -- it isn't yet gated by, or recorded into, a real persisted
- * player-knowledge store (design doc Section 9.3), which is the natural next step here (see the
- * "noted for later" decisions.md entry on the Explorer skill/minimap idea).
+ * though the underlying place data still comes from Cartographyr.
  *
- * <p>Reworked 2026-09-24 (same date, second pass) to render one line per {@code Layer} instead of
- * a single arbitrary entity -- see decisions.md for the Layer registry this consumes.
+ * <p>Reworked 2026-09-24 (second pass) to render one line per {@code Layer} instead of a single
+ * arbitrary entity -- see decisions.md for the Layer registry this consumes.
+ *
+ * <p>Reworked again 2026-09-24 (third pass) to actually record into {@link PlayerKnowledge}
+ * (design doc Section 9.3) instead of just mirroring Cartographyr's live truth -- see {@link
+ * #detectCandidates} for how presence and knowledge end up being the same check here.
  */
 public final class LocationTracker {
 
@@ -108,6 +111,13 @@ public final class LocationTracker {
      * {@link Classification#CONSTRUCTED} one over {@link Classification#NATURAL} in that case
      * (being in a town is more specific/informative than the region around it), otherwise keeps
      * whichever was seen first. A small, explicit judgment call, not an exhaustive priority system.
+     *
+     * <p>Every candidate found here is immediately {@link PlayerKnowledge#markVisited} -- physical
+     * presence is what makes the overlay knowledge-gated rather than a raw live-truth readout
+     * (design doc Section 9.3, resolving the simplification flagged since this class was first
+     * written): the display only ever shows what {@code detectCandidates} returns, and everything
+     * it returns was just recorded as known, so there's no separate filter step needed here --
+     * the gate and the detection are the same operation by construction.
      */
     private Map<Identifier, GeographicEntity> detectCandidates(ServerLevel level, ServerPlayer player) {
         Set<GeographicEntity> here = Cartography.getEntitiesAt(level, player.getBlockX(), player.getBlockZ());
@@ -117,8 +127,10 @@ public final class LocationTracker {
                     .orElse(Set.of());
         }
 
+        PlayerKnowledge knowledge = player.getData(ModAttachments.PLAYER_KNOWLEDGE);
         Map<Identifier, GeographicEntity> byLayer = new HashMap<>();
         for (GeographicEntity entity : here) {
+            knowledge.markVisited(entity.id().value());
             byLayer.merge(entity.layerId(), entity, LocationTracker::preferWithinLayer);
         }
         return byLayer;
