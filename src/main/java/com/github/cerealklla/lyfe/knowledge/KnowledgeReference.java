@@ -1,5 +1,7 @@
 package com.github.cerealklla.lyfe.knowledge;
 
+import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 import com.mojang.serialization.Codec;
@@ -24,9 +26,10 @@ import net.minecraft.network.codec.StreamCodec;
  * {@code EntityId}.
  *
  * @param entityId the referenced place's raw id
- * @param embeddedPrecision the precision the writer embedded (capped by their own skill level and
- *                          their own knowledge of the place — see {@code SignListener}'s
- *                          writer-quality-cap helper)
+ * @param embeddedFactors the {@link KnowledgeFactor}s the writer embedded (capped by their own
+ *                        skill level and their own actual knowledge of the place — see {@code
+ *                        SignListener}'s writer-quality-cap helper). Replaced the old single-tier
+ *                        {@code embeddedPrecision} field 2026-09-25, see decisions.md.
  * @param displayText the place's fully-composed display text at write time (see {@code
  *                    geo.DisplayText#forEntity} — includes designation/ruin-prefix, not just the
  *                    bare name) — a snapshot, not a live lookup, so it doesn't update if the
@@ -35,11 +38,12 @@ import net.minecraft.network.codec.StreamCodec;
  *                 their knowledge from this sign/map can credit Cartographyr XP back to whoever
  *                 wrote it, even if they're offline at that moment
  */
-public record KnowledgeReference(long entityId, LocationPrecision embeddedPrecision, String displayText, UUID writerId) {
+public record KnowledgeReference(long entityId, Set<KnowledgeFactor> embeddedFactors, String displayText, UUID writerId) {
 
     public static final Codec<KnowledgeReference> CODEC = RecordCodecBuilder.create(i -> i.group(
             Codec.LONG.fieldOf("entity_id").forGetter(KnowledgeReference::entityId),
-            LocationPrecision.CODEC.fieldOf("embedded_precision").forGetter(KnowledgeReference::embeddedPrecision),
+            Codec.list(KnowledgeFactor.CODEC).xmap(Set::copyOf, List::copyOf)
+                    .fieldOf("embedded_factors").forGetter(KnowledgeReference::embeddedFactors),
             Codec.STRING.fieldOf("display_text").forGetter(KnowledgeReference::displayText),
             UUIDUtil.CODEC.fieldOf("writer_id").forGetter(KnowledgeReference::writerId)
     ).apply(i, KnowledgeReference::new));

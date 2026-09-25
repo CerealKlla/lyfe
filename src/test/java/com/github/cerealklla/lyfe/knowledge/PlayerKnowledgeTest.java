@@ -4,7 +4,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.EnumSet;
 import java.util.Optional;
+import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 
@@ -24,39 +26,50 @@ class PlayerKnowledgeTest {
     }
 
     @Test
-    void upgradeLocationPrecisionCreatesEntryAndReturnsChanged() {
+    void learnLocationFactorsCreatesEntryAndReturnsChanged() {
         PlayerKnowledge knowledge = new PlayerKnowledge();
 
-        boolean changed = knowledge.upgradeLocationPrecision(PLACE, LocationPrecision.RELATIVE);
+        boolean changed = knowledge.learnLocationFactors(PLACE, Set.of(KnowledgeFactor.DIRECTION));
 
         assertTrue(changed);
-        assertEquals(Optional.of(LocationPrecision.RELATIVE), knowledge.get(PLACE).flatMap(KnowledgeEntry::locationPrecision));
+        assertEquals(Set.of(KnowledgeFactor.DIRECTION), knowledge.get(PLACE).orElseThrow().locationFactors());
     }
 
     @Test
-    void upgradeLocationPrecisionOnlyRaisesNeverLowers() {
+    void learnLocationFactorsIsPurelyAdditiveAndOnlyChangedWhenSomethingNewIsGained() {
         PlayerKnowledge knowledge = new PlayerKnowledge();
-        knowledge.upgradeLocationPrecision(PLACE, LocationPrecision.EXACT);
+        knowledge.learnLocationFactors(PLACE, EnumSet.allOf(KnowledgeFactor.class));
 
-        boolean changedByLower = knowledge.upgradeLocationPrecision(PLACE, LocationPrecision.RELATIVE);
-        boolean changedBySame = knowledge.upgradeLocationPrecision(PLACE, LocationPrecision.EXACT);
+        boolean changedByFewer = knowledge.learnLocationFactors(PLACE, Set.of(KnowledgeFactor.DIRECTION));
+        boolean changedBySame = knowledge.learnLocationFactors(PLACE, EnumSet.allOf(KnowledgeFactor.class));
 
-        assertFalse(changedByLower);
+        assertFalse(changedByFewer);
         assertFalse(changedBySame);
-        assertEquals(Optional.of(LocationPrecision.EXACT), knowledge.get(PLACE).flatMap(KnowledgeEntry::locationPrecision));
+        assertEquals(EnumSet.allOf(KnowledgeFactor.class), knowledge.get(PLACE).orElseThrow().locationFactors());
     }
 
     @Test
-    void markVisitedForcesExactPrecisionRegardlessOfPriorSignKnowledge() {
+    void learnLocationFactorsUnionsAcrossMultipleLearningEvents() {
         PlayerKnowledge knowledge = new PlayerKnowledge();
-        knowledge.upgradeLocationPrecision(PLACE, LocationPrecision.RELATIVE);
+        knowledge.learnLocationFactors(PLACE, Set.of(KnowledgeFactor.DIRECTION));
+
+        boolean changed = knowledge.learnLocationFactors(PLACE, Set.of(KnowledgeFactor.DISTANCE));
+
+        assertTrue(changed);
+        assertEquals(Set.of(KnowledgeFactor.DIRECTION, KnowledgeFactor.DISTANCE), knowledge.get(PLACE).orElseThrow().locationFactors());
+    }
+
+    @Test
+    void markVisitedForcesAllFactorsRegardlessOfPriorSignKnowledge() {
+        PlayerKnowledge knowledge = new PlayerKnowledge();
+        knowledge.learnLocationFactors(PLACE, Set.of(KnowledgeFactor.DIRECTION));
 
         boolean changed = knowledge.markVisited(PLACE);
 
         assertTrue(changed);
         KnowledgeEntry entry = knowledge.get(PLACE).orElseThrow();
         assertTrue(entry.visited());
-        assertEquals(Optional.of(LocationPrecision.EXACT), entry.locationPrecision());
+        assertEquals(EnumSet.allOf(KnowledgeFactor.class), entry.locationFactors());
     }
 
     @Test
@@ -81,13 +94,13 @@ class PlayerKnowledgeTest {
         KnowledgeEntry entry = knowledge.get(PLACE).orElseThrow();
         assertTrue(entry.named());
         assertTrue(entry.historicallyKnown());
-        assertEquals(Optional.empty(), entry.locationPrecision());
+        assertEquals(Set.of(), entry.locationFactors());
     }
 
     @Test
     void survivesEncodeDecodeRoundTrip() {
         PlayerKnowledge original = new PlayerKnowledge();
-        original.upgradeLocationPrecision(PLACE, LocationPrecision.APPROXIMATE);
+        original.learnLocationFactors(PLACE, Set.of(KnowledgeFactor.DIRECTION, KnowledgeFactor.DISTANCE));
         original.markNamed(PLACE);
         original.markVisited(2L);
 

@@ -1,8 +1,11 @@
 package com.github.cerealklla.lyfe.knowledge;
 
+import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
@@ -69,30 +72,39 @@ public final class PlayerKnowledge {
         return Map.copyOf(entries);
     }
 
-    /** @return true if this actually raised the entry's precision (a brand-new entry counts). */
-    public boolean upgradeLocationPrecision(long placeId, LocationPrecision precision) {
+    /**
+     * Merges {@code factors} into whatever the player already knows about {@code placeId} --
+     * strictly additive (union), never removes a factor already known. Replaced {@code
+     * upgradeLocationPrecision} 2026-09-25 (see decisions.md): a player's location knowledge is now
+     * the set of independently-grantable {@link KnowledgeFactor}s they have, not a single ordinal
+     * tier, so "did this improve their knowledge" is "did the union actually gain anything new,"
+     * not "is the new value higher than the old one."
+     *
+     * @return true if this actually added at least one new factor (a brand-new entry counts).
+     */
+    public boolean learnLocationFactors(long placeId, Set<KnowledgeFactor> factors) {
         KnowledgeEntry current = entries.getOrDefault(placeId, KnowledgeEntry.EMPTY);
-        if (current.locationPrecision().isPresent() && current.locationPrecision().get().isAtLeastAsPreciseAs(precision)) {
-            return false;
+        Set<KnowledgeFactor> merged = new HashSet<>(current.locationFactors());
+        boolean changed = merged.addAll(factors);
+        if (changed) {
+            entries.put(placeId, current.withLocationFactors(Set.copyOf(merged)));
         }
-        entries.put(placeId, current.withLocationPrecision(precision));
-        return true;
+        return changed;
     }
 
     /**
-     * Marks an entity visited, and force-upgrades its location precision to {@link
-     * LocationPrecision#EXACT} regardless of prior precision -- standing somewhere means you know
-     * exactly where "there" is, so physical presence is authoritative over anything a sign/map ever
-     * told you.
+     * Marks an entity visited, and force-grants every {@link KnowledgeFactor} regardless of what
+     * was already known -- standing somewhere means you know exactly where "there" is, so physical
+     * presence is authoritative over anything a sign/map ever told you.
      *
-     * @return true if anything actually changed (first visit, or a precision upgrade).
+     * @return true if anything actually changed (first visit, or a factor was actually added).
      */
     public boolean markVisited(long placeId) {
         KnowledgeEntry current = entries.getOrDefault(placeId, KnowledgeEntry.EMPTY);
-        boolean alreadyExact = current.locationPrecision().map(p -> p == LocationPrecision.EXACT).orElse(false);
+        boolean alreadyExact = current.locationFactors().containsAll(EnumSet.allOf(KnowledgeFactor.class));
         boolean changed = !current.visited() || !alreadyExact;
         if (changed) {
-            KnowledgeEntry updated = current.withVisited(true).withLocationPrecision(LocationPrecision.EXACT);
+            KnowledgeEntry updated = current.withVisited(true).withLocationFactors(EnumSet.allOf(KnowledgeFactor.class));
             entries.put(placeId, updated);
         }
         return changed;

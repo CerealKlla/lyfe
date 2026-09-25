@@ -1,6 +1,7 @@
 package com.github.cerealklla.lyfe.knowledge;
 
 import java.util.Random;
+import java.util.Set;
 
 /**
  * Formats a block distance as imperial feet/miles (design doc Section 9.1, added 2026-09-25 --
@@ -38,22 +39,13 @@ final class DistanceText {
         return variance > 0 ? "~" + formatted : formatted;
     }
 
-    /**
-     * How fuzzy a distance reading is, by {@link LocationPrecision}. Interim mapping (see
-     * decisions.md, 2026-09-25) onto the user's described future model -- a 30% "knows nothing
-     * concrete" baseline, reduced 10 points for each of three independently-grantable knowledge
-     * components (general direction, general distance, exact position) -- collapsed onto today's
-     * single three-tier {@link LocationPrecision} since nothing yet grants those components
-     * separately: {@code RELATIVE} reads as "direction only" (1 of 3, 20% variance), {@code
-     * APPROXIMATE} as "direction and distance, not exact position" (2 of 3, 10%), {@code EXACT} as
-     * all three (0%, no fuzz at all). Revisit once real partial-knowledge sources (NPC dialogue,
-     * books) exist and can set the three components independently.
-     */
-    static double varianceFor(LocationPrecision precision) {
-        return switch (precision) {
-            case RELATIVE -> 0.20;
-            case APPROXIMATE -> 0.10;
-            case EXACT -> 0.0;
-        };
+    // A 30% "knows nothing concrete" baseline, reduced 10 points per KnowledgeFactor known --
+    // reaches 0% (exact) once all three are known. See decisions.md, 2026-09-25.
+    private static final double BASE_VARIANCE = 0.30;
+    private static final double VARIANCE_PER_FACTOR = 0.10;
+
+    /** How fuzzy a distance reading is, given the set of {@link KnowledgeFactor}s known about a place. */
+    static double varianceFor(Set<KnowledgeFactor> factors) {
+        return Math.max(0.0, BASE_VARIANCE - VARIANCE_PER_FACTOR * factors.size());
     }
 }

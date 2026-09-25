@@ -1,10 +1,12 @@
 package com.github.cerealklla.lyfe.knowledge;
 
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
+import java.util.Set;
 
 import com.github.cerealklla.cartographyr.api.Cartography;
 import com.github.cerealklla.cartographyr.geo.Classification;
@@ -72,18 +74,37 @@ public final class SignListener {
     private static final String ARROW_LEFT = "<---";
 
     // Placeholder thresholds -- untuned, like every other magnitude in this project. A writer can
-    // never embed better precision than either this level cap or their own actual knowledge of the
-    // place (design doc Section 9.1's double constraint). Rescaled 2026-09-25 to match Cartographyr's
-    // own dedicated 10-level curve (Skills#cartographyrCurve) -- was previously tuned for the shared
-    // 1-50 scale before Cartographyr got its own shorter curve.
-    static LocationPrecision levelCap(int cartographyrLevel) {
+    // never embed more KnowledgeFactors than either this level cap or their own actual knowledge of
+    // the place allows (design doc Section 9.1's double constraint). Rescaled 2026-09-25 to match
+    // Cartographyr's own dedicated 10-level curve (Skills#cartographyrCurve).
+    //
+    // Returns a *count*, not a specific set -- KnowledgeFactor's declaration order is "easiest to
+    // obtain" first (see that enum's own doc), so a writer capped at N factors keeps the first N in
+    // that order (DIRECTION before DISTANCE before POSITION) out of whatever they actually know.
+    // Package-visible for SignListenerTest.
+    static int levelCap(int cartographyrLevel) {
         if (cartographyrLevel < 3) {
-            return LocationPrecision.RELATIVE;
+            return 1;
         }
         if (cartographyrLevel < 7) {
-            return LocationPrecision.APPROXIMATE;
+            return 2;
         }
-        return LocationPrecision.EXACT;
+        return 3;
+    }
+
+    /** Intersects {@code known} with the first {@code capCount} {@link KnowledgeFactor} values (declaration order). */
+    private static Set<KnowledgeFactor> capFactors(Set<KnowledgeFactor> known, int capCount) {
+        Set<KnowledgeFactor> allowed = EnumSet.noneOf(KnowledgeFactor.class);
+        for (KnowledgeFactor factor : KnowledgeFactor.values()) {
+            if (allowed.size() >= capCount) {
+                break;
+            }
+            allowed.add(factor);
+        }
+        Set<KnowledgeFactor> embeddable = EnumSet.noneOf(KnowledgeFactor.class);
+        embeddable.addAll(known);
+        embeddable.retainAll(allowed);
+        return embeddable;
     }
 
     @SubscribeEvent
@@ -181,11 +202,11 @@ public final class SignListener {
 
     private static void openWritingScreen(ServerPlayer player, WritingTarget target) {
         int level = Lyfe.getLevel(player, Skills.CARTOGRAPHYR_ID);
-        LocationPrecision cap = levelCap(level);
+        int cap = levelCap(level);
 
         List<OpenWritingScreenPayload.KnownPlace> knownPlaces = new ArrayList<>();
         for (Map.Entry<Long, KnowledgeEntry> entry : player.getData(ModAttachments.PLAYER_KNOWLEDGE).entries().entrySet()) {
-            Optional<LocationPrecision> known = entry.getValue().locationPrecision();
+            Set<KnowledgeFactor> known = entry.getValue().locationFactors();
             if (known.isEmpty()) {
                 continue;
             }
@@ -194,7 +215,7 @@ public final class SignListener {
             if (geo.isEmpty() || !geo.get().classification().equals(Classification.CONSTRUCTED)) {
                 continue;
             }
-            LocationPrecision embeddable = known.get().isAtLeastAsPreciseAs(cap) ? cap : known.get();
+            Set<KnowledgeFactor> embeddable = capFactors(known, cap);
             String name = DisplayText.forEntity(geo.get());
             knownPlaces.add(new OpenWritingScreenPayload.KnownPlace(entry.getKey(), name, embeddable));
         }
@@ -209,13 +230,11 @@ public final class SignListener {
 
         Optional<KnowledgeEntry> entry = player.getData(ModAttachments.PLAYER_KNOWLEDGE).get(placeId);
         Optional<GeographicEntity> geo = Cartography.getEntity(level, new EntityId(placeId));
-        if (entry.isEmpty() || entry.get().locationPrecision().isEmpty() || geo.isEmpty()) {
+        if (entry.isEmpty() || entry.get().locationFactors().isEmpty() || geo.isEmpty()) {
             return;
         }
         int skillLevel = Lyfe.getLevel(player, Skills.CARTOGRAPHYR_ID);
-        LocationPrecision embeddable = entry.get().locationPrecision().get().isAtLeastAsPreciseAs(levelCap(skillLevel))
-                ? levelCap(skillLevel)
-                : entry.get().locationPrecision().get();
+        Set<KnowledgeFactor> embeddable = capFactors(entry.get().locationFactors(), levelCap(skillLevel));
         KnowledgeReference reference = new KnowledgeReference(placeId, embeddable, DisplayText.forEntity(geo.get()), player.getUUID());
 
         WritingTarget target = payload.target();
@@ -229,7 +248,12 @@ public final class SignListener {
                 return;
             }
             bindSign(level, player, sign, reference, geo.get().geometry(), skillLevel);
-            awardCreationXp(player);
+            // No creation XP for signs, deliberately (2026-09-25, see decisions.md) -- a bound
+            // sign, once broken, drops back to a completely ordinary reusable vanilla sign item
+            // (ModItems.CARTOGRAPHYR_SIGN doesn't exist anymore), so granting XP here would let a
+            // player farm it infinitely by breaking and rebinding the same sign on the same fence
+            // post at zero material cost. Maps consume a real, non-recoverable vanilla map item
+            // each time and can't be re-targeted once bound, so they don't have that problem.
         } else {
             ItemStack held = player.getMainHandItem();
             if ((!held.is(Items.MAP) && !held.is(Items.FILLED_MAP)) || held.has(ModItems.KNOWLEDGE_REFERENCE)) {
@@ -264,7 +288,8 @@ public final class SignListener {
         }
     }
 
-    // Placeholder flat XP for writing a sign/map, untuned -- same category as READ_XP below.
+    // Placeholder flat XP for creating a map, untuned -- same category as WRITER_CREDIT_XP below.
+    // Maps only, not signs -- see handleSubmit's SIGN branch comment for why.
     private static final long CREATION_XP = 10;
 
     private static void awardCreationXp(ServerPlayer writer) {
@@ -291,7 +316,7 @@ public final class SignListener {
      *
      * <p><b>Distance/rotation-slop, added 2026-09-25</b> (see decisions.md) -- a writer below
      * Cartographyr level 2 can't embed a distance line at all; at level 2+, the distance shown is
-     * exact only for {@link LocationPrecision#EXACT} knowledge, otherwise fuzzed (see {@link
+     * exact only once all three {@link KnowledgeFactor}s are embedded, otherwise fuzzed (see {@link
      * DistanceText}) to reflect how vague the writer's own knowledge is. The sign's rotation gets
      * the same treatment -- a random angle offset scaled by that same variance, so vague knowledge
      * ("somewhere to the east") can't be placed down as a perfectly precise bearing.
@@ -312,7 +337,7 @@ public final class SignListener {
         double forwardX = -Math.sin(yawRad);
         double forwardZ = Math.cos(yawRad);
 
-        double variance = DistanceText.varianceFor(reference.embeddedPrecision());
+        double variance = DistanceText.varianceFor(reference.embeddedFactors());
         boolean targetIsRight = isRightOf(forwardX, forwardZ, normX, normZ);
         double bearing = frontFacingBearingDegrees(normX, normZ, targetIsRight);
         if (variance > 0) {
@@ -434,7 +459,7 @@ public final class SignListener {
 
     private void handleRead(ServerPlayer reader, KnowledgeReference reference) {
         boolean changed = reader.getData(ModAttachments.PLAYER_KNOWLEDGE)
-                .upgradeLocationPrecision(reference.entityId(), reference.embeddedPrecision());
+                .learnLocationFactors(reference.entityId(), reference.embeddedFactors());
 
         if (changed) {
             int amount = 10; // Placeholder flat XP per read, untuned.

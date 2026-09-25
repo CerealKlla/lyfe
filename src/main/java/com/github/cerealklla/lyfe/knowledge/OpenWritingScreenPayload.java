@@ -2,6 +2,7 @@ package com.github.cerealklla.lyfe.knowledge;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 import io.netty.buffer.ByteBuf;
 
@@ -19,12 +20,13 @@ import net.minecraft.resources.Identifier;
  */
 public record OpenWritingScreenPayload(WritingTarget target, List<KnownPlace> knownPlaces) implements CustomPacketPayload {
 
-    /** @param embeddablePrecision the writer's capped-and-known precision for this place -- see SignListener's writer-quality-cap helper. */
-    public record KnownPlace(long entityId, String name, LocationPrecision embeddablePrecision) {
+    /** @param embeddableFactors the writer's capped-and-known {@link KnowledgeFactor}s for this place -- see SignListener's writer-quality-cap helper. */
+    public record KnownPlace(long entityId, String name, Set<KnowledgeFactor> embeddableFactors) {
         static final StreamCodec<ByteBuf, KnownPlace> STREAM_CODEC = StreamCodec.composite(
                 ByteBufCodecs.VAR_LONG, KnownPlace::entityId,
                 ByteBufCodecs.STRING_UTF8, KnownPlace::name,
-                ByteBufCodecs.STRING_UTF8.map(LocationPrecision::valueOf, Enum::name), KnownPlace::embeddablePrecision,
+                ByteBufCodecs.collection(ArrayList::new, ByteBufCodecs.STRING_UTF8.map(KnowledgeFactor::valueOf, Enum::name))
+                        .map(Set::copyOf, ArrayList::new), KnownPlace::embeddableFactors,
                 KnownPlace::new);
     }
 

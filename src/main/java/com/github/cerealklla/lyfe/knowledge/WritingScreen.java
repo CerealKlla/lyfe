@@ -51,7 +51,8 @@ public final class WritingScreen extends Screen {
         int placeY = LIST_TOP;
         for (int i = 0; i < shown; i++) {
             OpenWritingScreenPayload.KnownPlace place = knownPlaces.get(i);
-            addRenderableWidget(Button.builder(Component.literal(place.name() + " (" + place.embeddablePrecision() + ")"),
+            String detail = place.embeddableFactors().size() + "/" + KnowledgeFactor.values().length + " known";
+            addRenderableWidget(Button.builder(Component.literal(place.name() + " (" + detail + ")"),
                             b -> selectPlace(place.entityId()))
                     .bounds(centerX - 100, placeY, 200, 20)
                     .build());
