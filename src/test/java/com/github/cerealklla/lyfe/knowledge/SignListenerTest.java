@@ -50,6 +50,23 @@ class SignListenerTest {
         assertFalse(SignListener.isRightOf(0, 1, 1, 0));
     }
 
+    /**
+     * The rotation-vs-front-normal offset fix, locked in against a concrete, independently-known
+     * fact about vanilla: a player facing south who places a sign directly in front of them (south
+     * of themselves) can read it immediately -- meaning the front must face north (toward the
+     * placer). Vanilla's own {@code StandingSignBlock#getStateForPlacement} computes {@code
+     * rotation = yRot(0) + 180 = 180 (south)} for that exact case -- i.e. the ROTATION value is
+     * SOUTH even though the required front-facing direction is NORTH. This test reconstructs that
+     * same "desired front = north" case via {@code frontFacingBearingDegrees} (target due west,
+     * "right" case, algebraically produces a north-facing front before the offset) and asserts it
+     * also lands on segment 8 (south) -- matching vanilla, not the naive un-offset formula.
+     */
+    @Test
+    void frontFacingBearingMatchesVanillasKnownCorrectRotationOffset() {
+        double degrees = SignListener.frontFacingBearingDegrees(-1, 0, true);
+        assertEquals(8, RotationSegment.convertToSegment((float) degrees));
+    }
+
     @Test
     void lowLevelCapsAtRelative() {
         assertEquals(LocationPrecision.RELATIVE, SignListener.levelCap(1));

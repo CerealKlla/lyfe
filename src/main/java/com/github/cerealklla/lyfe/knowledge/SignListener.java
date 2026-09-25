@@ -238,15 +238,22 @@ public final class SignListener {
     /**
      * The {@link RotationSegment#convertToSegment(float)} degree value for a sign whose front
      * should show its right-hand arrow (if {@code targetIsRight}) or left-hand arrow pointing at
-     * direction {@code (normX, normZ)}. Derived by solving "a reader's right-hand direction, given
-     * they face the sign, equals the direction to the target" -- see decisions.md for the full
-     * derivation and the caveat that this is not yet empirically verified in-game. Package-visible
-     * for {@code SignListenerTest}.
+     * direction {@code (normX, normZ)}. The direction-vector-to-reader-position math is solved by
+     * "a reader's right-hand direction, given they face the sign, equals the direction to the
+     * target"; separately, {@link RotationSegment}'s degree value for a sign is offset 180° from
+     * that reader-facing direction, not equal to it -- confirmed 2026-09-24 against a concrete
+     * vanilla placement example (player facing south, sign appears in front of them; for the
+     * placer to read it immediately, the front must face north/toward them, but vanilla's own
+     * {@code getStateForPlacement} computes {@code rotation = yRot + 180 = south}, i.e. the
+     * *opposite* of the required front-facing direction) after live playtesting showed the first
+     * version of this formula placed the text on the opposite side from the placer with the arrow
+     * pointing the wrong way. See decisions.md for the full derivation and worked example.
+     * Package-visible for {@code SignListenerTest}.
      */
     static double frontFacingBearingDegrees(double normX, double normZ, boolean targetIsRight) {
         double frontX = targetIsRight ? -normZ : normZ;
         double frontZ = targetIsRight ? normX : -normX;
-        return bearingDegrees(frontX, frontZ);
+        return bearingDegrees(-frontX, -frontZ);
     }
 
     /**
