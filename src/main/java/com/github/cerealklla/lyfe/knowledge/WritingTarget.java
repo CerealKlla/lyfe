@@ -7,10 +7,12 @@ import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 
 /**
- * Describes what a sign/map writing dialog is being opened for -- a fence post (sign) or an item
- * frame (map). Network-only, never persisted, so a {@link StreamCodec} is all this needs.
+ * Describes what a sign/map writing dialog is being opened for -- a specific placed sign
+ * ({@code blockPos} meaningful) or the map currently held in the writer's main hand
+ * ({@code blockPos} unused, since the target is contextual: "whatever they're holding when they
+ * submit"). Network-only, never persisted, so a {@link StreamCodec} is all this needs.
  */
-public record WritingTarget(Kind kind, BlockPos blockPos, int frameEntityId) {
+public record WritingTarget(Kind kind, BlockPos blockPos) {
 
     public enum Kind {
         SIGN, MAP
@@ -19,14 +21,13 @@ public record WritingTarget(Kind kind, BlockPos blockPos, int frameEntityId) {
     public static final StreamCodec<ByteBuf, WritingTarget> STREAM_CODEC = StreamCodec.composite(
             ByteBufCodecs.STRING_UTF8.map(s -> Kind.valueOf(s), Enum::name), WritingTarget::kind,
             BlockPos.STREAM_CODEC, WritingTarget::blockPos,
-            ByteBufCodecs.VAR_INT, WritingTarget::frameEntityId,
             WritingTarget::new);
 
     public static WritingTarget sign(BlockPos pos) {
-        return new WritingTarget(Kind.SIGN, pos, 0);
+        return new WritingTarget(Kind.SIGN, pos);
     }
 
-    public static WritingTarget map(int frameEntityId) {
-        return new WritingTarget(Kind.MAP, BlockPos.ZERO, frameEntityId);
+    public static WritingTarget map() {
+        return new WritingTarget(Kind.MAP, BlockPos.ZERO);
     }
 }

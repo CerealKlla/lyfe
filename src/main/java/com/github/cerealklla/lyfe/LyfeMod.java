@@ -12,6 +12,7 @@ import com.github.cerealklla.lyfe.location.LocationPayload;
 import com.github.cerealklla.lyfe.location.LocationTracker;
 import com.github.cerealklla.lyfe.knowledge.ClientWritingRequest;
 import com.github.cerealklla.lyfe.knowledge.OpenWritingScreenPayload;
+import com.github.cerealklla.lyfe.knowledge.RequestWritingScreenPayload;
 import com.github.cerealklla.lyfe.knowledge.SignListener;
 import com.github.cerealklla.lyfe.knowledge.SubmitWritingPayload;
 import com.github.cerealklla.lyfe.registration.ModAttachments;
@@ -45,7 +46,6 @@ public class LyfeMod {
 
     public LyfeMod(IEventBus modEventBus, ModContainer modContainer) {
         ModAttachments.ATTACHMENT_TYPES.register(modEventBus);
-        ModItems.ITEMS.register(modEventBus);
         ModItems.DATA_COMPONENTS.register(modEventBus);
         Skills.bootstrap();
 
@@ -99,15 +99,24 @@ public class LyfeMod {
                         SignListener.handleSubmit(serverPlayer, payload);
                     }
                 });
+
+        // Client-initiated: sent when a player clicks the "Cartographyr" button injected into
+        // vanilla's own SignEditScreen (see LyfeModClient) -- see SignListener#requestSignWritingScreen.
+        event.registrar("1").playToServer(RequestWritingScreenPayload.TYPE, RequestWritingScreenPayload.STREAM_CODEC,
+                (payload, context) -> {
+                    if (ModList.get().isLoaded("cartographyr") && context.player() instanceof ServerPlayer serverPlayer) {
+                        SignListener.requestSignWritingScreen(serverPlayer, payload.target());
+                    }
+                });
     }
 
     /**
-     * DEBUG ONLY — grants testing items for the sign/map mechanic (design doc Section 9.1): the
-     * real Cartographyr sign/map items (not vanilla stand-ins, now that the mechanic itself exists)
-     * plus oak fences to place them on. Deliberately naive: fires on every login, not just a
-     * brand-new character, since re-supplying test items each session is a minor inconvenience at
-     * worst and precisely detecting "first-ever spawn" adds complexity not worth it for throwaway
-     * debug tooling. Must be removed or gated behind a real debug flag before any actual release.
+     * DEBUG ONLY — grants testing items for the sign/map mechanic (design doc Section 9.1): real
+     * vanilla oak signs/maps (2026-09-25 -- no special items anymore, see decisions.md) plus oak
+     * fences to place signs on. Deliberately naive: fires on every login, not just a brand-new
+     * character, since re-supplying test items each session is a minor inconvenience at worst and
+     * precisely detecting "first-ever spawn" adds complexity not worth it for throwaway debug
+     * tooling. Must be removed or gated behind a real debug flag before any actual release.
      */
     @SubscribeEvent
     public void onPlayerLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {
@@ -115,8 +124,8 @@ public class LyfeMod {
         if (player.level().isClientSide()) {
             return;
         }
-        player.addItem(new ItemStack(ModItems.CARTOGRAPHYR_SIGN.get(), 16));
-        player.addItem(new ItemStack(ModItems.CARTOGRAPHYR_MAP.get(), 8));
+        player.addItem(new ItemStack(Items.OAK_SIGN, 16));
+        player.addItem(new ItemStack(Items.MAP, 8));
         player.addItem(new ItemStack(Items.OAK_FENCE, 16));
 
         // Fire Aspect sword, for testing Survivalist/Cook's burn-kill XP trigger (design doc Section

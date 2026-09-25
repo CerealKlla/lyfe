@@ -25,14 +25,15 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.decoration.ItemFrame;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.MapItem;
 import net.minecraft.world.level.ChunkPos;
-import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.StandingSignBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.SignBlockEntity;
 import net.minecraft.world.level.block.entity.SignText;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.RotationSegment;
 import net.minecraft.world.level.saveddata.maps.MapItemSavedData;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -44,12 +45,20 @@ import net.neoforged.neoforge.network.PacketDistributor;
  * 9.1). Only ever registered when Cartographyr is loaded (see {@code LyfeMod}) -- every method
  * here freely calls Cartographyr's API.
  *
- * <p>Signs are real vanilla {@link Blocks#OAK_SIGN} blocks placed on top of the clicked fence
- * post, with a {@link KnowledgeReference} attached directly to the resulting {@link
- * SignBlockEntity} via NeoForge's attachment system (block entities already support this, being
- * {@code AttachmentHolder}s). Maps are a plain item carrying the same {@link KnowledgeReference}
- * as a data component, inserted into the target item frame -- see decisions.md for why this
- * doesn't render an actual cartographic minimap texture.
+ * <p><b>Rides on genuinely vanilla items and blocks, 2026-09-25</b> (see decisions.md) -- there
+ * is no special trigger item anymore. Signs are placed entirely through vanilla's own sign-item
+ * placement flow; a "Cartographyr" button is injected into vanilla's own {@code SignEditScreen}
+ * on a sign's first edit when it was placed on a fence post (see {@code LyfeModClient}), which
+ * routes to {@link #requestSignWritingScreen}/{@link #handleSubmit} instead of vanilla's normal
+ * free-text submission. Maps are triggered by right-clicking while holding any plain vanilla
+ * {@link Items#MAP}/{@link Items#FILLED_MAP} ({@link #onRightClickItem}) -- the resulting item
+ * stays a completely ordinary {@code Items#FILLED_MAP} the player can carry, trade, or sell, not
+ * a special item or something that has to live in an item frame. Either way, a {@link
+ * KnowledgeReference} is attached (a sign block entity attachment, or an item data component) --
+ * once attached, that specific sign/map is "used up": a bound sign can no longer be re-edited
+ * (see {@link #onRightClickBlock}'s read branch, which cancels the interaction) and a bound map
+ * can no longer be re-targeted (see {@link #onRightClickItem}'s existing-reference check) -- so a
+ * player can't transfer unlimited knowledge through a single physical item.
  *
  * <p>Every sign/map references a real known place (free text was removed 2026-09-24).
  */
@@ -78,21 +87,17 @@ public final class SignListener {
         }
         ServerLevel level = (ServerLevel) event.getLevel();
         BlockPos pos = event.getPos();
-        ItemStack held = event.getItemStack();
-
-        if (held.is(ModItems.CARTOGRAPHYR_SIGN.get()) && level.getBlockState(pos).is(BlockTags.FENCES)) {
-            BlockPos signPos = pos.above();
-            if (!level.getBlockState(signPos).isAir()) {
-                return;
-            }
-            openWritingScreen(player, WritingTarget.sign(signPos));
-            return;
-        }
 
         BlockEntity blockEntity = level.getBlockEntity(pos);
         if (blockEntity instanceof SignBlockEntity) {
-            blockEntity.getExistingData(ModAttachments.SIGN_REFERENCE)
-                    .ifPresent(reference -> handleRead(player, reference));
+            blockEntity.getExistingData(ModAttachments.SIGN_REFERENCE).ifPresent(reference -> {
+                handleRead(player, reference);
+                // A bound sign's front text is still plain literal content, which vanilla's own
+                // SignBlock#hasEditableText would otherwise happily let a player reopen for
+                // editing (closing that screen unconditionally re-sends its text, wiping the
+                // name/arrow this mod wrote) -- cancel here so vanilla's useWithoutItem never runs.
+                event.setCanceled(true);
+            });
         }
     }
 
@@ -104,13 +109,6 @@ public final class SignListener {
         if (!(event.getTarget() instanceof ItemFrame frame)) {
             return;
         }
-        ItemStack held = event.getItemStack();
-
-        if (held.is(ModItems.CARTOGRAPHYR_MAP.get()) && frame.getItem().isEmpty()) {
-            openWritingScreen(player, WritingTarget.map(frame.getId()));
-            event.setCanceled(true);
-            return;
-        }
 
         KnowledgeReference reference = frame.getItem().get(ModItems.KNOWLEDGE_REFERENCE);
         if (reference != null) {
@@ -119,7 +117,56 @@ public final class SignListener {
         }
     }
 
-    private void openWritingScreen(ServerPlayer player, WritingTarget target) {
+    /**
+     * Right-clicking while holding any plain vanilla map (blank {@link Items#MAP} or a real,
+     * player-explored {@link Items#FILLED_MAP}) opens the known-places picker; confirming
+     * overwrites that exact physical map with a rendered one, cancelling leaves it untouched.
+     * Right-clicking a map that's already a Cartographyr map ({@link KnowledgeReference} present)
+     * reads it instead -- it can't be re-targeted, so one physical map can't be reused to harvest
+     * unlimited knowledge.
+     */
+    @SubscribeEvent
+    public void onRightClickItem(PlayerInteractEvent.RightClickItem event) {
+        if (!(event.getEntity() instanceof ServerPlayer player) || event.getHand() != InteractionHand.MAIN_HAND) {
+            return;
+        }
+        ItemStack held = event.getItemStack();
+        if (!held.is(Items.MAP) && !held.is(Items.FILLED_MAP)) {
+            return;
+        }
+
+        KnowledgeReference reference = held.get(ModItems.KNOWLEDGE_REFERENCE);
+        if (reference != null) {
+            handleRead(player, reference);
+        } else {
+            openWritingScreen(player, WritingTarget.map());
+        }
+        event.setCanceled(true);
+    }
+
+    /**
+     * Server-side handler for {@link RequestWritingScreenPayload} -- the client-initiated request
+     * sent when a player clicks the "Cartographyr" button injected into vanilla's own {@code
+     * SignEditScreen} (see {@code LyfeModClient}). Re-validates the target independently of the
+     * client-side button-visibility heuristic, same "don't trust the client" posture as {@link
+     * #handleSubmit}.
+     */
+    public static void requestSignWritingScreen(ServerPlayer player, WritingTarget target) {
+        if (target.kind() != WritingTarget.Kind.SIGN) {
+            return;
+        }
+        ServerLevel level = (ServerLevel) player.level();
+        BlockPos pos = target.blockPos();
+        if (!(level.getBlockEntity(pos) instanceof SignBlockEntity sign) || sign.getExistingData(ModAttachments.SIGN_REFERENCE).isPresent()) {
+            return;
+        }
+        if (!level.getBlockState(pos.below()).is(BlockTags.FENCES)) {
+            return;
+        }
+        openWritingScreen(player, target);
+    }
+
+    private static void openWritingScreen(ServerPlayer player, WritingTarget target) {
         int level = Lyfe.getLevel(player, Skills.CARTOGRAPHYR_ID);
         LocationPrecision cap = levelCap(level);
 
@@ -158,20 +205,20 @@ public final class SignListener {
                 : entry.get().locationPrecision().get();
         KnowledgeReference reference = new KnowledgeReference(placeId, embeddable, geo.get().name().orElse("an unnamed place"));
 
-        ItemStack held = player.getMainHandItem();
         WritingTarget target = payload.target();
 
         if (target.kind() == WritingTarget.Kind.SIGN) {
-            if (!held.is(ModItems.CARTOGRAPHYR_SIGN.get()) || !level.getBlockState(target.blockPos()).isAir()) {
+            BlockPos pos = target.blockPos();
+            if (!(level.getBlockEntity(pos) instanceof SignBlockEntity sign) || sign.getExistingData(ModAttachments.SIGN_REFERENCE).isPresent()) {
                 return;
             }
-            placeSign(level, player, target.blockPos(), reference, geo.get().geometry());
+            if (!level.getBlockState(pos.below()).is(BlockTags.FENCES)) {
+                return;
+            }
+            bindSign(level, player, sign, reference, geo.get().geometry());
         } else {
-            if (!held.is(ModItems.CARTOGRAPHYR_MAP.get())) {
-                return;
-            }
-            var entity = level.getEntity(target.frameEntityId());
-            if (!(entity instanceof ItemFrame frame) || !frame.getItem().isEmpty()) {
+            ItemStack held = player.getMainHandItem();
+            if ((!held.is(Items.MAP) && !held.is(Items.FILLED_MAP)) || held.has(ModItems.KNOWLEDGE_REFERENCE)) {
                 return;
             }
             ServerLevel targetLevel = level.getServer().getLevel(geo.get().dimension());
@@ -187,22 +234,32 @@ public final class SignListener {
             }
             mapStack.set(ModItems.KNOWLEDGE_REFERENCE, reference);
             mapStack.set(DataComponents.CUSTOM_NAME, Component.literal(reference.displayText()));
-            frame.setItem(mapStack);
-        }
 
-        held.shrink(1);
+            // Replaces the exact physical map the player right-clicked -- a stack of blank maps
+            // only ever loses one (the rest stay a normal stackable blank-map stack), a single
+            // held map (blank or already-explored) is entirely overwritten in place.
+            if (held.getCount() == 1) {
+                player.setItemInHand(InteractionHand.MAIN_HAND, mapStack);
+            } else {
+                held.shrink(1);
+                if (!player.getInventory().add(mapStack)) {
+                    player.drop(mapStack, false);
+                }
+            }
+        }
     }
 
     /**
-     * Places the sign rotated so a text arrow points toward {@code targetGeometry}'s center, and
-     * writes the place name / distance (if precise enough) / arrow onto the front face. The
-     * rotation math is derived from {@link RotationSegment}'s documented NORTH_0/EAST_90/SOUTH_180/
-     * WEST_270 constants and vanilla's own view-vector formula, but -- unlike everything else in
-     * this project -- hasn't been empirically verified in-game yet (no live feedback loop during
-     * design); if a placed sign points the wrong way, the fix is swapping the two {@code
-     * frontNormal} cases below, not a deeper redesign. See decisions.md for the full derivation.
+     * Binds {@code reference} to a sign that vanilla has already placed (see {@code
+     * LyfeModClient}'s "Cartographyr" button and {@link #requestSignWritingScreen}) -- rotates it
+     * so a text arrow points toward {@code targetGeometry}'s center and writes the place name /
+     * distance (if precise enough) / arrow onto the front face. The rotation math is derived from
+     * {@link RotationSegment}'s documented NORTH_0/EAST_90/SOUTH_180/WEST_270 constants and
+     * vanilla's own view-vector formula -- unchanged from the original placement code, still not
+     * yet empirically re-confirmed in-game since this rewrite (see decisions.md/CLAUDE.md).
      */
-    private static void placeSign(ServerLevel level, ServerPlayer player, BlockPos signPos, KnowledgeReference reference, Geometry targetGeometry) {
+    private static void bindSign(ServerLevel level, ServerPlayer player, SignBlockEntity sign, KnowledgeReference reference, Geometry targetGeometry) {
+        BlockPos signPos = sign.getBlockPos();
         BlockPos center = geometryCenter(targetGeometry);
         double targetX = center.getX();
         double targetZ = center.getZ();
@@ -219,18 +276,22 @@ public final class SignListener {
 
         boolean targetIsRight = isRightOf(forwardX, forwardZ, normX, normZ);
         int rotationSegment = RotationSegment.convertToSegment((float) frontFacingBearingDegrees(normX, normZ, targetIsRight));
-        var signState = Blocks.OAK_SIGN.defaultBlockState().setValue(StandingSignBlock.ROTATION, rotationSegment);
-        level.setBlock(signPos, signState, 3);
+        BlockState currentState = level.getBlockState(signPos);
+        level.setBlock(signPos, currentState.setValue(StandingSignBlock.ROTATION, rotationSegment), 3);
 
-        if (level.getBlockEntity(signPos) instanceof SignBlockEntity sign) {
-            SignText text = new SignText().setMessage(0, Component.literal(reference.displayText()));
-            if (reference.embeddedPrecision() == LocationPrecision.EXACT) {
-                text = text.setMessage(2, Component.literal(Math.round(distance) + " blocks"));
-            }
-            text = text.setMessage(3, Component.literal(arrowFor(targetIsRight)));
-            sign.setText(text, true);
-            sign.setData(ModAttachments.SIGN_REFERENCE, reference);
+        // Re-fetch rather than trust the pre-rotation `sign` reference is still valid -- same
+        // defensive habit the original placement code used, since setBlock can in principle
+        // replace the block entity instance.
+        if (!(level.getBlockEntity(signPos) instanceof SignBlockEntity boundSign)) {
+            return;
         }
+        SignText text = new SignText().setMessage(0, Component.literal(reference.displayText()));
+        if (reference.embeddedPrecision() == LocationPrecision.EXACT) {
+            text = text.setMessage(2, Component.literal(Math.round(distance) + " blocks"));
+        }
+        text = text.setMessage(3, Component.literal(arrowFor(targetIsRight)));
+        boundSign.setText(text, true);
+        boundSign.setData(ModAttachments.SIGN_REFERENCE, reference);
     }
 
     /**

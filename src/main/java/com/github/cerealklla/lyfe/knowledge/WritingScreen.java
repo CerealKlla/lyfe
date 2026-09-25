@@ -35,7 +35,7 @@ public final class WritingScreen extends Screen {
     private Button confirmButton;
 
     public WritingScreen(WritingTarget target, List<OpenWritingScreenPayload.KnownPlace> knownPlaces) {
-        super(Component.literal("Write a sign"));
+        super(Component.literal(target.kind() == WritingTarget.Kind.SIGN ? "Write a sign" : "Generate a map"));
         this.target = target;
         this.knownPlaces = knownPlaces;
     }
