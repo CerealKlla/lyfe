@@ -1,5 +1,6 @@
 package com.github.cerealklla.lyfe.registration;
 
+import java.util.UUID;
 import java.util.function.Supplier;
 
 import com.github.cerealklla.lyfe.LyfeMod;
@@ -58,7 +59,7 @@ public final class ModAttachments {
     // Not synced -- only server-side read logic (SignListener) ever looks at it.
     public static final Supplier<AttachmentType<KnowledgeReference>> SIGN_REFERENCE = ATTACHMENT_TYPES.register(
             "sign_reference",
-            () -> AttachmentType.builder(holder -> new KnowledgeReference(0L, LocationPrecision.RELATIVE, ""))
+            () -> AttachmentType.builder(holder -> new KnowledgeReference(0L, LocationPrecision.RELATIVE, "", new UUID(0L, 0L)))
                     .serialize(KnowledgeReference.CODEC.fieldOf("data"))
                     .build()
     );

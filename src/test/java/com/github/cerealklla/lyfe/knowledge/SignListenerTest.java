@@ -104,18 +104,18 @@ class SignListenerTest {
     @Test
     void lowLevelCapsAtRelative() {
         assertEquals(LocationPrecision.RELATIVE, SignListener.levelCap(1));
-        assertEquals(LocationPrecision.RELATIVE, SignListener.levelCap(9));
+        assertEquals(LocationPrecision.RELATIVE, SignListener.levelCap(2));
     }
 
     @Test
     void midLevelCapsAtApproximate() {
-        assertEquals(LocationPrecision.APPROXIMATE, SignListener.levelCap(10));
-        assertEquals(LocationPrecision.APPROXIMATE, SignListener.levelCap(24));
+        assertEquals(LocationPrecision.APPROXIMATE, SignListener.levelCap(3));
+        assertEquals(LocationPrecision.APPROXIMATE, SignListener.levelCap(6));
     }
 
     @Test
     void highLevelCapsAtExact() {
-        assertEquals(LocationPrecision.EXACT, SignListener.levelCap(25));
-        assertEquals(LocationPrecision.EXACT, SignListener.levelCap(50));
+        assertEquals(LocationPrecision.EXACT, SignListener.levelCap(7));
+        assertEquals(LocationPrecision.EXACT, SignListener.levelCap(10));
     }
 }

@@ -103,13 +103,26 @@ public final class Skills {
     }
 
     // Deliberately steeper than fastCurve() -- design doc Section 3 explicitly calls for Historian
-    // to level much slower than Lumberjack/Miner; the Cartographyr skill shares this curve too,
-    // since both are Knowledge-category and neither has a tuned rate yet. Placeholder, like
-    // fastCurve() itself.
+    // to level much slower than Lumberjack/Miner. Placeholder, like fastCurve() itself.
     private static XpCurve slowCurve() {
         List<Long> thresholds = new ArrayList<>();
         for (int level = 1; level <= MAX_LEVEL; level++) {
             thresholds.add(Math.round(40 * Math.pow(level, 1.8)));
+        }
+        return new XpCurve(thresholds);
+    }
+
+    // Cartographyr's own curve, 2026-09-25 (see decisions.md) -- deliberately a short 10-level
+    // scale, not the shared 1-50 MAX_LEVEL every other skill uses (XpCurve#maxLevel is just its own
+    // threshold list's size, so this is independent of MAX_LEVEL entirely). No longer shared with
+    // Historian's slowCurve() -- Historian still has no XP-granting mechanic at all, so its own
+    // rate remains an open question for whenever that's built.
+    private static final int CARTOGRAPHYR_MAX_LEVEL = 10;
+
+    private static XpCurve cartographyrCurve() {
+        List<Long> thresholds = new ArrayList<>();
+        for (int level = 1; level <= CARTOGRAPHYR_MAX_LEVEL; level++) {
+            thresholds.add(Math.round(50 * Math.pow(level, 1.8)));
         }
         return new XpCurve(thresholds);
     }
@@ -124,7 +137,7 @@ public final class Skills {
                 "Cartographyr",
                 SkillCategory.KNOWLEDGE,
                 Optional.of("cartographyr"),
-                slowCurve(),
+                cartographyrCurve(),
                 List.of()
         );
     }

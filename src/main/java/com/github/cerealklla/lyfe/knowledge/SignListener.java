@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Random;
 
 import com.github.cerealklla.cartographyr.api.Cartography;
 import com.github.cerealklla.cartographyr.geo.Classification;
@@ -72,12 +73,14 @@ public final class SignListener {
 
     // Placeholder thresholds -- untuned, like every other magnitude in this project. A writer can
     // never embed better precision than either this level cap or their own actual knowledge of the
-    // place (design doc Section 9.1's double constraint).
+    // place (design doc Section 9.1's double constraint). Rescaled 2026-09-25 to match Cartographyr's
+    // own dedicated 10-level curve (Skills#cartographyrCurve) -- was previously tuned for the shared
+    // 1-50 scale before Cartographyr got its own shorter curve.
     static LocationPrecision levelCap(int cartographyrLevel) {
-        if (cartographyrLevel < 10) {
+        if (cartographyrLevel < 3) {
             return LocationPrecision.RELATIVE;
         }
-        if (cartographyrLevel < 25) {
+        if (cartographyrLevel < 7) {
             return LocationPrecision.APPROXIMATE;
         }
         return LocationPrecision.EXACT;
@@ -213,7 +216,7 @@ public final class SignListener {
         LocationPrecision embeddable = entry.get().locationPrecision().get().isAtLeastAsPreciseAs(levelCap(skillLevel))
                 ? levelCap(skillLevel)
                 : entry.get().locationPrecision().get();
-        KnowledgeReference reference = new KnowledgeReference(placeId, embeddable, DisplayText.forEntity(geo.get()));
+        KnowledgeReference reference = new KnowledgeReference(placeId, embeddable, DisplayText.forEntity(geo.get()), player.getUUID());
 
         WritingTarget target = payload.target();
 
@@ -225,7 +228,8 @@ public final class SignListener {
             if (!level.getBlockState(pos.below()).is(BlockTags.FENCES)) {
                 return;
             }
-            bindSign(level, player, sign, reference, geo.get().geometry());
+            bindSign(level, player, sign, reference, geo.get().geometry(), skillLevel);
+            awardCreationXp(player);
         } else {
             ItemStack held = player.getMainHandItem();
             if ((!held.is(Items.MAP) && !held.is(Items.FILLED_MAP)) || held.has(ModItems.KNOWLEDGE_REFERENCE)) {
@@ -256,19 +260,43 @@ public final class SignListener {
                     player.drop(mapStack, false);
                 }
             }
+            awardCreationXp(player);
         }
     }
+
+    // Placeholder flat XP for writing a sign/map, untuned -- same category as READ_XP below.
+    private static final long CREATION_XP = 10;
+
+    private static void awardCreationXp(ServerPlayer writer) {
+        long newXp = Lyfe.addXp(writer, Skills.CARTOGRAPHYR_ID, CREATION_XP);
+        int newLevel = Lyfe.getLevel(writer, Skills.CARTOGRAPHYR_ID);
+        writer.sendSystemMessage(Component.literal(
+                "+" + CREATION_XP + " Cartographyr XP (Level " + newLevel + ", total " + newXp + ")"));
+    }
+
+    // Placeholder, untuned -- the rotation-slop magnitude at the (currently unreachable) 30%
+    // theoretical-max variance from DistanceText's own model. Real variance today tops out at 20%
+    // (RELATIVE), so the actual slop applied never reaches this in practice. See decisions.md.
+    private static final double MAX_ROTATION_SLOP_DEGREES = 60.0;
+    private static final Random RANDOM = new Random();
 
     /**
      * Binds {@code reference} to a sign that vanilla has already placed (see {@code
      * LyfeModClient}'s "Cartographyr" button and {@link #requestSignWritingScreen}) -- rotates it
      * so a text arrow points toward {@code targetGeometry}'s center and writes the place name /
-     * distance (if precise enough) / arrow onto the front face. The rotation math is derived from
-     * {@link RotationSegment}'s documented NORTH_0/EAST_90/SOUTH_180/WEST_270 constants and
-     * vanilla's own view-vector formula -- unchanged from the original placement code, still not
-     * yet empirically re-confirmed in-game since this rewrite (see decisions.md/CLAUDE.md).
+     * distance / arrow onto the front face. The rotation math is derived from {@link
+     * RotationSegment}'s documented NORTH_0/EAST_90/SOUTH_180/WEST_270 constants and vanilla's own
+     * view-vector formula -- unchanged from the original placement code, still not yet empirically
+     * re-confirmed in-game since this rewrite (see decisions.md/CLAUDE.md).
+     *
+     * <p><b>Distance/rotation-slop, added 2026-09-25</b> (see decisions.md) -- a writer below
+     * Cartographyr level 2 can't embed a distance line at all; at level 2+, the distance shown is
+     * exact only for {@link LocationPrecision#EXACT} knowledge, otherwise fuzzed (see {@link
+     * DistanceText}) to reflect how vague the writer's own knowledge is. The sign's rotation gets
+     * the same treatment -- a random angle offset scaled by that same variance, so vague knowledge
+     * ("somewhere to the east") can't be placed down as a perfectly precise bearing.
      */
-    private static void bindSign(ServerLevel level, ServerPlayer player, SignBlockEntity sign, KnowledgeReference reference, Geometry targetGeometry) {
+    private static void bindSign(ServerLevel level, ServerPlayer player, SignBlockEntity sign, KnowledgeReference reference, Geometry targetGeometry, int writerSkillLevel) {
         BlockPos signPos = sign.getBlockPos();
         BlockPos center = geometryCenter(targetGeometry);
         double targetX = center.getX();
@@ -284,8 +312,14 @@ public final class SignListener {
         double forwardX = -Math.sin(yawRad);
         double forwardZ = Math.cos(yawRad);
 
+        double variance = DistanceText.varianceFor(reference.embeddedPrecision());
         boolean targetIsRight = isRightOf(forwardX, forwardZ, normX, normZ);
-        int rotationSegment = RotationSegment.convertToSegment((float) frontFacingBearingDegrees(normX, normZ, targetIsRight));
+        double bearing = frontFacingBearingDegrees(normX, normZ, targetIsRight);
+        if (variance > 0) {
+            double maxSlop = MAX_ROTATION_SLOP_DEGREES * (variance / 0.30);
+            bearing += (RANDOM.nextDouble() * 2 - 1) * maxSlop;
+        }
+        int rotationSegment = RotationSegment.convertToSegment((float) bearing);
         BlockState currentState = level.getBlockState(signPos);
         level.setBlock(signPos, currentState.setValue(StandingSignBlock.ROTATION, rotationSegment), 3);
 
@@ -296,8 +330,8 @@ public final class SignListener {
             return;
         }
         SignText text = new SignText().setMessage(0, Component.literal(reference.displayText()));
-        if (reference.embeddedPrecision() == LocationPrecision.EXACT) {
-            text = text.setMessage(2, Component.literal(Math.round(distance) + " blocks"));
+        if (writerSkillLevel >= 2) {
+            text = text.setMessage(2, Component.literal(DistanceText.format(distance, variance, RANDOM)));
         }
         text = text.setMessage(3, Component.literal(arrowFor(targetIsRight)));
         boundSign.setText(text, true);
@@ -393,6 +427,11 @@ public final class SignListener {
         return degrees < 0 ? degrees + 360 : degrees;
     }
 
+    // Placeholder flat XP for the writer's cut when someone else reads their sign/map, untuned --
+    // separate constant from the reader's own READ_XP even though currently the same value, since
+    // there's no reason these two amounts need to stay equal once either gets tuned.
+    private static final long WRITER_CREDIT_XP = 10;
+
     private void handleRead(ServerPlayer reader, KnowledgeReference reference) {
         boolean changed = reader.getData(ModAttachments.PLAYER_KNOWLEDGE)
                 .upgradeLocationPrecision(reference.entityId(), reference.embeddedPrecision());
@@ -403,6 +442,13 @@ public final class SignListener {
             int newLevel = Lyfe.getLevel(reader, Skills.CARTOGRAPHYR_ID);
             reader.sendSystemMessage(Component.literal(
                     "+" + amount + " Cartographyr XP (Level " + newLevel + ", total " + newXp + ")"));
+
+            // Credit the writer too, even if they're offline right now (see api.Lyfe#addXp's UUID
+            // overload) -- but not when a player reads their own sign/map, which would otherwise
+            // double-count XP for one action.
+            if (!reference.writerId().equals(reader.getUUID())) {
+                Lyfe.addXp(((ServerLevel) reader.level()).getServer(), reference.writerId(), Skills.CARTOGRAPHYR_ID, WRITER_CREDIT_XP);
+            }
         } else {
             reader.sendSystemMessage(Component.literal("(already know as much or more about this place)"));
         }

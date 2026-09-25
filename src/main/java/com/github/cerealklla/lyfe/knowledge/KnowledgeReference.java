@@ -1,8 +1,11 @@
 package com.github.cerealklla.lyfe.knowledge;
 
+import java.util.UUID;
+
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 
+import net.minecraft.core.UUIDUtil;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
@@ -28,13 +31,17 @@ import net.minecraft.network.codec.StreamCodec;
  *                    geo.DisplayText#forEntity} — includes designation/ruin-prefix, not just the
  *                    bare name) — a snapshot, not a live lookup, so it doesn't update if the
  *                    place's name/designation/lifecycle state changes after this was written
+ * @param writerId the writer's UUID (added 2026-09-25, see decisions.md) — so a reader upgrading
+ *                 their knowledge from this sign/map can credit Cartographyr XP back to whoever
+ *                 wrote it, even if they're offline at that moment
  */
-public record KnowledgeReference(long entityId, LocationPrecision embeddedPrecision, String displayText) {
+public record KnowledgeReference(long entityId, LocationPrecision embeddedPrecision, String displayText, UUID writerId) {
 
     public static final Codec<KnowledgeReference> CODEC = RecordCodecBuilder.create(i -> i.group(
             Codec.LONG.fieldOf("entity_id").forGetter(KnowledgeReference::entityId),
             LocationPrecision.CODEC.fieldOf("embedded_precision").forGetter(KnowledgeReference::embeddedPrecision),
-            Codec.STRING.fieldOf("display_text").forGetter(KnowledgeReference::displayText)
+            Codec.STRING.fieldOf("display_text").forGetter(KnowledgeReference::displayText),
+            UUIDUtil.CODEC.fieldOf("writer_id").forGetter(KnowledgeReference::writerId)
     ).apply(i, KnowledgeReference::new));
 
     public static final StreamCodec<RegistryFriendlyByteBuf, KnowledgeReference> STREAM_CODEC =
