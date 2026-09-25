@@ -9,6 +9,7 @@ import com.github.cerealklla.cartographyr.api.Cartography;
 import com.github.cerealklla.cartographyr.geo.Classification;
 import com.github.cerealklla.cartographyr.geo.EntityId;
 import com.github.cerealklla.cartographyr.geo.GeographicEntity;
+import com.github.cerealklla.cartographyr.geo.Geometry;
 
 import com.github.cerealklla.lyfe.LyfeMod;
 import com.github.cerealklla.lyfe.api.Lyfe;
@@ -17,15 +18,15 @@ import com.github.cerealklla.lyfe.registration.ModItems;
 import com.github.cerealklla.lyfe.skill.Skills;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.decoration.ItemFrame;
-import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.StandingSignBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -47,8 +48,13 @@ import net.neoforged.neoforge.network.PacketDistributor;
  * {@code AttachmentHolder}s). Maps are a plain item carrying the same {@link KnowledgeReference}
  * as a data component, inserted into the target item frame -- see decisions.md for why this
  * doesn't render an actual cartographic minimap texture.
+ *
+ * <p>Every sign/map references a real known place (free text was removed 2026-09-24).
  */
 public final class SignListener {
+
+    private static final String ARROW_RIGHT = "--->";
+    private static final String ARROW_LEFT = "<---";
 
     // Placeholder thresholds -- untuned, like every other magnitude in this project. A writer can
     // never embed better precision than either this level cap or their own actual knowledge of the
@@ -137,25 +143,18 @@ public final class SignListener {
     /** Called from {@code LyfeMod}'s payload registration -- see that class for why this is guarded there too. */
     public static void handleSubmit(ServerPlayer player, SubmitWritingPayload payload) {
         ServerLevel level = (ServerLevel) player.level();
-        KnowledgeReference reference;
+        long placeId = payload.chosenPlaceId();
 
-        if (payload.freeText().isPresent()) {
-            reference = KnowledgeReference.freeText(payload.freeText().get());
-        } else if (payload.chosenPlaceId().isPresent()) {
-            long placeId = payload.chosenPlaceId().get();
-            Optional<KnowledgeEntry> entry = player.getData(ModAttachments.PLAYER_KNOWLEDGE).get(placeId);
-            Optional<GeographicEntity> geo = Cartography.getEntity(level, new EntityId(placeId));
-            if (entry.isEmpty() || entry.get().locationPrecision().isEmpty() || geo.isEmpty()) {
-                return;
-            }
-            int skillLevel = Lyfe.getLevel(player, Skills.CARTOGRAPHYR_ID);
-            LocationPrecision embeddable = entry.get().locationPrecision().get().isAtLeastAsPreciseAs(levelCap(skillLevel))
-                    ? levelCap(skillLevel)
-                    : entry.get().locationPrecision().get();
-            reference = KnowledgeReference.knownPlace(placeId, embeddable, geo.get().name().orElse("an unnamed place"));
-        } else {
+        Optional<KnowledgeEntry> entry = player.getData(ModAttachments.PLAYER_KNOWLEDGE).get(placeId);
+        Optional<GeographicEntity> geo = Cartography.getEntity(level, new EntityId(placeId));
+        if (entry.isEmpty() || entry.get().locationPrecision().isEmpty() || geo.isEmpty()) {
             return;
         }
+        int skillLevel = Lyfe.getLevel(player, Skills.CARTOGRAPHYR_ID);
+        LocationPrecision embeddable = entry.get().locationPrecision().get().isAtLeastAsPreciseAs(levelCap(skillLevel))
+                ? levelCap(skillLevel)
+                : entry.get().locationPrecision().get();
+        KnowledgeReference reference = new KnowledgeReference(placeId, embeddable, geo.get().name().orElse("an unnamed place"));
 
         ItemStack held = player.getMainHandItem();
         WritingTarget target = payload.target();
@@ -164,13 +163,7 @@ public final class SignListener {
             if (!held.is(ModItems.CARTOGRAPHYR_SIGN.get()) || !level.getBlockState(target.blockPos()).isAir()) {
                 return;
             }
-            var signState = Blocks.OAK_SIGN.defaultBlockState()
-                    .setValue(StandingSignBlock.ROTATION, RotationSegment.convertToSegment(player.getYRot() + 180.0F));
-            level.setBlock(target.blockPos(), signState, 3);
-            if (level.getBlockEntity(target.blockPos()) instanceof SignBlockEntity sign) {
-                sign.setText(new SignText().setMessage(0, Component.literal(reference.displayText())), true);
-                sign.setData(ModAttachments.SIGN_REFERENCE, reference);
-            }
+            placeSign(level, player, target.blockPos(), reference, geo.get().geometry());
         } else {
             if (!held.is(ModItems.CARTOGRAPHYR_MAP.get())) {
                 return;
@@ -181,21 +174,95 @@ public final class SignListener {
             }
             ItemStack mapStack = new ItemStack(ModItems.CARTOGRAPHYR_MAP.get());
             mapStack.set(ModItems.KNOWLEDGE_REFERENCE, reference);
-            mapStack.set(net.minecraft.core.component.DataComponents.CUSTOM_NAME, Component.literal(reference.displayText()));
+            mapStack.set(DataComponents.CUSTOM_NAME, Component.literal(reference.displayText()));
             frame.setItem(mapStack);
         }
 
         held.shrink(1);
     }
 
-    private void handleRead(ServerPlayer reader, KnowledgeReference reference) {
-        if (reference.entityId().isEmpty() || reference.embeddedPrecision().isEmpty()) {
-            return; // Free text: no EntityId behind it, so it can never grant XP (anti-farming rule).
-        }
+    /**
+     * Places the sign rotated so a text arrow points toward {@code targetGeometry}'s center, and
+     * writes the place name / distance (if precise enough) / arrow onto the front face. The
+     * rotation math is derived from {@link RotationSegment}'s documented NORTH_0/EAST_90/SOUTH_180/
+     * WEST_270 constants and vanilla's own view-vector formula, but -- unlike everything else in
+     * this project -- hasn't been empirically verified in-game yet (no live feedback loop during
+     * design); if a placed sign points the wrong way, the fix is swapping the two {@code
+     * frontNormal} cases below, not a deeper redesign. See decisions.md for the full derivation.
+     */
+    private static void placeSign(ServerLevel level, ServerPlayer player, BlockPos signPos, KnowledgeReference reference, Geometry targetGeometry) {
+        ChunkPos min = targetGeometry.minChunk();
+        ChunkPos max = targetGeometry.maxChunk();
+        ChunkPos centerChunk = new ChunkPos((min.x() + max.x()) / 2, (min.z() + max.z()) / 2);
+        double targetX = centerChunk.getMiddleBlockX();
+        double targetZ = centerChunk.getMiddleBlockZ();
 
-        long placeId = reference.entityId().get();
+        double toTargetX = targetX - signPos.getX();
+        double toTargetZ = targetZ - signPos.getZ();
+        double distance = Math.sqrt(toTargetX * toTargetX + toTargetZ * toTargetZ);
+        double normX = toTargetX / distance;
+        double normZ = toTargetZ / distance;
+
+        double yawRad = Math.toRadians(player.getYRot());
+        double forwardX = -Math.sin(yawRad);
+        double forwardZ = Math.cos(yawRad);
+
+        boolean targetIsRight = isRightOf(forwardX, forwardZ, normX, normZ);
+        int rotationSegment = RotationSegment.convertToSegment((float) frontFacingBearingDegrees(normX, normZ, targetIsRight));
+        var signState = Blocks.OAK_SIGN.defaultBlockState().setValue(StandingSignBlock.ROTATION, rotationSegment);
+        level.setBlock(signPos, signState, 3);
+
+        if (level.getBlockEntity(signPos) instanceof SignBlockEntity sign) {
+            SignText text = new SignText().setMessage(0, Component.literal(reference.displayText()));
+            if (reference.embeddedPrecision() == LocationPrecision.EXACT) {
+                text = text.setMessage(2, Component.literal(Math.round(distance) + " blocks"));
+            }
+            text = text.setMessage(3, Component.literal(targetIsRight ? ARROW_RIGHT : ARROW_LEFT));
+            sign.setText(text, true);
+            sign.setData(ModAttachments.SIGN_REFERENCE, reference);
+        }
+    }
+
+    /**
+     * Whether {@code (towardX, towardZ)} is to the right of facing direction {@code (forwardX,
+     * forwardZ)} (both MC-convention direction vectors: north=-Z, south=+Z, east=+X, west=-X).
+     * Verified against a concrete example: facing north {@code (0,-1)} with something due east
+     * {@code (1,0)} of the observer must read as "right" (east is right of north) -- confirmed
+     * {@code cross = 0*0 - (-1)*1 = 1 > 0}. Package-visible for {@code SignListenerTest}.
+     */
+    static boolean isRightOf(double forwardX, double forwardZ, double towardX, double towardZ) {
+        double cross = forwardX * towardZ - forwardZ * towardX;
+        return cross >= 0;
+    }
+
+    /**
+     * The {@link RotationSegment#convertToSegment(float)} degree value for a sign whose front
+     * should show its right-hand arrow (if {@code targetIsRight}) or left-hand arrow pointing at
+     * direction {@code (normX, normZ)}. Derived by solving "a reader's right-hand direction, given
+     * they face the sign, equals the direction to the target" -- see decisions.md for the full
+     * derivation and the caveat that this is not yet empirically verified in-game. Package-visible
+     * for {@code SignListenerTest}.
+     */
+    static double frontFacingBearingDegrees(double normX, double normZ, boolean targetIsRight) {
+        double frontX = targetIsRight ? -normZ : normZ;
+        double frontZ = targetIsRight ? normX : -normX;
+        return bearingDegrees(frontX, frontZ);
+    }
+
+    /**
+     * Converts a MC-convention direction vector (north=-Z, south=+Z, east=+X, west=-X) into the
+     * degree space {@link RotationSegment#convertToSegment(float)} expects -- verified against
+     * that class's own documented constants (NORTH_0=0, EAST_90=4*22.5=90, SOUTH_180=8*22.5=180,
+     * WEST_270=12*22.5=270). Package-visible for {@code SignListenerTest}.
+     */
+    static double bearingDegrees(double dx, double dz) {
+        double degrees = Math.toDegrees(Math.atan2(dx, -dz));
+        return degrees < 0 ? degrees + 360 : degrees;
+    }
+
+    private void handleRead(ServerPlayer reader, KnowledgeReference reference) {
         boolean changed = reader.getData(ModAttachments.PLAYER_KNOWLEDGE)
-                .upgradeLocationPrecision(placeId, reference.embeddedPrecision().get());
+                .upgradeLocationPrecision(reference.entityId(), reference.embeddedPrecision());
 
         if (changed) {
             int amount = 10; // Placeholder flat XP per read, untuned.

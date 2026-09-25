@@ -1,16 +1,54 @@
 package com.github.cerealklla.lyfe.knowledge;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 
+import net.minecraft.world.level.block.state.properties.RotationSegment;
+
 /**
- * Covers {@link SignListener#levelCap}, the pure writer-quality-cap logic -- the rest of
- * SignListener needs a real Cartographyr-backed live server (right-click events, block/entity
- * placement) and isn't unit-testable, same limitation as {@code natural.NaturalRegionDiscovery}
- * elsewhere in this suite.
+ * Covers {@link SignListener#levelCap} (the pure writer-quality-cap logic) and the pure geometry
+ * helpers behind the sign-rotation/arrow math ({@link SignListener#isRightOf}, {@link
+ * SignListener#bearingDegrees}) -- the rest of SignListener needs a real Cartographyr-backed live
+ * server (right-click events, block/entity placement) and isn't unit-testable, same limitation as
+ * {@code natural.NaturalRegionDiscovery} elsewhere in this suite. The rotation math itself is
+ * flagged in decisions.md as not yet empirically verified in-game; these tests only confirm the
+ * one part with independent ground truth ({@code bearingDegrees} against {@link RotationSegment}'s
+ * own documented NORTH_0/EAST_90/SOUTH_180/WEST_270 constants) and simple self-consistency for the
+ * left/right test.
  */
 class SignListenerTest {
+
+    @Test
+    void bearingDegreesMatchesRotationSegmentsDocumentedCardinalConstants() {
+        // North = -Z, East = +X, South = +Z, West = -X (MC convention).
+        assertEquals(0.0, SignListener.bearingDegrees(0, -1), 0.001);
+        assertEquals(90.0, SignListener.bearingDegrees(1, 0), 0.001);
+        assertEquals(180.0, SignListener.bearingDegrees(0, 1), 0.001);
+        assertEquals(270.0, SignListener.bearingDegrees(-1, 0), 0.001);
+
+        assertEquals(0, RotationSegment.convertToSegment((float) SignListener.bearingDegrees(0, -1)));
+        assertEquals(4, RotationSegment.convertToSegment((float) SignListener.bearingDegrees(1, 0)));
+        assertEquals(8, RotationSegment.convertToSegment((float) SignListener.bearingDegrees(0, 1)));
+        assertEquals(12, RotationSegment.convertToSegment((float) SignListener.bearingDegrees(-1, 0)));
+    }
+
+    @Test
+    void isRightOfMatchesTheNorthFacingEastTargetExample() {
+        // Facing north (0,-1), something due east (1,0) must read as "right" -- the concrete
+        // example the formula was derived and checked against.
+        assertTrue(SignListener.isRightOf(0, -1, 1, 0));
+        // Symmetric: facing north, something due west is to the left.
+        assertFalse(SignListener.isRightOf(0, -1, -1, 0));
+    }
+
+    @Test
+    void isRightOfIsConsistentWhenFacingIsReversed() {
+        // Facing south (0,1) instead of north -- east should now read as "left".
+        assertFalse(SignListener.isRightOf(0, 1, 1, 0));
+    }
 
     @Test
     void lowLevelCapsAtRelative() {

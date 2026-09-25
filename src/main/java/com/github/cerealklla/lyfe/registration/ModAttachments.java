@@ -6,6 +6,7 @@ import com.github.cerealklla.lyfe.LyfeMod;
 import com.github.cerealklla.lyfe.data.PlayerSkills;
 import com.github.cerealklla.lyfe.hunger.PlayerHunger;
 import com.github.cerealklla.lyfe.knowledge.KnowledgeReference;
+import com.github.cerealklla.lyfe.knowledge.LocationPrecision;
 import com.github.cerealklla.lyfe.knowledge.PlayerKnowledge;
 
 import net.minecraft.network.codec.ByteBufCodecs;
@@ -57,7 +58,7 @@ public final class ModAttachments {
     // Not synced -- only server-side read logic (SignListener) ever looks at it.
     public static final Supplier<AttachmentType<KnowledgeReference>> SIGN_REFERENCE = ATTACHMENT_TYPES.register(
             "sign_reference",
-            () -> AttachmentType.builder(holder -> KnowledgeReference.freeText(""))
+            () -> AttachmentType.builder(holder -> new KnowledgeReference(0L, LocationPrecision.RELATIVE, ""))
                     .serialize(KnowledgeReference.CODEC.fieldOf("data"))
                     .build()
     );
