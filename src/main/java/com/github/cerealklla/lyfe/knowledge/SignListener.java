@@ -50,8 +50,10 @@ import net.neoforged.neoforge.network.PacketDistributor;
  * placement flow; a "Cartographyr" button is injected into vanilla's own {@code SignEditScreen}
  * on a sign's first edit when it was placed on a fence post (see {@code LyfeModClient}), which
  * routes to {@link #requestSignWritingScreen}/{@link #handleSubmit} instead of vanilla's normal
- * free-text submission. Maps are triggered by right-clicking while holding any plain vanilla
- * {@link Items#MAP}/{@link Items#FILLED_MAP} ({@link #onRightClickItem}) -- the resulting item
+ * free-text submission. Maps are triggered by sneak-right-clicking while holding any plain
+ * vanilla {@link Items#MAP}/{@link Items#FILLED_MAP} ({@link #onRightClickItem}) -- plain
+ * right-click is left alone so vanilla's own blank-map-to-real-map behavior keeps working. The
+ * resulting item
  * stays a completely ordinary {@code Items#FILLED_MAP} the player can carry, trade, or sell, not
  * a special item or something that has to live in an item frame. Either way, a {@link
  * KnowledgeReference} is attached (a sign block entity attachment, or an item data component) --
@@ -118,12 +120,18 @@ public final class SignListener {
     }
 
     /**
-     * Right-clicking while holding any plain vanilla map (blank {@link Items#MAP} or a real,
+     * Sneak-right-clicking while holding any plain vanilla map (blank {@link Items#MAP} or a real,
      * player-explored {@link Items#FILLED_MAP}) opens the known-places picker; confirming
      * overwrites that exact physical map with a rendered one, cancelling leaves it untouched.
-     * Right-clicking a map that's already a Cartographyr map ({@link KnowledgeReference} present)
-     * reads it instead -- it can't be re-targeted, so one physical map can't be reused to harvest
-     * unlimited knowledge.
+     * Right-clicking (no sneak needed) a map that's already a Cartographyr map ({@link
+     * KnowledgeReference} present) reads it instead -- it can't be re-targeted, so one physical map
+     * can't be reused to harvest unlimited knowledge.
+     *
+     * <p>The sneak requirement (added 2026-09-25 after a playtest report, see decisions.md) only
+     * applies to opening the picker: a plain right-click on a blank {@link Items#MAP} is left
+     * alone entirely, so vanilla's own {@code EmptyMapItem#use} (blank map -> a real map centered
+     * on the player) keeps working unmodified. Without this, this handler unconditionally
+     * cancelling every map right-click silently broke that vanilla mechanic.
      */
     @SubscribeEvent
     public void onRightClickItem(PlayerInteractEvent.RightClickItem event) {
@@ -138,10 +146,11 @@ public final class SignListener {
         KnowledgeReference reference = held.get(ModItems.KNOWLEDGE_REFERENCE);
         if (reference != null) {
             handleRead(player, reference);
-        } else {
+            event.setCanceled(true);
+        } else if (player.isShiftKeyDown()) {
             openWritingScreen(player, WritingTarget.map());
+            event.setCanceled(true);
         }
-        event.setCanceled(true);
     }
 
     /**
