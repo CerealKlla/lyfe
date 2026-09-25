@@ -46,8 +46,13 @@ public final class GatheringListener {
     private static final float SPEED_PER_LEVEL = 0.01f; // +1%/level -> +50% at level 50
     private static final double BONUS_YIELD_PER_LEVEL = 0.005; // +0.5%/level
     private static final double BONUS_YIELD_CAP = 0.25;
-    private static final double WHOLE_STRUCTURE_PER_LEVEL = 0.002; // +0.2%/level
-    private static final double WHOLE_STRUCTURE_CAP = 0.10;
+    // Per-skill whole-structure-chance caps (2026-09-25, see decisions.md) -- Lumberjack tops out
+    // at 20% and Miner at 30%, both at level 50 (per-level rate is just cap/50). Previously a
+    // single shared curve for both skills; split out once the user asked for different caps.
+    private static final double LUMBERJACK_WHOLE_STRUCTURE_CAP = 0.20;
+    private static final double LUMBERJACK_WHOLE_STRUCTURE_PER_LEVEL = LUMBERJACK_WHOLE_STRUCTURE_CAP / 50;
+    private static final double MINER_WHOLE_STRUCTURE_CAP = 0.30;
+    private static final double MINER_WHOLE_STRUCTURE_PER_LEVEL = MINER_WHOLE_STRUCTURE_CAP / 50;
 
     // Re-entrancy guard: whole-structure-clear breaks extra blocks by re-firing this same
     // BlockDropsEvent listener (see rollWholeStructureClear). XP/bonus yield still apply
@@ -139,7 +144,7 @@ public final class GatheringListener {
         rollBonusYield(event, level);
 
         if (!withinWholeStructureClear) {
-            rollWholeStructureClear(event, player, level);
+            rollWholeStructureClear(event, player, skill, level);
         }
     }
 
@@ -175,8 +180,10 @@ public final class GatheringListener {
         drops.add(new ItemEntity(serverLevel, original.getX(), original.getY(), original.getZ(), copy));
     }
 
-    private void rollWholeStructureClear(BlockDropsEvent event, Player player, int level) {
-        double chance = Math.min(WHOLE_STRUCTURE_CAP, level * WHOLE_STRUCTURE_PER_LEVEL);
+    private void rollWholeStructureClear(BlockDropsEvent event, Player player, GatheringSkill skill, int level) {
+        double cap = skill == GatheringSkill.MINER ? MINER_WHOLE_STRUCTURE_CAP : LUMBERJACK_WHOLE_STRUCTURE_CAP;
+        double perLevel = skill == GatheringSkill.MINER ? MINER_WHOLE_STRUCTURE_PER_LEVEL : LUMBERJACK_WHOLE_STRUCTURE_PER_LEVEL;
+        double chance = Math.min(cap, level * perLevel);
         ServerLevel serverLevel = event.getLevel();
         if (serverLevel.getRandom().nextDouble() >= chance) {
             return;
