@@ -9,12 +9,12 @@ import java.util.UUID;
 
 import com.github.cerealklla.cartographyr.api.Cartography;
 import com.github.cerealklla.cartographyr.geo.Classification;
+import com.github.cerealklla.cartographyr.geo.DisplayText;
 import com.github.cerealklla.cartographyr.geo.EntityId;
 import com.github.cerealklla.cartographyr.geo.GeographicEntity;
 import com.github.cerealklla.cartographyr.geo.Layer;
 
 import com.github.cerealklla.lyfe.LyfeMod;
-import com.github.cerealklla.lyfe.geo.DisplayText;
 import com.github.cerealklla.lyfe.knowledge.PlayerKnowledge;
 import com.github.cerealklla.lyfe.registration.ModAttachments;
 
