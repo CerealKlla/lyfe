@@ -7,6 +7,7 @@ import com.mojang.brigadier.arguments.StringArgumentType;
 import com.github.cerealklla.lyfe.api.Lyfe;
 import com.github.cerealklla.lyfe.hunger.HungerListener;
 import com.github.cerealklla.lyfe.hunger.PlayerHunger;
+import com.github.cerealklla.lyfe.knowledge.PlayerKnowledge;
 import com.github.cerealklla.lyfe.registration.ModAttachments;
 import com.github.cerealklla.lyfe.skill.SkillId;
 import com.github.cerealklla.lyfe.skill.SkillRegistry;
@@ -74,10 +75,17 @@ public final class DebugCommands {
                         IntegerArgumentType.getInteger(context, "amount")))
                 .then(hungerWithTarget);
 
+        var knowledgeResetWithTarget = Commands.argument("target", EntityArgument.player())
+                .executes(context -> resetKnowledge(context.getSource(), EntityArgument.getPlayer(context, "target")));
+
         dispatcher.register(Commands.literal("lyfe")
                 .requires(Commands.hasPermission(Commands.LEVEL_ALL))
                 .then(Commands.literal("xp").then(skillArgument))
-                .then(Commands.literal("hunger").then(hungerAmountArgument)));
+                .then(Commands.literal("hunger").then(hungerAmountArgument))
+                .then(Commands.literal("knowledge")
+                        .then(Commands.literal("reset")
+                                .executes(context -> resetKnowledge(context.getSource(), context.getSource().getPlayerOrException()))
+                                .then(knowledgeResetWithTarget))));
     }
 
     private static int addXp(CommandSourceStack source, ServerPlayer target, String skillIdValue, int amount) {
@@ -103,5 +111,19 @@ public final class DebugCommands {
         source.sendSuccess(() -> Component.literal(
                 target.getName().getString() + "'s true hunger is now " + newHunger + "/" + currentMax), true);
         return newHunger;
+    }
+
+    /**
+     * Wipes every entry from the target's {@code PlayerKnowledge} -- lets a tester re-exercise
+     * "learning a place for the first time" (e.g. Cartographyr XP on a genuine sign/map read)
+     * without needing a fresh character. Note that {@code location.LocationTracker} calls {@code
+     * PlayerKnowledge#markVisited} on anything it detects the player standing near, so a reset
+     * won't stay clean if the target is currently at/near a place they'd immediately re-detect --
+     * move away first, or reset then read about a different, distant place.
+     */
+    private static int resetKnowledge(CommandSourceStack source, ServerPlayer target) {
+        target.setData(ModAttachments.PLAYER_KNOWLEDGE, new PlayerKnowledge());
+        source.sendSuccess(() -> Component.literal(target.getName().getString() + "'s world knowledge has been reset"), true);
+        return 1;
     }
 }
