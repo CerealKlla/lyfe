@@ -6,6 +6,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 
+import com.github.cerealklla.cartographyr.geo.Geometry;
+
 import net.minecraft.world.level.block.state.properties.RotationSegment;
 
 /**
@@ -76,6 +78,27 @@ class SignListenerTest {
     void arrowForMatchesTargetIsRightDirectly() {
         assertEquals("--->", SignListener.arrowFor(true));
         assertEquals("<---", SignListener.arrowFor(false));
+    }
+
+    /** A single-chunk footprint (16 blocks) comfortably fits in the smallest scale (grid 128). */
+    @Test
+    void mapScaleForSmallFootprintUsesSmallestScale() {
+        Geometry.Bounds bounds = new Geometry.Bounds(0, 0, 15, 15);
+        assertEquals((byte) 0, SignListener.mapScaleFor(bounds));
+    }
+
+    /** A ~160-block-wide footprint needs grid >= 480, which scale 2 (grid 512) is the smallest to satisfy. */
+    @Test
+    void mapScaleForMediumFootprintPicksSmallestSufficientScale() {
+        Geometry.Bounds bounds = new Geometry.Bounds(0, 0, 159, 159);
+        assertEquals((byte) 2, SignListener.mapScaleFor(bounds));
+    }
+
+    /** A huge footprint that no vanilla scale can triple-cover falls back to the max scale (4). */
+    @Test
+    void mapScaleForHugeFootprintCapsAtMaxScale() {
+        Geometry.Bounds bounds = new Geometry.Bounds(0, 0, 1599, 1599);
+        assertEquals((byte) 4, SignListener.mapScaleFor(bounds));
     }
 
     @Test

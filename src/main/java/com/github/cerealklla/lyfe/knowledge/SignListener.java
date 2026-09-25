@@ -26,6 +26,7 @@ import net.minecraft.tags.BlockTags;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.decoration.ItemFrame;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.MapItem;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.StandingSignBlock;
@@ -33,6 +34,7 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.SignBlockEntity;
 import net.minecraft.world.level.block.entity.SignText;
 import net.minecraft.world.level.block.state.properties.RotationSegment;
+import net.minecraft.world.level.saveddata.maps.MapItemSavedData;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
@@ -172,7 +174,17 @@ public final class SignListener {
             if (!(entity instanceof ItemFrame frame) || !frame.getItem().isEmpty()) {
                 return;
             }
-            ItemStack mapStack = new ItemStack(ModItems.CARTOGRAPHYR_MAP.get());
+            ServerLevel targetLevel = level.getServer().getLevel(geo.get().dimension());
+            if (targetLevel == null) {
+                return;
+            }
+            BlockPos center = geometryCenter(geo.get().geometry());
+            byte scale = mapScaleFor(geo.get().geometry());
+            ItemStack mapStack = TerrainMapRenderer.createFilledMap(targetLevel, center.getX(), center.getZ(), scale);
+            MapItemSavedData mapData = MapItem.getSavedData(mapStack, targetLevel);
+            if (mapData != null) {
+                TerrainMapRenderer.renderTerrain(targetLevel, mapData, center.getX(), center.getZ(), scale);
+            }
             mapStack.set(ModItems.KNOWLEDGE_REFERENCE, reference);
             mapStack.set(DataComponents.CUSTOM_NAME, Component.literal(reference.displayText()));
             frame.setItem(mapStack);
@@ -191,11 +203,9 @@ public final class SignListener {
      * frontNormal} cases below, not a deeper redesign. See decisions.md for the full derivation.
      */
     private static void placeSign(ServerLevel level, ServerPlayer player, BlockPos signPos, KnowledgeReference reference, Geometry targetGeometry) {
-        ChunkPos min = targetGeometry.minChunk();
-        ChunkPos max = targetGeometry.maxChunk();
-        ChunkPos centerChunk = new ChunkPos((min.x() + max.x()) / 2, (min.z() + max.z()) / 2);
-        double targetX = centerChunk.getMiddleBlockX();
-        double targetZ = centerChunk.getMiddleBlockZ();
+        BlockPos center = geometryCenter(targetGeometry);
+        double targetX = center.getX();
+        double targetZ = center.getZ();
 
         double toTargetX = targetX - signPos.getX();
         double toTargetZ = targetZ - signPos.getZ();
@@ -221,6 +231,40 @@ public final class SignListener {
             sign.setText(text, true);
             sign.setData(ModAttachments.SIGN_REFERENCE, reference);
         }
+    }
+
+    /**
+     * A target's representative center: the bounding-box midpoint of its {@link Geometry}'s
+     * {@code minChunk()}/{@code maxChunk()}. Used both for sign-rotation math and, since 2026-09-24,
+     * as the origin for {@link TerrainMapRenderer}'s auto-rendered maps.
+     */
+    private static BlockPos geometryCenter(Geometry geometry) {
+        ChunkPos min = geometry.minChunk();
+        ChunkPos max = geometry.maxChunk();
+        ChunkPos centerChunk = new ChunkPos((min.x() + max.x()) / 2, (min.z() + max.z()) / 2);
+        return new BlockPos(centerChunk.getMiddleBlockX(), 0, centerChunk.getMiddleBlockZ());
+    }
+
+    /**
+     * Picks the smallest vanilla map scale (0-4, grid size {@code 128 * 2^scale}) that comfortably
+     * contains {@code geometry}'s footprint with room for surrounding context. Placeholder heuristic
+     * (grid >= 3x footprint width) -- untuned, like every other magnitude in this project. Package-
+     * visible for {@code SignListenerTest}.
+     */
+    static byte mapScaleFor(Geometry geometry) {
+        ChunkPos min = geometry.minChunk();
+        ChunkPos max = geometry.maxChunk();
+        int footprintWidth = Math.max(
+                (max.x() - min.x() + 1) * 16,
+                (max.z() - min.z() + 1) * 16);
+
+        for (byte scale = 0; scale < 4; scale++) {
+            int gridWidth = 128 * (1 << scale);
+            if (gridWidth >= footprintWidth * 3) {
+                return scale;
+            }
+        }
+        return 4;
     }
 
     /**

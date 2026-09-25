@@ -145,6 +145,11 @@ dependencies {
     // run ../Cartographyr's own build (or the suite's sync-mods.sh) at least once before building
     // this project, or this dependency won't resolve.
     compileOnly files("../Cartographyr/build/libs/cartographyr-${cartographyr_version}.jar")
+    // Test code (SignListenerTest's mapScaleFor cases) constructs Geometry.Bounds directly to stay
+    // a pure/fast JUnit test rather than needing a live server -- same compileOnly-not-inherited-by-
+    // test-source-set reasoning as above.
+    testCompileOnly files("../Cartographyr/build/libs/cartographyr-${cartographyr_version}.jar")
+    testRuntimeOnly files("../Cartographyr/build/libs/cartographyr-${cartographyr_version}.jar")
 
     // For more info:
     // http://www.gradle.org/docs/current/userguide/artifact_dependencies_tutorial.html
