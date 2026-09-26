@@ -87,14 +87,14 @@ class SignListenerTest {
         assertEquals((byte) 0, SignListener.mapScaleFor(bounds));
     }
 
-    /** A ~160-block-wide footprint needs grid >= 480, which scale 2 (grid 512) is the smallest to satisfy. */
+    /** A ~160-block-wide footprint needs grid >= 240 (1.5x margin), which scale 1 (grid 256) is the smallest to satisfy. */
     @Test
     void mapScaleForMediumFootprintPicksSmallestSufficientScale() {
         Geometry.Bounds bounds = new Geometry.Bounds(0, 0, 159, 159);
-        assertEquals((byte) 2, SignListener.mapScaleFor(bounds));
+        assertEquals((byte) 1, SignListener.mapScaleFor(bounds));
     }
 
-    /** A huge footprint that no vanilla scale can triple-cover falls back to the max scale (4). */
+    /** A huge footprint that no vanilla scale can cover with the 1.5x margin falls back to the max scale (4). */
     @Test
     void mapScaleForHugeFootprintCapsAtMaxScale() {
         Geometry.Bounds bounds = new Geometry.Bounds(0, 0, 1599, 1599);

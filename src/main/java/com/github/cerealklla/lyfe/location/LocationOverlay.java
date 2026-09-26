@@ -12,8 +12,13 @@ import net.neoforged.neoforge.client.gui.GuiLayer;
  * Persistent top-right overlay, one line per layer (e.g. "Location: X", and eventually a
  * "Territory: Y" line above it) -- backed by the player's own knowledge (see {@link
  * LocationTracker}), not raw world truth. Moved here from Cartographyr 2026-09-24 -- see
- * decisions.md. Renders nothing until the first {@link LocationPayload} arrives, then always shows
- * the most recently received lines (never blanks again on its own).
+ * decisions.md. Renders nothing until the first {@link LocationPayload} arrives, and renders
+ * nothing again whenever the most recently received payload is empty -- i.e. it genuinely reflects
+ * "currently in no known territory," not just whatever was last detected. (Until 2026-09-25 this
+ * doc claimed it "never blanks again on its own" -- that was actually a real bug: {@link
+ * LocationTracker} used to skip sending updates entirely whenever it detected nothing, so leaving
+ * all known territory left this frozen on stale data instead of clearing. Fixed the same day, see
+ * decisions.md.)
  *
  * <p>Reworked from a single line to a stack the same day (second pass), when Cartographyr's Layer
  * registry made "more than one line" a real possibility. Lines arrive already sorted by placement

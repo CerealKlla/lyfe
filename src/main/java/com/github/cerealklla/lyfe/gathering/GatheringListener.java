@@ -44,14 +44,17 @@ public final class GatheringListener {
 
     private static final long XP_PER_BLOCK = 5;
     private static final float SPEED_PER_LEVEL = 0.01f; // +1%/level -> +50% at level 50
-    private static final double BONUS_YIELD_PER_LEVEL = 0.005; // +0.5%/level
-    private static final double BONUS_YIELD_CAP = 0.25;
+    // Doubled 2026-09-25 (see decisions.md) -- playtest feedback that 25% at max level didn't feel
+    // very high. +1%/level -> 50% at level 50.
+    private static final double BONUS_YIELD_PER_LEVEL = 0.01;
+    private static final double BONUS_YIELD_CAP = 0.50;
     // Per-skill whole-structure-chance caps (2026-09-25, see decisions.md) -- Lumberjack tops out
-    // at 20% and Miner at 30%, both at level 50 (per-level rate is just cap/50). Previously a
-    // single shared curve for both skills; split out once the user asked for different caps.
+    // at 20% and Miner at 40% (bumped from 30% the same day per playtest feedback), both at level
+    // 50 (per-level rate is just cap/50). Previously a single shared curve for both skills; split
+    // out once the user asked for different caps.
     private static final double LUMBERJACK_WHOLE_STRUCTURE_CAP = 0.20;
     private static final double LUMBERJACK_WHOLE_STRUCTURE_PER_LEVEL = LUMBERJACK_WHOLE_STRUCTURE_CAP / 50;
-    private static final double MINER_WHOLE_STRUCTURE_CAP = 0.30;
+    private static final double MINER_WHOLE_STRUCTURE_CAP = 0.40;
     private static final double MINER_WHOLE_STRUCTURE_PER_LEVEL = MINER_WHOLE_STRUCTURE_CAP / 50;
 
     // Re-entrancy guard: whole-structure-clear breaks extra blocks by re-firing this same
@@ -155,7 +158,7 @@ public final class GatheringListener {
      * player. Remove once Section 11 lands.
      */
     private void debugAnnounceXpGain(Player player, GatheringSkill skill, int level) {
-        if (!(player instanceof ServerPlayer serverPlayer)) {
+        if (!(player instanceof ServerPlayer serverPlayer) || Lyfe.isMaxLevel(player, skill.skillId())) {
             return;
         }
         String displayName = Lyfe.getSkillDefinition(skill.skillId())

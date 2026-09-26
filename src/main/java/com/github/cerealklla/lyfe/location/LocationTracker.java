@@ -65,6 +65,12 @@ public final class LocationTracker {
      * without having moved would see a blank overlay indefinitely: the tick handler only sends an
      * update when the detected snapshot *changes*, but the client's overlay state is fresh/blank on
      * every new connection regardless of whether the server-side state for them is unchanged.
+     *
+     * <p><b>Always sends, even when {@code detectCandidates} finds nothing</b> (fixed 2026-09-25,
+     * see decisions.md) -- previously bailed out on an empty result, so a player reconnecting
+     * somewhere Cartographyr has no data for (originally surfaced by cherry groves having no {@code
+     * NaturalRegionProfile}, but really any spot with nothing detected) kept whatever the overlay
+     * happened to show from their *previous* session instead of correctly going blank.
      */
     @SubscribeEvent
     public void onPlayerLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {
@@ -74,9 +80,6 @@ public final class LocationTracker {
         ServerLevel level = (ServerLevel) player.level();
 
         Map<Identifier, GeographicEntity> byLayer = detectCandidates(level, player);
-        if (byLayer.isEmpty()) {
-            return;
-        }
 
         UUID playerId = player.getUUID();
         pendingRegion.remove(playerId);
@@ -84,6 +87,14 @@ public final class LocationTracker {
         sendLocation(player, byLayer);
     }
 
+    /**
+     * Same "always let {@link #notifyIfChanged} see it, even when empty" fix as {@link
+     * #onPlayerLoggedIn} (2026-09-25, see decisions.md) -- previously bailed out here too whenever
+     * {@code detectCandidates} found nothing, so walking out of all known territory left the
+     * overlay frozen on the last real location forever (it never got a chance to debounce down to
+     * an empty snapshot and clear). {@code notifyIfChanged}'s own debounce logic already handles an
+     * empty snapshot correctly -- no special-casing needed here now that it actually sees one.
+     */
     @SubscribeEvent
     public void onPlayerTick(PlayerTickEvent.Post event) {
         // instanceof ServerPlayer alone is sufficient to restrict this to the server side: the
@@ -98,10 +109,6 @@ public final class LocationTracker {
 
         ServerLevel level = (ServerLevel) player.level();
         Map<Identifier, GeographicEntity> byLayer = detectCandidates(level, player);
-        if (byLayer.isEmpty()) {
-            return;
-        }
-
         notifyIfChanged(player, byLayer);
     }
 

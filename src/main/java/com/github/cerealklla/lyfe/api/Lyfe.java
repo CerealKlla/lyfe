@@ -99,6 +99,19 @@ public final class Lyfe {
                 .orElse(0);
     }
 
+    /**
+     * Whether the player has already hit {@code skillId}'s max level -- every "+N XP (Level M)"
+     * chat message caller should check this first and skip the message once true, since XP earned
+     * past max level still gets added (see {@code PlayerSkills#addXp}, uncapped) but no longer
+     * changes anything the player can see, so announcing it is just noise. Unregistered skills
+     * report {@code false} (level 0 is never max).
+     */
+    public static boolean isMaxLevel(Player player, SkillId skillId) {
+        return getSkillDefinition(skillId)
+                .map(def -> getLevel(player, skillId) >= def.xpCurve().maxLevel())
+                .orElse(false);
+    }
+
     public static Optional<SkillDefinition> getSkillDefinition(SkillId skillId) {
         return SkillRegistry.get(skillId);
     }

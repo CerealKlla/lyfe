@@ -81,8 +81,11 @@ public final class SignListener {
     // Returns a *count*, not a specific set -- KnowledgeFactor's declaration order is "easiest to
     // obtain" first (see that enum's own doc), so a writer capped at N factors keeps the first N in
     // that order (DIRECTION before DISTANCE before POSITION) out of whatever they actually know.
-    // Package-visible for SignListenerTest.
-    static int levelCap(int cartographyrLevel) {
+    // Public (widened from package-visible 2026-09-25, see decisions.md) -- DebugCommands uses it
+    // too, to warn a tester when their own Cartographyr level will cap what a sign/map can embed
+    // below what /lyfe knowledge learn(random) just granted them (a real point of playtest
+    // confusion: the debug grant reports true knowledge, not writer-capped embeddable knowledge).
+    public static int levelCap(int cartographyrLevel) {
         if (cartographyrLevel < 3) {
             return 1;
         }
@@ -247,7 +250,7 @@ public final class SignListener {
             if (!level.getBlockState(pos.below()).is(BlockTags.FENCES)) {
                 return;
             }
-            bindSign(level, player, sign, reference, geo.get().geometry(), skillLevel);
+            bindSign(level, player, sign, reference, geo.get(), skillLevel);
             // No creation XP for signs, deliberately (2026-09-25, see decisions.md) -- a bound
             // sign, once broken, drops back to a completely ordinary reusable vanilla sign item
             // (ModItems.CARTOGRAPHYR_SIGN doesn't exist anymore), so granting XP here would let a
@@ -293,10 +296,13 @@ public final class SignListener {
     private static final long CREATION_XP = 10;
 
     private static void awardCreationXp(ServerPlayer writer) {
+        boolean wasMaxLevel = Lyfe.isMaxLevel(writer, Skills.CARTOGRAPHYR_ID);
         long newXp = Lyfe.addXp(writer, Skills.CARTOGRAPHYR_ID, CREATION_XP);
         int newLevel = Lyfe.getLevel(writer, Skills.CARTOGRAPHYR_ID);
-        writer.sendSystemMessage(Component.literal(
-                "+" + CREATION_XP + " Cartographyr XP (Level " + newLevel + ", total " + newXp + ")"));
+        if (!wasMaxLevel) {
+            writer.sendSystemMessage(Component.literal(
+                    "+" + CREATION_XP + " Cartographyr XP (Level " + newLevel + ", total " + newXp + ")"));
+        }
     }
 
     // Placeholder, untuned -- the rotation-slop magnitude at the (currently unreachable) 30%
@@ -321,9 +327,9 @@ public final class SignListener {
      * the same treatment -- a random angle offset scaled by that same variance, so vague knowledge
      * ("somewhere to the east") can't be placed down as a perfectly precise bearing.
      */
-    private static void bindSign(ServerLevel level, ServerPlayer player, SignBlockEntity sign, KnowledgeReference reference, Geometry targetGeometry, int writerSkillLevel) {
+    private static void bindSign(ServerLevel level, ServerPlayer player, SignBlockEntity sign, KnowledgeReference reference, GeographicEntity target, int writerSkillLevel) {
         BlockPos signPos = sign.getBlockPos();
-        BlockPos center = geometryCenter(targetGeometry);
+        BlockPos center = geometryCenter(target.geometry());
         double targetX = center.getX();
         double targetZ = center.getZ();
 
@@ -354,7 +360,10 @@ public final class SignListener {
         if (!(level.getBlockEntity(signPos) instanceof SignBlockEntity boundSign)) {
             return;
         }
-        SignText text = new SignText().setMessage(0, Component.literal(reference.displayText()));
+        // Short name only (no "Village of"/"City of" designation) -- see DisplayText#shortForEntity's
+        // own doc: the full designation-prefixed form (still used for the map's item name, where
+        // there's no width constraint) routinely ran off a vanilla sign's ~15-character-wide line.
+        SignText text = new SignText().setMessage(0, Component.literal(DisplayText.shortForEntity(target)));
         if (writerSkillLevel >= 2) {
             text = text.setMessage(2, Component.literal(DistanceText.format(distance, variance, RANDOM)));
         }
@@ -377,9 +386,12 @@ public final class SignListener {
 
     /**
      * Picks the smallest vanilla map scale (0-4, grid size {@code 128 * 2^scale}) that comfortably
-     * contains {@code geometry}'s footprint with room for surrounding context. Placeholder heuristic
-     * (grid >= 3x footprint width) -- untuned, like every other magnitude in this project. Package-
-     * visible for {@code SignListenerTest}.
+     * contains {@code geometry}'s footprint with a little room for surrounding context. Placeholder
+     * heuristic -- untuned, like every other magnitude in this project. Margin dropped from 3x to
+     * 1.5x footprint width 2026-09-25 (see decisions.md) after playtest feedback that a small
+     * village was barely visible on its auto-generated map -- 3x margin meant a village well under
+     * half a vanilla scale-0 grid's width (128 blocks) was still being bumped up to scale 1 (256
+     * blocks) or higher, shrinking it further. Package-visible for {@code SignListenerTest}.
      */
     static byte mapScaleFor(Geometry geometry) {
         ChunkPos min = geometry.minChunk();
@@ -390,7 +402,7 @@ public final class SignListener {
 
         for (byte scale = 0; scale < 4; scale++) {
             int gridWidth = 128 * (1 << scale);
-            if (gridWidth >= footprintWidth * 3) {
+            if (gridWidth >= footprintWidth * 1.5) {
                 return scale;
             }
         }
@@ -463,10 +475,13 @@ public final class SignListener {
 
         if (changed) {
             int amount = 10; // Placeholder flat XP per read, untuned.
+            boolean wasMaxLevel = Lyfe.isMaxLevel(reader, Skills.CARTOGRAPHYR_ID);
             long newXp = Lyfe.addXp(reader, Skills.CARTOGRAPHYR_ID, amount);
             int newLevel = Lyfe.getLevel(reader, Skills.CARTOGRAPHYR_ID);
-            reader.sendSystemMessage(Component.literal(
-                    "+" + amount + " Cartographyr XP (Level " + newLevel + ", total " + newXp + ")"));
+            if (!wasMaxLevel) {
+                reader.sendSystemMessage(Component.literal(
+                        "+" + amount + " Cartographyr XP (Level " + newLevel + ", total " + newXp + ")"));
+            }
 
             // Credit the writer too, even if they're offline right now (see api.Lyfe#addXp's UUID
             // overload) -- but not when a player reads their own sign/map, which would otherwise

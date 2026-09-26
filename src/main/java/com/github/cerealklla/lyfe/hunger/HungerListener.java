@@ -230,21 +230,36 @@ public final class HungerListener {
         }
 
         if (totalXp > 0) {
+            boolean wasMaxLevel = Lyfe.isMaxLevel(player, Skills.COOK_ID);
             Lyfe.addXp(player, Skills.COOK_ID, totalXp);
-            int cookLevel = Lyfe.getLevel(player, Skills.COOK_ID);
-            player.sendSystemMessage(Component.literal("+" + totalXp + " Cook XP (Level " + cookLevel + ") — free cooking!"));
+            if (!wasMaxLevel) {
+                int cookLevel = Lyfe.getLevel(player, Skills.COOK_ID);
+                player.sendSystemMessage(Component.literal("+" + totalXp + " Cook XP (Level " + cookLevel + ") — free cooking!"));
+            }
         }
     }
 
     /** DEBUG ONLY -- same stand-in used by GatheringListener until design doc Section 12's real XP feedback exists. */
     private void debugAnnounce(ServerPlayer player, int gained, boolean cooked, int bonusNutrition) {
-        int survivalistLevel = Lyfe.getLevel(player, Skills.SURVIVALIST_ID);
-        String message = "+" + gained + " Survivalist XP (Level " + survivalistLevel + ")";
-        if (cooked && bonusNutrition > 0) {
-            int cookLevel = Lyfe.getLevel(player, Skills.COOK_ID);
-            message += " | +" + bonusNutrition + " Cook XP (Level " + cookLevel + ")";
+        boolean showSurvivalist = !Lyfe.isMaxLevel(player, Skills.SURVIVALIST_ID);
+        boolean showCook = cooked && bonusNutrition > 0 && !Lyfe.isMaxLevel(player, Skills.COOK_ID);
+        if (!showSurvivalist && !showCook) {
+            return;
         }
-        player.sendSystemMessage(Component.literal(message));
+
+        StringBuilder message = new StringBuilder();
+        if (showSurvivalist) {
+            int survivalistLevel = Lyfe.getLevel(player, Skills.SURVIVALIST_ID);
+            message.append("+").append(gained).append(" Survivalist XP (Level ").append(survivalistLevel).append(")");
+        }
+        if (showCook) {
+            if (!message.isEmpty()) {
+                message.append(" | ");
+            }
+            int cookLevel = Lyfe.getLevel(player, Skills.COOK_ID);
+            message.append("+").append(bonusNutrition).append(" Cook XP (Level ").append(cookLevel).append(")");
+        }
+        player.sendSystemMessage(Component.literal(message.toString()));
     }
 
     /** Section 10.1: grows linearly from vanilla's baseline to the design doc's 30-icon/60-point cap as Survivalist levels. */
