@@ -26,6 +26,7 @@ public final class Skills {
     public static final SkillId COOK_ID = new SkillId("cook");
     public static final SkillId CARTOGRAPHYR_ID = new SkillId("cartographyr");
     public static final SkillId HISTORIAN_ID = new SkillId("historian");
+    public static final SkillId MERCHANT_ID = new SkillId("merchant");
 
     // Shared by every curve below; also the level Survivalist's true-hunger-max scaling (see
     // .hunger.HungerListener) treats as "max level" when computing capacity growth.
@@ -41,6 +42,7 @@ public final class Skills {
         SkillRegistry.register(cook());
         SkillRegistry.register(cartographyr());
         SkillRegistry.register(historian());
+        SkillRegistry.register(merchant());
     }
 
     // Placeholder curve, deliberately easy to retune (mirrors the design doc's own framing of the
@@ -149,6 +151,24 @@ public final class Skills {
                 SkillCategory.KNOWLEDGE,
                 Optional.of("cartographyr"),
                 slowCurve(),
+                List.of()
+        );
+    }
+
+    // Gated on Yconomics (design doc / decisions.md, 2026-09-26) -- the whole point of this skill
+    // is Coin Purse tier integration, so unlike Cartographyr/Historian there's no meaningful
+    // "standalone, just hide the Yconomics-specific parts" mode worth preserving; the skill is
+    // simply invisible without Yconomics loaded, same requiredModId-gating shape as Cartographyr's
+    // own dependency-gated skills. Effects list empty for the same reason every other skill's is --
+    // XP/price-bonus/tier logic is computed directly in .merchant.MerchantListener, not driven by
+    // SkillEffect data.
+    private static SkillDefinition merchant() {
+        return new SkillDefinition(
+                MERCHANT_ID,
+                "Merchant",
+                SkillCategory.SOCIAL,
+                Optional.of("yconomics"),
+                fastCurve(),
                 List.of()
         );
     }

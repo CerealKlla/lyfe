@@ -15,6 +15,7 @@ import com.github.cerealklla.lyfe.knowledge.OpenWritingScreenPayload;
 import com.github.cerealklla.lyfe.knowledge.RequestWritingScreenPayload;
 import com.github.cerealklla.lyfe.knowledge.SignListener;
 import com.github.cerealklla.lyfe.knowledge.SubmitWritingPayload;
+import com.github.cerealklla.lyfe.merchant.MerchantListener;
 import com.github.cerealklla.lyfe.registration.ModAttachments;
 import com.github.cerealklla.lyfe.registration.ModItems;
 import com.github.cerealklla.lyfe.skill.Skills;
@@ -66,6 +67,13 @@ public class LyfeMod {
         if (ModList.get().isLoaded("cartographyr")) {
             NeoForge.EVENT_BUS.register(new LocationTracker());
             NeoForge.EVENT_BUS.register(new SignListener());
+        }
+
+        // Merchant skill (design doc / decisions.md, 2026-09-26): gated on Yconomics being loaded,
+        // same soft-dependency shape as the Cartographyr-gated skills above -- the whole point of
+        // this skill is Coin Purse tier integration, so there's no meaningful standalone mode.
+        if (ModList.get().isLoaded("yconomics")) {
+            NeoForge.EVENT_BUS.register(new MerchantListener());
         }
     }
 

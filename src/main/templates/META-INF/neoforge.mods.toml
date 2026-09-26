@@ -94,6 +94,16 @@ subjective knowledge of the world.
     ordering="NONE"
     side="BOTH"
 
+# Yconomics is an optional soft dependency -- the Merchant skill's price-bonus/XP mechanic works
+# standalone (plain vanilla trade events), but its Coin Purse tier auto-increase/unlock logic is
+# hidden without Yconomics loaded. Same shape as the Cartographyr entry above.
+[[dependencies.${mod_id}]]
+    modId="yconomics"
+    type="optional"
+    reason="Enables the Merchant skill's Coin Purse tier auto-increase and T6-T8 unlock checks."
+    ordering="NONE"
+    side="BOTH"
+
 # Features are specific properties of the game environment, that you may want to declare you require. This example declares
 # that your mod requires GL version 3.2 or higher. Other features will be added. They are side aware so declaring this won't
 # stop your mod loading on the server for example.

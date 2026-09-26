@@ -151,6 +151,13 @@ dependencies {
     testCompileOnly files("../Cartographyr/build/libs/cartographyr-${cartographyr_version}.jar")
     testRuntimeOnly files("../Cartographyr/build/libs/cartographyr-${cartographyr_version}.jar")
 
+    // Same optional-soft-dependency shape as Cartographyr above, for the new Merchant skill calling
+    // Yconomics' api.Yconomics facade (Coin Purse tier control) -- compileOnly only, gated behind
+    // ModList.get().isLoaded("yconomics") at every actual call site (see LyfeMod/MerchantListener).
+    compileOnly files("../Yconomics/build/libs/yconomics-${yconomics_version}.jar")
+    testCompileOnly files("../Yconomics/build/libs/yconomics-${yconomics_version}.jar")
+    testRuntimeOnly files("../Yconomics/build/libs/yconomics-${yconomics_version}.jar")
+
     // For more info:
     // http://www.gradle.org/docs/current/userguide/artifact_dependencies_tutorial.html
     // http://www.gradle.org/docs/current/userguide/dependency_management.html
