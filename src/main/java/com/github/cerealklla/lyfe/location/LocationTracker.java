@@ -114,11 +114,14 @@ public final class LocationTracker {
 
     /**
      * Queries what's at the player's position, grouped by {@code layerId}. Within a single layer,
-     * more than one entity can legitimately be present at once (e.g. a settlement inside its
-     * surrounding natural region both use the built-in {@code Layer.LOCATION_ID}) -- prefers the
-     * {@link Classification#CONSTRUCTED} one over {@link Classification#NATURAL} in that case
-     * (being in a town is more specific/informative than the region around it), otherwise keeps
-     * whichever was seen first. A small, explicit judgment call, not an exhaustive priority system.
+     * more than one entity can legitimately be present at once (e.g. two overlapping settlements)
+     * -- prefers the {@link Classification#CONSTRUCTED} one over {@link Classification#NATURAL} in
+     * that case, otherwise keeps whichever was seen first. A small, explicit judgment call, not an
+     * exhaustive priority system.
+     *
+     * <p>{@link Layer#REGION_ID} and {@link Layer#SETTLEMENT_ID} are then merged onto a single row
+     * via {@link #mergeRegionIntoSettlement} -- see that method's Javadoc for why this is needed
+     * even though they're now two separate layers.
      *
      * <p>Every candidate found here is immediately {@link PlayerKnowledge#markVisited} -- physical
      * presence is what makes the overlay knowledge-gated rather than a raw live-truth readout
@@ -141,6 +144,7 @@ public final class LocationTracker {
             knowledge.markVisited(entity.id().value());
             byLayer.merge(entity.layerId(), entity, LocationTracker::preferWithinLayer);
         }
+        mergeRegionIntoSettlement(byLayer);
         return byLayer;
     }
 
@@ -152,6 +156,24 @@ public final class LocationTracker {
             return b;
         }
         return a;
+    }
+
+    /**
+     * Cartographyr's Region and Settlement layers (split from one shared "Location" layer
+     * 2026-09-26, see that mod's decisions.md) are still meant to render as **one** HUD row, not
+     * two stacked lines -- a settlement inside its surrounding natural region is more
+     * specific/informative than the region around it, the same reasoning {@link
+     * #preferWithinLayer} already applied when both used to collide on one {@code layerId}. Since
+     * they're separate layers now, that collision-based merge no longer fires between them, so this
+     * drops the Region entry whenever a Settlement one is also present at the same point -- the
+     * remaining single entry (under whichever layer actually won) is what {@link #sendLocation}
+     * sorts/labels from, so there's still exactly one row, and its label/placement follow whichever
+     * entity is actually being shown.
+     */
+    private static void mergeRegionIntoSettlement(Map<Identifier, GeographicEntity> byLayer) {
+        if (byLayer.containsKey(Layer.SETTLEMENT_ID) && byLayer.containsKey(Layer.REGION_ID)) {
+            byLayer.remove(Layer.REGION_ID);
+        }
     }
 
     private static Map<Identifier, EntityId> toSnapshot(Map<Identifier, GeographicEntity> byLayer) {
