@@ -1,6 +1,6 @@
 package com.github.cerealklla.lyfe.location;
 
-import java.util.List;
+import java.util.Optional;
 
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
@@ -9,20 +9,19 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.neoforged.neoforge.client.gui.GuiLayer;
 
 /**
- * Persistent top-right overlay, one line per layer (e.g. "Location: X", and eventually a
- * "Territory: Y" line above it) -- backed by the player's own knowledge (see {@link
- * LocationTracker}), not raw world truth. Moved here from Cartographyr 2026-09-24 -- see
- * decisions.md. Renders nothing until the first {@link LocationPayload} arrives, and renders
- * nothing again whenever the most recently received payload is empty -- i.e. it genuinely reflects
- * "currently in no known territory," not just whatever was last detected. (Until 2026-09-25 this
- * doc claimed it "never blanks again on its own" -- that was actually a real bug: {@link
- * LocationTracker} used to skip sending updates entirely whenever it detected nothing, so leaving
- * all known territory left this frozen on stale data instead of clearing. Fixed the same day, see
- * decisions.md.)
+ * Persistent top-right overlay -- a fixed two-line display (design doc Section 9.3-adjacent; see
+ * decisions.md, 2026-09-26) backed by the player's own knowledge (see {@link LocationTracker}),
+ * not raw world truth. Moved here from Cartographyr 2026-09-24 -- see decisions.md. Renders
+ * nothing until the first {@link LocationPayload} arrives, and renders nothing again whenever the
+ * most recent payload has neither line -- i.e. it genuinely reflects "currently in no known
+ * territory," not just whatever was last detected.
  *
- * <p>Reworked from a single line to a stack the same day (second pass), when Cartographyr's Layer
- * registry made "more than one line" a real possibility. Lines arrive already sorted by placement
- * (highest first) -- this only lays them out, it doesn't re-sort.
+ * <p><b>Reworked from a generic per-layer stack to this fixed 2-line format, 2026-09-26</b>
+ * (explicit user request) -- line 1 is the resolved place's display name (settlement or natural
+ * region); line 2 is "Town Proper"/"No Man's Land"/"Outskirts"/a plot's name, or absent. Either
+ * line can be present without the other (e.g. a settlement with no plots nearby shows only line 1
+ * plus whichever of the fixed zone words applies) -- both are rendered independently rather than
+ * assuming they're always paired.
  */
 public final class LocationOverlay implements GuiLayer {
 
@@ -33,25 +32,27 @@ public final class LocationOverlay implements GuiLayer {
 
     @Override
     public void render(GuiGraphicsExtractor guiGraphics, DeltaTracker deltaTracker) {
-        List<LocationPayload.LocationLine> lines = ClientLocationState.get();
-        if (lines.isEmpty()) {
+        Optional<String> line1 = ClientLocationState.getLine1();
+        Optional<String> line2 = ClientLocationState.getLine2();
+        if (line1.isEmpty() && line2.isEmpty()) {
             return;
         }
 
         Font font = Minecraft.getInstance().font;
-        String[] texts = new String[lines.size()];
+        String[] texts = line1.isPresent() && line2.isPresent()
+                ? new String[] {line1.get(), line2.get()}
+                : line1.isPresent() ? new String[] {line1.get()} : new String[] {line2.get()};
+
         int maxWidth = 0;
-        for (int i = 0; i < lines.size(); i++) {
-            LocationPayload.LocationLine line = lines.get(i);
-            texts[i] = line.label() + ": " + line.name();
-            maxWidth = Math.max(maxWidth, font.width(texts[i]));
+        for (String text : texts) {
+            maxWidth = Math.max(maxWidth, font.width(text));
         }
         int lineHeight = font.lineHeight;
 
         int right = guiGraphics.guiWidth() - MARGIN;
         int top = MARGIN;
         int left = right - maxWidth - PADDING * 2;
-        int bottom = top + lineHeight * lines.size() + PADDING * 2;
+        int bottom = top + lineHeight * texts.length + PADDING * 2;
 
         guiGraphics.fill(left, top, right, bottom, BACKGROUND_COLOR);
         for (int i = 0; i < texts.length; i++) {

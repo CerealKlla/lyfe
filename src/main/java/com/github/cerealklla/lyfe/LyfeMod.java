@@ -88,7 +88,7 @@ public class LyfeMod {
     // fixed once in Cartographyr's own version of this feature; see that mod's decisions.md).
     private void registerPayloads(RegisterPayloadHandlersEvent event) {
         event.registrar("1").playToClient(LocationPayload.TYPE, LocationPayload.STREAM_CODEC,
-                (payload, context) -> ClientLocationState.set(payload.lines()));
+                (payload, context) -> ClientLocationState.set(payload.line1(), payload.line2()));
 
         // Client-side handler writes into the zero-Cartographyr-refs ClientWritingRequest bridge
         // (see its own class doc) rather than opening the Screen directly here -- this method must

@@ -1,7 +1,6 @@
 package com.github.cerealklla.lyfe.location;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Optional;
 
 import io.netty.buffer.ByteBuf;
 
@@ -13,31 +12,26 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
 
 /**
- * Server-to-client: one line per layer the receiving player currently believes they're in,
- * already sorted by placement (highest first) — the client just renders them in order. Moved here
- * from Cartographyr 2026-09-24 (see decisions.md) — this is player *knowledge*, not world truth, so
- * it belongs to Lyfe even though the underlying place data still comes from Cartographyr's
- * read-only API.
+ * Server-to-client: the player's current location, as a fixed two-line HUD (design doc Section
+ * 9.3-adjacent; see decisions.md, 2026-09-26). Moved here from Cartographyr 2026-09-24 -- this is
+ * player *knowledge*, not world truth, so it belongs to Lyfe even though the underlying place data
+ * still comes from Cartographyr's read-only API.
  *
- * <p>Reshaped from a single {@code String} to a list of {@link LocationLine}s the same day
- * (second pass), when Cartographyr's new open {@code Layer} registry made "more than one line" a
- * real possibility (e.g. a future Territory mod's claim shown above the base Location line).
+ * <p><b>Reworked from a generic per-layer line list to this fixed 2-line format, 2026-09-26</b>
+ * (explicit user request, replacing the earlier "one line per Layer" model) -- {@code line1} is
+ * the resolved place's display name (a settlement if one's registered here, otherwise the
+ * surrounding natural region, otherwise absent); {@code line2} is one of "Town Proper"/"No Man's
+ * Land"/"Outskirts"/a plot's own name (or "Residence"), or absent if neither applies -- see {@code
+ * LocationTracker#resolve} for the full resolution order.
  */
-public record LocationPayload(List<LocationLine> lines) implements CustomPacketPayload {
-
-    /** @param label the layer's display label (e.g. "Location", "Territory") */
-    public record LocationLine(String label, String name) {
-        static final StreamCodec<ByteBuf, LocationLine> STREAM_CODEC = StreamCodec.composite(
-                ByteBufCodecs.STRING_UTF8, LocationLine::label,
-                ByteBufCodecs.STRING_UTF8, LocationLine::name,
-                LocationLine::new);
-    }
+public record LocationPayload(Optional<String> line1, Optional<String> line2) implements CustomPacketPayload {
 
     public static final Type<LocationPayload> TYPE =
             new Type<>(Identifier.fromNamespaceAndPath(LyfeMod.MODID, "location"));
 
     public static final StreamCodec<ByteBuf, LocationPayload> STREAM_CODEC = StreamCodec.composite(
-            ByteBufCodecs.collection(ArrayList::new, LocationLine.STREAM_CODEC), LocationPayload::lines,
+            ByteBufCodecs.optional(ByteBufCodecs.STRING_UTF8), LocationPayload::line1,
+            ByteBufCodecs.optional(ByteBufCodecs.STRING_UTF8), LocationPayload::line2,
             LocationPayload::new);
 
     @Override
