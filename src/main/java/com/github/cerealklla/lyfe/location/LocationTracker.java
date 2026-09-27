@@ -121,16 +121,19 @@ public final class LocationTracker {
      * Section 9.3): the display only ever shows what's resolved here, and everything found was
      * just recorded as known, so there's no separate filter step needed.
      *
-     * <p><b>Resolution order</b> (most to least specific):
+     * <p><b>Resolution order</b> (most to least specific -- corrected 2026-09-27 after the first
+     * live look at it; the original interpretation had "Town Proper"/"Outskirts" swapped):
      * <ol>
      *   <li>Inside a real Settlemynts plot -> line 2 is the plot's name, or "Residence" if its zone
      *       type is Private Residence (never publicize a home's custom name to a passerby).
-     *   <li>Inside the settlement's real "core" polygon (or just inside a plot's own buffer, an
-     *       edge case) but not a specific plot -> line 2 is "Town Proper".
+     *   <li>Inside a plot's own buffer (the narrow gap deliberately left between adjacent plots),
+     *       not the plot itself -> line 2 is "Town Proper".
+     *   <li>Inside the settlement's real "core" polygon, not a plot or its buffer -> line 2 is
+     *       "Outskirts" (built-up town, just not a specifically zoned plot).
      *   <li>Inside the settlement's outer padded buffer only (not its real core) -> line 2 is
-     *       "No Man's Land".
-     *   <li>Inside a natural region with no settlement involved at all -> line 2 is "Outskirts".
-     *   <li>Nothing detected -> line 2 absent.
+     *       "No Man's Land" -- the ~10-block band around the settlement's own perimeter.
+     *   <li>Nothing settlement-related matched (plain wilderness, or nothing at all) -> line 2
+     *       absent.
      * </ol>
      * Line 1 is the settlement's display name if one's registered here, else the surrounding
      * natural region's, else absent -- the same "prefer the more specific match" Region/Settlement
@@ -188,12 +191,12 @@ public final class LocationTracker {
         if (plot != null) {
             boolean privateResidence = plot.designation().map(PRIVATE_RESIDENCE_LABEL::equals).orElse(false);
             line2 = Optional.of(privateResidence ? "Residence" : plot.name().orElse("Residence"));
-        } else if (settlementCore != null || plotBuffer != null) {
+        } else if (plotBuffer != null) {
             line2 = Optional.of("Town Proper");
+        } else if (settlementCore != null) {
+            line2 = Optional.of("Outskirts");
         } else if (settlementPadded != null) {
             line2 = Optional.of("No Man's Land");
-        } else if (region != null) {
-            line2 = Optional.of("Outskirts");
         } else {
             line2 = Optional.empty();
         }
