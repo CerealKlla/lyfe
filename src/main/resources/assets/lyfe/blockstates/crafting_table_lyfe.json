@@ -1,0 +1,8 @@
+{
+  "variants": {
+    "facing=north": { "model": "lyfe:block/crafting_table_lyfe" },
+    "facing=south": { "model": "lyfe:block/crafting_table_lyfe", "y": 180 },
+    "facing=west": { "model": "lyfe:block/crafting_table_lyfe", "y": 270 },
+    "facing=east": { "model": "lyfe:block/crafting_table_lyfe", "y": 90 }
+  }
+}

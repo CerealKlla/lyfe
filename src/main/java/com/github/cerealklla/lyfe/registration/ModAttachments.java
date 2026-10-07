@@ -6,9 +6,12 @@ import java.util.function.Supplier;
 
 import com.github.cerealklla.lyfe.LyfeMod;
 import com.github.cerealklla.lyfe.data.PlayerSkills;
+import com.github.cerealklla.lyfe.heartiness.PlayerHeartiness;
 import com.github.cerealklla.lyfe.hunger.PlayerHunger;
 import com.github.cerealklla.lyfe.knowledge.KnowledgeReference;
 import com.github.cerealklla.lyfe.knowledge.PlayerKnowledge;
+import com.github.cerealklla.lyfe.research.PlayerResearch;
+import com.github.cerealklla.lyfe.swim.PlayerAir;
 
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.neoforged.neoforge.attachment.AttachmentType;
@@ -68,6 +71,18 @@ public final class ModAttachments {
                     .build()
     );
 
+    // Synced: the custom air-bubble overlay (client-rendered) needs each player's own true air
+    // value to display (design doc Section 5's Swimmer mechanic). copyOnDeath(), same reasoning as
+    // PLAYER_HUNGER above.
+    public static final Supplier<AttachmentType<PlayerAir>> PLAYER_AIR = ATTACHMENT_TYPES.register(
+            "player_air",
+            () -> AttachmentType.builder(PlayerAir::new)
+                    .serialize(PlayerAir.CODEC)
+                    .copyOnDeath()
+                    .sync(ByteBufCodecs.fromCodecWithRegistries(PlayerAir.CODEC.codec()))
+                    .build()
+    );
+
     // Attached to a placed sign's SignBlockEntity (block entities are AttachmentHolders too, same
     // as Entity -- see knowledge.SignListener). No default value is ever actually used: readers
     // always check getExistingData first, since a random vanilla sign has no attachment at all.
@@ -76,6 +91,27 @@ public final class ModAttachments {
             "sign_reference",
             () -> AttachmentType.builder(holder -> new KnowledgeReference(0L, Set.of(), "", new UUID(0L, 0L)))
                     .serialize(KnowledgeReference.CODEC.fieldOf("data"))
+                    .build()
+    );
+
+    // Not synced -- server-only logic (design doc Section 19.5), same reasoning as PLAYER_KNOWLEDGE.
+    // copyOnDeath() so research progress/learned recipes survive death like every other attachment.
+    public static final Supplier<AttachmentType<PlayerResearch>> PLAYER_RESEARCH = ATTACHMENT_TYPES.register(
+            "player_research",
+            () -> AttachmentType.builder(PlayerResearch::new)
+                    .serialize(PlayerResearch.CODEC)
+                    .copyOnDeath()
+                    .build()
+    );
+
+    // Not synced -- purely server-side bookkeeping (design doc, 2026-10-03), same reasoning as
+    // PLAYER_RESEARCH above. copyOnDeath() so a death mid-recovery doesn't lose the banked debt --
+    // harmless either way since clampTo() self-corrects against real missing health on next use.
+    public static final Supplier<AttachmentType<PlayerHeartiness>> PLAYER_HEARTINESS = ATTACHMENT_TYPES.register(
+            "player_heartiness",
+            () -> AttachmentType.builder(PlayerHeartiness::new)
+                    .serialize(PlayerHeartiness.CODEC)
+                    .copyOnDeath()
                     .build()
     );
 }

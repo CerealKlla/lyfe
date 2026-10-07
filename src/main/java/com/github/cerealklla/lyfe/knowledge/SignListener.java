@@ -12,8 +12,10 @@ import com.github.cerealklla.cartographyr.api.Cartography;
 import com.github.cerealklla.cartographyr.geo.Classification;
 import com.github.cerealklla.cartographyr.geo.DisplayText;
 import com.github.cerealklla.cartographyr.geo.EntityId;
+import com.github.cerealklla.cartographyr.geo.EntityType;
 import com.github.cerealklla.cartographyr.geo.GeographicEntity;
 import com.github.cerealklla.cartographyr.geo.Geometry;
+import com.github.cerealklla.cartographyr.geo.Layer;
 
 import com.github.cerealklla.lyfe.LyfeMod;
 import com.github.cerealklla.lyfe.api.Lyfe;
@@ -95,6 +97,17 @@ public final class SignListener {
         return 3;
     }
 
+    /** Live benefit readout for the Skills screen (common.skill.SkillBenefits). */
+    public static java.util.List<String> cartographyrBenefitLines(int level) {
+        String accuracyLine = switch (levelCap(level)) {
+            case 1 -> "Vague: general area";
+            case 2 -> "Informed: pretty accurate details";
+            default -> "Precise: Exact location";
+        };
+        String distanceLine = "Distance on signs: " + (level >= 2 ? "unlocked" : "locked (requires level 2)");
+        return java.util.List.of(accuracyLine, distanceLine);
+    }
+
     /** Intersects {@code known} with the first {@code capCount} {@link KnowledgeFactor} values (declaration order). */
     private static Set<KnowledgeFactor> capFactors(Set<KnowledgeFactor> known, int capCount) {
         Set<KnowledgeFactor> allowed = EnumSet.noneOf(KnowledgeFactor.class);
@@ -110,9 +123,16 @@ public final class SignListener {
         return embeddable;
     }
 
+    /**
+     * Reading a bound sign is proximity-based now (2026-10-05, explicit user request -- see {@link
+     * KnowledgeProximityTicker}), not right-click. This handler's only remaining job is the cancel
+     * below: a bound sign's front text is still plain literal content, which vanilla's own {@code
+     * SignBlock#hasEditableText} would otherwise happily let a player reopen for editing (closing
+     * that screen unconditionally re-sends its text, wiping the name/arrow this mod wrote).
+     */
     @SubscribeEvent
     public void onRightClickBlock(PlayerInteractEvent.RightClickBlock event) {
-        if (!(event.getEntity() instanceof ServerPlayer player) || event.getHand() != InteractionHand.MAIN_HAND) {
+        if (!(event.getEntity() instanceof ServerPlayer) || event.getHand() != InteractionHand.MAIN_HAND) {
             return;
         }
         ServerLevel level = (ServerLevel) event.getLevel();
@@ -120,20 +140,18 @@ public final class SignListener {
 
         BlockEntity blockEntity = level.getBlockEntity(pos);
         if (blockEntity instanceof SignBlockEntity) {
-            blockEntity.getExistingData(ModAttachments.SIGN_REFERENCE).ifPresent(reference -> {
-                handleRead(player, reference);
-                // A bound sign's front text is still plain literal content, which vanilla's own
-                // SignBlock#hasEditableText would otherwise happily let a player reopen for
-                // editing (closing that screen unconditionally re-sends its text, wiping the
-                // name/arrow this mod wrote) -- cancel here so vanilla's useWithoutItem never runs.
-                event.setCanceled(true);
-            });
+            blockEntity.getExistingData(ModAttachments.SIGN_REFERENCE).ifPresent(reference -> event.setCanceled(true));
         }
     }
 
+    /**
+     * Reading a bound map-in-frame is proximity-based now (2026-10-05, see {@link
+     * KnowledgeProximityTicker}), not right-click. Still cancels so right-clicking it doesn't fall
+     * through to vanilla's default {@code ItemFrame} interaction (rotating/removing the item).
+     */
     @SubscribeEvent
     public void onEntityInteract(PlayerInteractEvent.EntityInteract event) {
-        if (!(event.getEntity() instanceof ServerPlayer player) || event.getHand() != InteractionHand.MAIN_HAND) {
+        if (!(event.getEntity() instanceof ServerPlayer) || event.getHand() != InteractionHand.MAIN_HAND) {
             return;
         }
         if (!(event.getTarget() instanceof ItemFrame frame)) {
@@ -142,7 +160,6 @@ public final class SignListener {
 
         KnowledgeReference reference = frame.getItem().get(ModItems.KNOWLEDGE_REFERENCE);
         if (reference != null) {
-            handleRead(player, reference);
             event.setCanceled(true);
         }
     }
@@ -215,7 +232,12 @@ public final class SignListener {
             }
             EntityId id = new EntityId(entry.getKey());
             Optional<GeographicEntity> geo = Cartography.getEntity((ServerLevel) player.level(), id);
-            if (geo.isEmpty() || !geo.get().classification().equals(Classification.CONSTRUCTED)) {
+            // Settlements only (2026-10-02, see decisions.md) -- Classification.CONSTRUCTED alone
+            // also matches Settlemynts' settlement-core sub-entity and (for any already-saved
+            // knowledge predating the LocationTracker fix) plot/plot-buffer entities, none of which
+            // should ever appear as a labelable place in this picker.
+            if (geo.isEmpty() || !geo.get().classification().equals(Classification.CONSTRUCTED)
+                    || !geo.get().layerId().equals(Layer.SETTLEMENT_ID) || !geo.get().type().equals(EntityType.SETTLEMENT)) {
                 continue;
             }
             Set<KnowledgeFactor> embeddable = capFactors(known, cap);
@@ -296,13 +318,7 @@ public final class SignListener {
     private static final long CREATION_XP = 10;
 
     private static void awardCreationXp(ServerPlayer writer) {
-        boolean wasMaxLevel = Lyfe.isMaxLevel(writer, Skills.CARTOGRAPHYR_ID);
-        long newXp = Lyfe.addXp(writer, Skills.CARTOGRAPHYR_ID, CREATION_XP);
-        int newLevel = Lyfe.getLevel(writer, Skills.CARTOGRAPHYR_ID);
-        if (!wasMaxLevel) {
-            writer.sendSystemMessage(Component.literal(
-                    "+" + CREATION_XP + " Cartographyr XP (Level " + newLevel + ", total " + newXp + ")"));
-        }
+        Lyfe.addXp(writer, Skills.CARTOGRAPHYR_ID, CREATION_XP);
     }
 
     // Placeholder, untuned -- the rotation-slop magnitude at the (currently unreachable) 30%
@@ -470,18 +486,25 @@ public final class SignListener {
     private static final long WRITER_CREDIT_XP = 10;
 
     private void handleRead(ServerPlayer reader, KnowledgeReference reference) {
+        handleRead(reader, reference, true);
+    }
+
+    /**
+     * Same as {@link #handleRead(ServerPlayer, KnowledgeReference)} but never sends the "already
+     * know" message -- used by {@link KnowledgeProximityTicker}, where a player can walk in and out
+     * of range of an already-fully-known sign/map repeatedly and shouldn't get spammed for it.
+     */
+    void handleProximityRead(ServerPlayer reader, KnowledgeReference reference) {
+        handleRead(reader, reference, false);
+    }
+
+    private void handleRead(ServerPlayer reader, KnowledgeReference reference, boolean announceNoChange) {
         boolean changed = reader.getData(ModAttachments.PLAYER_KNOWLEDGE)
                 .learnLocationFactors(reference.entityId(), reference.embeddedFactors());
 
         if (changed) {
             int amount = 10; // Placeholder flat XP per read, untuned.
-            boolean wasMaxLevel = Lyfe.isMaxLevel(reader, Skills.CARTOGRAPHYR_ID);
-            long newXp = Lyfe.addXp(reader, Skills.CARTOGRAPHYR_ID, amount);
-            int newLevel = Lyfe.getLevel(reader, Skills.CARTOGRAPHYR_ID);
-            if (!wasMaxLevel) {
-                reader.sendSystemMessage(Component.literal(
-                        "+" + amount + " Cartographyr XP (Level " + newLevel + ", total " + newXp + ")"));
-            }
+            Lyfe.addXp(reader, Skills.CARTOGRAPHYR_ID, amount);
 
             // Credit the writer too, even if they're offline right now (see api.Lyfe#addXp's UUID
             // overload) -- but not when a player reads their own sign/map, which would otherwise
@@ -489,7 +512,7 @@ public final class SignListener {
             if (!reference.writerId().equals(reader.getUUID())) {
                 Lyfe.addXp(((ServerLevel) reader.level()).getServer(), reference.writerId(), Skills.CARTOGRAPHYR_ID, WRITER_CREDIT_XP);
             }
-        } else {
+        } else if (announceNoChange) {
             reader.sendSystemMessage(Component.literal("(already know as much or more about this place)"));
         }
     }

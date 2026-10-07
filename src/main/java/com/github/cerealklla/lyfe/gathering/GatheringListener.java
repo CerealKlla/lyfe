@@ -4,13 +4,11 @@ import java.util.List;
 import java.util.Set;
 
 import com.github.cerealklla.lyfe.api.Lyfe;
-import com.github.cerealklla.lyfe.skill.SkillDefinition;
+import com.github.cerealklla.lyfe.craft.ToolTierUnlocks;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.GlobalPos;
-import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
@@ -27,10 +25,14 @@ import net.neoforged.neoforge.event.level.PistonEvent;
 
 /**
  * Grants Lumberjack/Miner XP and applies their SpeedMultiplier/BonusYieldChance/
- * WholeStructureChance effects (design doc Section 6). Tool-tier gating is deliberately NOT
- * implemented here -- Section 7's mechanic is deferred until the crafting overhaul (Section 10)
- * gives a concrete tool-tier system to gate against, per the 2026-09-24 decision to not invent one
- * ahead of that. See {@code EffectType.TOOL_TIER_GATE}'s notes.
+ * WholeStructureChance effects (design doc Section 6).
+ *
+ * <p><b>Tool-tier gating moved out, 2026-10-06 (second round)</b> -- this class used to force break
+ * speed to 0 for an under-leveled Axe/Pickaxe (Section 7, 2026-10-04). The user changed their mind
+ * the same night: being under-leveled no longer blocks anything at all, it just costs extra
+ * durability -- see {@code craft.ProficiencyDurabilityListener}, which covers this same Axe/Pickaxe
+ * case generically alongside every other {@code EquipmentTierLadder.ToolType}. `onBreakSpeed` here
+ * is back to a plain speed bonus with no gate.
  *
  * <p>Anti-farming (decided 2026-09-24, see decisions.md): a block a player placed themselves never
  * grants gathering rewards when broken -- see {@link PlacedGatheringBlocks}. Placed blocks are also
@@ -69,7 +71,8 @@ public final class GatheringListener {
         if (skill == null) {
             return;
         }
-        int level = Lyfe.getLevel(event.getEntity(), skill.skillId());
+        Player player = event.getEntity();
+        int level = Lyfe.getLevel(player, skill.skillId());
         event.setNewSpeed(event.getNewSpeed() * (1.0f + level * SPEED_PER_LEVEL));
     }
 
@@ -142,30 +145,12 @@ public final class GatheringListener {
 
         Lyfe.addXp(player, skill.skillId(), XP_PER_BLOCK);
         int level = Lyfe.getLevel(player, skill.skillId());
-        debugAnnounceXpGain(player, skill, level);
 
         rollBonusYield(event, level);
 
         if (!withinWholeStructureClear) {
             rollWholeStructureClear(event, player, skill, level);
         }
-    }
-
-    /**
-     * DEBUG ONLY -- a chat message stand-in for the real XP feedback (design doc Section 11's
-     * planned custom particle/sound effect, not yet implemented, and Section 12's skill tree UI,
-     * also not yet implemented). Without either, XP gain is otherwise completely invisible to the
-     * player. Remove once Section 11 lands.
-     */
-    private void debugAnnounceXpGain(Player player, GatheringSkill skill, int level) {
-        if (!(player instanceof ServerPlayer serverPlayer) || Lyfe.isMaxLevel(player, skill.skillId())) {
-            return;
-        }
-        String displayName = Lyfe.getSkillDefinition(skill.skillId())
-                .map(SkillDefinition::displayName)
-                .orElse(skill.skillId().value());
-        serverPlayer.sendSystemMessage(Component.literal(
-                "+" + XP_PER_BLOCK + " " + displayName + " XP (Level " + level + ")"));
     }
 
     private void rollBonusYield(BlockDropsEvent event, int level) {
@@ -204,6 +189,30 @@ public final class GatheringListener {
         } finally {
             withinWholeStructureClear = false;
         }
+    }
+
+    /**
+     * Live benefit readout for the Skills screen (common.skill.SkillBenefits) -- current computed
+     * values only, no formulas, matching every other skill's own benefit-line convention.
+     */
+    public static List<String> benefitLines(GatheringSkill skill, int level) {
+        double cap = skill == GatheringSkill.MINER ? MINER_WHOLE_STRUCTURE_CAP : LUMBERJACK_WHOLE_STRUCTURE_CAP;
+        double perLevel = skill == GatheringSkill.MINER ? MINER_WHOLE_STRUCTURE_PER_LEVEL : LUMBERJACK_WHOLE_STRUCTURE_PER_LEVEL;
+        int speedPercent = Math.round(level * SPEED_PER_LEVEL * 100);
+        double bonusYieldPercent = Math.min(BONUS_YIELD_CAP, level * BONUS_YIELD_PER_LEVEL) * 100;
+        double wholeStructurePercent = Math.min(cap, level * perLevel) * 100;
+        String wholeStructureLabel = skill == GatheringSkill.MINER ? "Whole-vein clear chance" : "Whole-tree clear chance";
+        String toolLabel = skill == GatheringSkill.MINER ? "Pickaxe" : "Axe";
+        return List.of(
+                "Break speed +" + speedPercent + "%",
+                "Bonus yield chance " + formatPercent(bonusYieldPercent) + "%",
+                wholeStructureLabel + " " + formatPercent(wholeStructurePercent) + "%",
+                "Unlocked " + toolLabel + " tier: " + ToolTierUnlocks.unlockedTierName(level)
+        );
+    }
+
+    private static String formatPercent(double value) {
+        return String.format(java.util.Locale.ROOT, "%.1f", value);
     }
 
     /**

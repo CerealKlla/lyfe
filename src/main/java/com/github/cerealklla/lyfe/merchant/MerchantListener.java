@@ -7,6 +7,7 @@ import com.github.cerealklla.lyfe.skill.Skills;
 import com.github.cerealklla.yconomics.api.Yconomics;
 
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.MerchantMenu;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.ItemStack;
@@ -67,7 +68,13 @@ public final class MerchantListener {
 
         Lyfe.addXp(player, Skills.MERCHANT_ID, baseline);
         int level = Lyfe.getLevel(player, Skills.MERCHANT_ID);
-        Yconomics.increaseCoinPurseTierTo(player, Math.min(AUTO_TIER_CAP, level / 2));
+        int tierBefore = Yconomics.getCoinPurseTier(player);
+        int targetTier = Math.min(AUTO_TIER_CAP, level / 2);
+        Yconomics.increaseCoinPurseTierTo(player, targetTier);
+        int tierAfter = Yconomics.getCoinPurseTier(player);
+        com.github.cerealklla.lyfe.LyfeMod.LOGGER.info(
+                "[Merchant] trade: baselineXp={} level={} tierBefore={} targetTier={} tierAfter={}",
+                baseline, level, tierBefore, targetTier, tierAfter);
 
         if (offer.getResult().is(Items.GOLD_NUGGET)) {
             int bonus = (int) Math.round(baseline * bonusFraction(level));
@@ -108,6 +115,51 @@ public final class MerchantListener {
 
     private static double bonusFraction(int level) {
         return Math.min(MAX_PRICE_BONUS, (double) level / Skills.MAX_LEVEL * MAX_PRICE_BONUS);
+    }
+
+    /**
+     * Live benefit readout for the Skills screen (common.skill.SkillBenefits). Coin Purse tier is
+     * read directly from Yconomics ({@code player}, nullable only in tests that never hit this
+     * branch) rather than recomputed from the Merchant level formula -- the real tier only advances
+     * on an actual completed trade (see {@link #onTrade}), so it can legitimately lag behind what the
+     * formula alone would predict, and the formula was also wrong here before (jumped straight to
+     * "tier 6" regardless of the player's real tier). Player-facing tier numbers are the internal
+     * Yconomics tier + 1 (so a fresh player's internal T0 reads as "Tier 1", not "Tier 0").
+     */
+    public static java.util.List<String> benefitLines(Player player, int level) {
+        double bonusPercent = bonusFraction(level) * 100;
+        int internalTier = player != null ? Yconomics.getCoinPurseTier(player) : 0;
+        com.github.cerealklla.lyfe.LyfeMod.LOGGER.info(
+                "[Merchant] benefitLines: level={} internalTier={}", level, internalTier);
+        java.util.List<String> lines = new java.util.ArrayList<>(java.util.List.of(
+                "Buy/sell price bonus: +" + String.format(java.util.Locale.ROOT, "%.1f", bonusPercent) + "%",
+                "Coin Purse tier: " + (internalTier + 1)
+        ));
+        String nextUnlockLine = nextCoinPurseUnlockLine(internalTier);
+        if (nextUnlockLine != null) {
+            lines.add(nextUnlockLine);
+        }
+        return lines;
+    }
+
+    /** Null once there's no further known unlock to describe (tier maxed, or past the purchase-gated tiers this codebase defines). */
+    private static String nextCoinPurseUnlockLine(int internalTier) {
+        if (internalTier < AUTO_TIER_CAP) {
+            int nextTier = internalTier + 1;
+            int requiredLevel = nextTier * 2;
+            return "Next Coin Purse Tier (" + (nextTier + 1) + ") upgrades at level " + requiredLevel;
+        }
+        int requiredLevel = switch (internalTier) {
+            case 5 -> CoinPurseTierUnlocks.TIER_6_LEVEL;
+            case 6 -> CoinPurseTierUnlocks.TIER_7_LEVEL;
+            case 7 -> CoinPurseTierUnlocks.TIER_8_LEVEL;
+            default -> -1;
+        };
+        if (requiredLevel < 0) {
+            return null;
+        }
+        int nextTier = internalTier + 1;
+        return "Next Coin Purse Tier (" + (nextTier + 1) + ") needs level " + requiredLevel + " + purchase";
     }
 
     /**

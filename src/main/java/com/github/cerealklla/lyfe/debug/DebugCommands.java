@@ -3,6 +3,8 @@ package com.github.cerealklla.lyfe.debug;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
 
@@ -15,12 +17,20 @@ import com.github.cerealklla.cartographyr.geo.Classification;
 import com.github.cerealklla.cartographyr.geo.DisplayText;
 import com.github.cerealklla.cartographyr.geo.GeographicEntity;
 import com.github.cerealklla.lyfe.api.Lyfe;
+import com.github.cerealklla.lyfe.cook.FoodTierLadder;
+import com.github.cerealklla.lyfe.cook.GeneratedFoodRecipe;
+import com.github.cerealklla.lyfe.cook.ServerFoodRecipeStore;
+import com.github.cerealklla.lyfe.craft.EquipmentTierLadder;
 import com.github.cerealklla.lyfe.hunger.HungerListener;
 import com.github.cerealklla.lyfe.hunger.PlayerHunger;
 import com.github.cerealklla.lyfe.knowledge.KnowledgeFactor;
 import com.github.cerealklla.lyfe.knowledge.PlayerKnowledge;
 import com.github.cerealklla.lyfe.knowledge.SignListener;
+import com.github.cerealklla.lyfe.craft.GeneratedRecipe;
+import com.github.cerealklla.lyfe.craft.ServerRecipeStore;
 import com.github.cerealklla.lyfe.registration.ModAttachments;
+import com.github.cerealklla.lyfe.research.PlayerResearch;
+import com.github.cerealklla.lyfe.research.ResearchNoteItem;
 import com.github.cerealklla.lyfe.skill.SkillId;
 import com.github.cerealklla.lyfe.skill.SkillRegistry;
 import com.github.cerealklla.lyfe.skill.Skills;
@@ -29,8 +39,10 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.item.ItemStack;
 import net.neoforged.fml.ModList;
 
 /**
@@ -129,11 +141,53 @@ public final class DebugCommands {
             knowledgeLiteral.then(Commands.literal("learnrandom").then(learnRandomCount));
         }
 
+        var researchNoteWithTarget = Commands.argument("target", EntityArgument.player())
+                .executes(context -> giveResearchNote(
+                        context.getSource(),
+                        EntityArgument.getPlayer(context, "target"),
+                        StringArgumentType.getString(context, "tool"),
+                        IntegerArgumentType.getInteger(context, "tier")));
+
+        // Starts at 1, not EquipmentTierLadder.MIN_TIER (0, Wood) -- Wood is auto-known and never
+        // goes through research at all, so a Research Note for it makes no sense (see
+        // ResearchNoteLootInjector's own identical bound for the real crash this caused once already).
+        var researchNoteTier = Commands.argument("tier", IntegerArgumentType.integer(1, EquipmentTierLadder.MAX_TIER))
+                .executes(context -> giveResearchNote(
+                        context.getSource(),
+                        context.getSource().getPlayerOrException(),
+                        StringArgumentType.getString(context, "tool"),
+                        IntegerArgumentType.getInteger(context, "tier")))
+                .then(researchNoteWithTarget);
+
+        var researchNoteTool = Commands.argument("tool", StringArgumentType.word())
+                .suggests((context, builder) -> {
+                    for (EquipmentTierLadder.ToolType tool : EquipmentTierLadder.ToolType.values()) {
+                        builder.suggest(tool.name().toLowerCase(Locale.ROOT));
+                    }
+                    return builder.buildFuture();
+                })
+                .then(researchNoteTier);
+
+        var learnRecipesWithTarget = Commands.argument("target", EntityArgument.player())
+                .executes(context -> learnAllRecipes(context.getSource(), EntityArgument.getPlayer(context, "target")));
+
         dispatcher.register(Commands.literal("lyfe")
                 .requires(Commands.hasPermission(Commands.LEVEL_ALL))
                 .then(Commands.literal("xp").then(skillArgument))
                 .then(Commands.literal("hunger").then(hungerAmountArgument))
-                .then(knowledgeLiteral));
+                .then(knowledgeLiteral)
+                .then(Commands.literal("researchnote").then(researchNoteTool))
+                .then(Commands.literal("learnrecipes")
+                        .executes(context -> learnAllRecipes(context.getSource(), context.getSource().getPlayerOrException()))
+                        .then(learnRecipesWithTarget))
+                .then(Commands.literal("rerollrecipes")
+                        .executes(context -> rerollRecipes(context.getSource())))
+                .then(Commands.literal("learnfoodrecipes")
+                        .executes(context -> learnAllFoodRecipes(context.getSource(), context.getSource().getPlayerOrException()))
+                        .then(Commands.argument("target", EntityArgument.player())
+                                .executes(context -> learnAllFoodRecipes(context.getSource(), EntityArgument.getPlayer(context, "target")))))
+                .then(Commands.literal("rerollfoodrecipes")
+                        .executes(context -> rerollFoodRecipes(context.getSource()))));
     }
 
     private static int addXp(CommandSourceStack source, ServerPlayer target, String skillIdValue, int amount) {
@@ -246,5 +300,77 @@ public final class DebugCommands {
         source.sendSuccess(() -> Component.literal(
                 target.getName().getString() + " now knows " + finalCount + "/" + values.length + " factors about " + placeName + capNote), true);
         return finalCount;
+    }
+
+    /** Gives the target a real Research Notes stack for {@code tool} at {@code tier} -- for testing {@code research.ResearchNoteItem} without needing to actually find one in loot. */
+    private static int giveResearchNote(CommandSourceStack source, ServerPlayer target, String toolName, int tier) {
+        EquipmentTierLadder.ToolType tool;
+        try {
+            tool = EquipmentTierLadder.ToolType.valueOf(toolName.toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException e) {
+            source.sendFailure(Component.literal("Unknown tool: " + toolName));
+            return 0;
+        }
+        Identifier resultId = EquipmentTierLadder.itemId(tool, tier);
+        ItemStack note = ResearchNoteItem.createFor(resultId, tier);
+        if (!target.getInventory().add(note)) {
+            target.drop(note, false);
+        }
+        source.sendSuccess(() -> Component.literal(
+                "Gave " + target.getName().getString() + " a Research Note for " + resultId), true);
+        return 1;
+    }
+
+    /** Learns every generated equipment recipe outright for the target -- for testing crafting/gating without grinding research. */
+    private static int learnAllRecipes(CommandSourceStack source, ServerPlayer target) {
+        PlayerResearch research = target.getData(ModAttachments.PLAYER_RESEARCH);
+        int count = 0;
+        for (Identifier id : EquipmentTierLadder.allGeneratedItemIds()) {
+            Optional<GeneratedRecipe> recipe = ServerRecipeStore.get(id);
+            if (recipe.isPresent() && research.learnDirectly(id, recipe.get().tier())) {
+                count++;
+            }
+        }
+        int finalCount = count;
+        source.sendSuccess(() -> Component.literal(
+                target.getName().getString() + " has learned " + finalCount + " recipe(s)."), true);
+        return count;
+    }
+
+    /**
+     * Forces a brand-new random generation of every equipment recipe, overwriting the server's
+     * cached {@code lyfe_equipment_recipes.json} -- added 2026-10-03 (user request) so tuning
+     * {@code MaterialPool}/{@code RecipeGenerator} can be iterated live without manually deleting
+     * that file and restarting the client between every change. Does not re-learn anything for any
+     * player -- already-known recipe ids stay known, just with new underlying ingredients; reopen a
+     * Crafting Structure to see the refreshed costs.
+     */
+    private static int rerollRecipes(CommandSourceStack source) {
+        ServerRecipeStore.reroll(source.getServer());
+        source.sendSuccess(() -> Component.literal("Rerolled every equipment recipe."), true);
+        return 1;
+    }
+
+    /** Learns every generated cooking recipe (both tracks) outright for the target -- mirrors {@link #learnAllRecipes}. */
+    private static int learnAllFoodRecipes(CommandSourceStack source, ServerPlayer target) {
+        PlayerResearch research = target.getData(ModAttachments.PLAYER_RESEARCH);
+        int count = 0;
+        for (Identifier id : FoodTierLadder.allResultIds()) {
+            Optional<GeneratedFoodRecipe> recipe = ServerFoodRecipeStore.get(id);
+            if (recipe.isPresent() && research.learnDirectly(id, recipe.get().tier())) {
+                count++;
+            }
+        }
+        int finalCount = count;
+        source.sendSuccess(() -> Component.literal(
+                target.getName().getString() + " has learned " + finalCount + " cooking recipe(s)."), true);
+        return count;
+    }
+
+    /** Forces a brand-new random generation of every cooking recipe -- mirrors {@link #rerollRecipes}. */
+    private static int rerollFoodRecipes(CommandSourceStack source) {
+        ServerFoodRecipeStore.reroll(source.getServer());
+        source.sendSuccess(() -> Component.literal("Rerolled every cooking recipe."), true);
+        return 1;
     }
 }

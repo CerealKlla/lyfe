@@ -1,0 +1,13 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "equipment",
+  "ingredients": [
+    "#minecraft:planks",
+    "#minecraft:planks",
+    "minecraft:iron_ingot",
+    "minecraft:stick"
+  ],
+  "result": {
+    "id": "lyfe:fish_cleaning_station"
+  }
+}

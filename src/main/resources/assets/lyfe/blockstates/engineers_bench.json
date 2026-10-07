@@ -1,0 +1,8 @@
+{
+  "variants": {
+    "facing=north": { "model": "lyfe:block/engineers_bench" },
+    "facing=south": { "model": "lyfe:block/engineers_bench", "y": 180 },
+    "facing=west": { "model": "lyfe:block/engineers_bench", "y": 270 },
+    "facing=east": { "model": "lyfe:block/engineers_bench", "y": 90 }
+  }
+}

@@ -7,6 +7,7 @@ import java.util.Set;
 import java.util.UUID;
 
 import com.github.cerealklla.lyfe.api.Lyfe;
+import com.github.cerealklla.lyfe.cook.FoodClassification;
 import com.github.cerealklla.lyfe.registration.ModAttachments;
 import com.github.cerealklla.lyfe.skill.Skills;
 
@@ -16,14 +17,11 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.Difficulty;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.food.FoodData;
 import net.minecraft.world.food.FoodProperties;
-import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.gamerules.GameRules;
 import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.neoforge.event.entity.living.LivingDropsEvent;
 import net.neoforged.neoforge.event.entity.living.LivingEntityUseItemEvent;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 
@@ -37,13 +35,20 @@ import net.neoforged.neoforge.event.tick.PlayerTickEvent;
  * regen, starvation) is checked against, using vanilla's own fixed absolute thresholds
  * ({@link HungerConstants}) so a bigger true max is a genuine survivability reward, not a cosmetic
  * rescale. See decisions.md, 2026-09-24, for the full reasoning.
+ *
+ * <p><b>Cook's old flat eat-time bonus (Section 10.2) is retired, 2026-10-03</b> -- superseded by
+ * the real cooking overhaul (Section 19.3, see {@code cook.CookingListener}) the same day: Cook XP
+ * now comes only from crafting at a cooking structure, never from eating or a burn-kill. {@code
+ * hunger.CookedFoods} is deleted along with that mechanic. Survivalist's own eat-time XP/hunger-gain
+ * logic below is unaffected. The one addition here: a {@link FoodClassification} Component's eaten
+ * nutrition is forced to a flat 2 (= 1 icon) instead of its real vanilla value, implementing
+ * Appendix C's "a raw food item always restores exactly 1 icon" rule, which was never actually
+ * wired up before.
  */
 public final class HungerListener {
 
     private static final long SURVIVALIST_XP_PER_POINT = 1;
-    private static final long COOK_XP_PER_BONUS_POINT = 1;
-    private static final long COOK_XP_PER_BURN_KILL_POINT = 1;
-    private static final double COOK_BONUS_PER_LEVEL = 0.02; // +2%/level, up to +100% at level 50 -- placeholder, tunable
+    private static final int COMPONENT_NUTRITION = 2; // = 1 icon
 
     // Session-only: whether we've pinned a given player's real food level at least once. Skipped on
     // the very first tick seen so vanilla's default (20) isn't misread as a 3-point exhaustion drop.
@@ -65,6 +70,7 @@ public final class HungerListener {
 
         if (!initialized.contains(playerId)) {
             realFood.setFoodLevel(HungerConstants.REAL_FOOD_PIN);
+            realFood.setSaturation(0.0F);
             initialized.add(playerId);
             player.syncData(ModAttachments.PLAYER_HUNGER); // First sync so the client sees the true starting value at all.
         } else {
@@ -77,6 +83,19 @@ public final class HungerListener {
                 player.syncData(ModAttachments.PLAYER_HUNGER);
             }
             realFood.setFoodLevel(HungerConstants.REAL_FOOD_PIN);
+            // 2026-10-05 fix (real report: "I never seem to drop below 3 food icons") -- confirmed
+            // against the decompiled FoodData#tick bytecode: an exhaustion threshold crossing spends
+            // real saturationLevel FIRST and only decrements real foodLevel once saturation is
+            // already at 0. We only ever pinned foodLevel, never saturation -- real eating still
+            // calls vanilla's own FoodData#eat independently of this mod's true-hunger mirror (see
+            // onUseItemFinish below), so every time the player ate, real saturation climbed back up
+            // and silently absorbed exhaustion for a long stretch afterward, during which `drop`
+            // above is always 0 and true hunger simply stops moving -- not a hard floor at any
+            // specific number, just real saturation happening to still be positive whenever checked.
+            // Pinning saturation to 0 here guarantees every future exhaustion crossing decrements
+            // real foodLevel immediately, so the mirrored drop is deterministic regardless of what
+            // real eating does to vanilla's own saturation field.
+            realFood.setSaturation(0.0F);
         }
 
         enforceSprintLock(player, hunger);
@@ -163,19 +182,18 @@ public final class HungerListener {
             return;
         }
 
-        Item item = original.getItem();
-        boolean cooked = CookedFoods.isCooked(item);
-        int cookLevel = Lyfe.getLevel(player, Skills.COOK_ID);
-        double cookBonusFraction = cooked ? Math.min(1.0, cookLevel * COOK_BONUS_PER_LEVEL) : 0.0;
-        int bonusNutrition = (int) Math.round(food.nutrition() * cookBonusFraction);
+        // Appendix C's "a raw food item always restores exactly 1 icon, never changes" rule --
+        // never actually wired up before 2026-10-03. Crafted food (baked by cook.CookingListener)
+        // uses its real, already-overridden nutrition as-is.
+        int nutrition = FoodClassification.isComponent(original.getItem()) ? COMPONENT_NUTRITION : food.nutrition();
 
         PlayerHunger hunger = player.getData(ModAttachments.PLAYER_HUNGER);
         int currentMax = currentMaxHunger(player);
         int before = hunger.getTrueHunger();
 
         // Mirrors vanilla's FoodConstants#saturationByModifier exactly: saturation gained = nutrition * modifier * 2.
-        float saturationGained = (food.nutrition() + bonusNutrition) * food.saturation() * 2.0F;
-        hunger.eat(food.nutrition() + bonusNutrition, saturationGained, currentMax);
+        float saturationGained = nutrition * food.saturation() * 2.0F;
+        hunger.eat(nutrition, saturationGained, currentMax);
         player.syncData(ModAttachments.PLAYER_HUNGER);
 
         int actualGain = hunger.getTrueHunger() - before;
@@ -189,83 +207,21 @@ public final class HungerListener {
         }
 
         Lyfe.addXp(player, Skills.SURVIVALIST_ID, actualGain * SURVIVALIST_XP_PER_POINT);
-        if (cooked && bonusNutrition > 0) {
-            Lyfe.addXp(player, Skills.COOK_ID, bonusNutrition * COOK_XP_PER_BONUS_POINT);
-        }
-
-        debugAnnounce(player, actualGain, cooked, bonusNutrition);
-    }
-
-    /**
-     * Free cooking, from an animal dying with already-cooked meat in its drops (vanilla's own
-     * burnt-drop mechanic: a mob that dies while on fire drops the cooked version) -- grants Cook
-     * XP at the moment of death, separate from and in addition to the XP granted later if that meat
-     * is actually eaten (design doc Section 10.2).
-     *
-     * <p>Attribution uses {@link net.minecraft.world.entity.LivingEntity#getLastHurtByPlayer()},
-     * not the killing blow's damage source -- this is vanilla's own general "who gets credit for
-     * this death" tracking (used for loot/advancement attribution), and it stays set for 100 ticks
-     * (5s) after a player's hit regardless of what actually lands the final blow. That's the
-     * difference that matters here: igniting an animal with a Fire Aspect weapon, then letting it
-     * wander off and die from the burning itself (no player entity on the final damage source),
-     * still credits the igniting player as long as death happens within that window. A kill that
-     * happens outside the window, or where the player never actually hit the animal (e.g. lit it
-     * with flint and steel without landing a hit), won't be credited -- an accepted, documented gap.
-     */
-    @SubscribeEvent
-    public void onLivingDrops(LivingDropsEvent event) {
-        if (!(event.getEntity().getLastHurtByPlayer() instanceof ServerPlayer player)) {
-            return;
-        }
-
-        long totalXp = 0;
-        for (ItemEntity drop : event.getDrops()) {
-            ItemStack stack = drop.getItem();
-            if (!CookedFoods.isCooked(stack.getItem())) {
-                continue;
-            }
-            FoodProperties food = stack.get(DataComponents.FOOD);
-            int nutrition = food != null ? food.nutrition() : 1;
-            totalXp += (long) nutrition * stack.getCount() * COOK_XP_PER_BURN_KILL_POINT;
-        }
-
-        if (totalXp > 0) {
-            boolean wasMaxLevel = Lyfe.isMaxLevel(player, Skills.COOK_ID);
-            Lyfe.addXp(player, Skills.COOK_ID, totalXp);
-            if (!wasMaxLevel) {
-                int cookLevel = Lyfe.getLevel(player, Skills.COOK_ID);
-                player.sendSystemMessage(Component.literal("+" + totalXp + " Cook XP (Level " + cookLevel + ") — free cooking!"));
-            }
-        }
-    }
-
-    /** DEBUG ONLY -- same stand-in used by GatheringListener until design doc Section 12's real XP feedback exists. */
-    private void debugAnnounce(ServerPlayer player, int gained, boolean cooked, int bonusNutrition) {
-        boolean showSurvivalist = !Lyfe.isMaxLevel(player, Skills.SURVIVALIST_ID);
-        boolean showCook = cooked && bonusNutrition > 0 && !Lyfe.isMaxLevel(player, Skills.COOK_ID);
-        if (!showSurvivalist && !showCook) {
-            return;
-        }
-
-        StringBuilder message = new StringBuilder();
-        if (showSurvivalist) {
-            int survivalistLevel = Lyfe.getLevel(player, Skills.SURVIVALIST_ID);
-            message.append("+").append(gained).append(" Survivalist XP (Level ").append(survivalistLevel).append(")");
-        }
-        if (showCook) {
-            if (!message.isEmpty()) {
-                message.append(" | ");
-            }
-            int cookLevel = Lyfe.getLevel(player, Skills.COOK_ID);
-            message.append("+").append(bonusNutrition).append(" Cook XP (Level ").append(cookLevel).append(")");
-        }
-        player.sendSystemMessage(Component.literal(message.toString()));
     }
 
     /** Section 10.1: grows linearly from vanilla's baseline to the design doc's 30-icon/60-point cap as Survivalist levels. */
     public static int currentMaxHunger(ServerPlayer player) {
-        int level = Lyfe.getLevel(player, Skills.SURVIVALIST_ID);
+        return currentMaxHunger(Lyfe.getLevel(player, Skills.SURVIVALIST_ID));
+    }
+
+    /** Pure, level-only overload -- used by the Skills screen, which only has a client-side level, not a {@code ServerPlayer}. */
+    public static int currentMaxHunger(int level) {
         int growth = HungerConstants.MAX_HUNGER_AT_MAX_LEVEL - HungerConstants.BASE_MAX_HUNGER;
         return HungerConstants.BASE_MAX_HUNGER + growth * level / Skills.MAX_LEVEL;
+    }
+
+    /** Live benefit readout for the Skills screen (common.skill.SkillBenefits). */
+    public static java.util.List<String> survivalistBenefitLines(int level) {
+        return java.util.List.of("True max hunger: " + currentMaxHunger(level));
     }
 }

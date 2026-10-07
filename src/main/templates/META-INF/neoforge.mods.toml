@@ -46,8 +46,11 @@ subjective knowledge of the world.
 '''
 
 # The [[mixins]] block allows you to declare your mixin config to FML so that it gets loaded.
-#[[mixins]]
-#config="${mod_id}.mixins.json"
+# Lyfe's first-ever mixin, added 2026-10-06 for the Unbreakable Equipment feature -- see
+# durability.mixin.ItemStackUnbreakableMixin's own doc comment for why no event-based alternative
+# was sufficient.
+[[mixins]]
+config="${mod_id}.mixins.json"
 
 # The [[accessTransformers]] block allows you to declare where your AT file is.
 # If this block is omitted, a fallback attempt will be made to load an AT from META-INF/accesstransformer.cfg
@@ -101,6 +104,25 @@ subjective knowledge of the world.
     modId="yconomics"
     type="optional"
     reason="Enables the Merchant skill's Coin Purse tier auto-increase and T6-T8 unlock checks."
+    ordering="NONE"
+    side="BOTH"
+
+# Kyt is an optional soft dependency, added 2026-10-02 -- Lyfe contributes its own crafting-overhaul
+# debug items into Kyt's mod-managed "Dev" Kyt when Kyt is present; Lyfe works standalone without it.
+[[dependencies.${mod_id}]]
+    modId="kyt"
+    type="optional"
+    reason="Contributes Lyfe's crafting-overhaul debug items into Kyt's mod-managed Dev Kyt."
+    ordering="NONE"
+    side="BOTH"
+
+# Settlemynts is an optional soft dependency, added 2026-10-05 -- crafting/cooking structure upgrade
+# costs resolve the structure's plot and its settlement's Shop pricing when Settlemynts is present;
+# without it, upgrades fall back to the original free/instant behavior.
+[[dependencies.${mod_id}]]
+    modId="settlemynts"
+    type="optional"
+    reason="Resolves a crafting structure's plot for upgrade-cost resource funding and Shop pricing."
     ordering="NONE"
     side="BOTH"
 

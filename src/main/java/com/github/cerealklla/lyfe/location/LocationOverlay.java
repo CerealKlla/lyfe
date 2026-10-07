@@ -2,6 +2,8 @@ package com.github.cerealklla.lyfe.location;
 
 import java.util.Optional;
 
+import com.github.cerealklla.lyfe.minimap.MinimapOverlay;
+
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
@@ -22,6 +24,11 @@ import net.neoforged.neoforge.client.gui.GuiLayer;
  * line can be present without the other (e.g. a settlement with no plots nearby shows only line 1
  * plus whichever of the fixed zone words applies) -- both are rendered independently rather than
  * assuming they're always paired.
+ *
+ * <p><b>Anchored beneath the minimap, 2026-09-29</b> (explicit user request, see {@code
+ * minimap.MinimapOverlay}'s own doc) -- its top offset is {@link MinimapOverlay#RESERVED_HEIGHT}
+ * plus this class's own {@link #MARGIN}, not just {@code MARGIN} alone, so the two stack as one
+ * top-right column regardless of the minimap's own size.
  */
 public final class LocationOverlay implements GuiLayer {
 
@@ -50,7 +57,7 @@ public final class LocationOverlay implements GuiLayer {
         int lineHeight = font.lineHeight;
 
         int right = guiGraphics.guiWidth() - MARGIN;
-        int top = MARGIN;
+        int top = MinimapOverlay.RESERVED_HEIGHT + MARGIN;
         int left = right - maxWidth - PADDING * 2;
         int bottom = top + lineHeight * texts.length + PADDING * 2;
 

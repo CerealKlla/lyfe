@@ -4,39 +4,65 @@ import org.slf4j.Logger;
 
 import com.mojang.logging.LogUtils;
 
+import com.github.cerealklla.lyfe.combat.CombatSkillListener;
+import com.github.cerealklla.lyfe.cook.VanillaFoodRecipeStripper;
+import com.github.cerealklla.lyfe.craft.ProficiencyDurabilityListener;
+import com.github.cerealklla.lyfe.craft.VanillaRecipeStripper;
+import com.github.cerealklla.lyfe.gathering.ExcavatorListener;
 import com.github.cerealklla.lyfe.debug.DebugCommands;
+import com.github.cerealklla.lyfe.durability.UnbreakableArmorListener;
+import com.github.cerealklla.lyfe.durability.UnbreakableToolListener;
+import com.github.cerealklla.lyfe.fishing.FishermanListener;
+import com.github.cerealklla.lyfe.fishing.LockedChestUnlockListener;
+import com.github.cerealklla.lyfe.fishing.LuckySpotPayload;
+import com.github.cerealklla.lyfe.farming.FarmerListener;
 import com.github.cerealklla.lyfe.gathering.GatheringListener;
+import com.github.cerealklla.lyfe.gathering.LeafDecayAccelerator;
+import com.github.cerealklla.lyfe.gathering.SaplingAutoReplant;
+import com.github.cerealklla.lyfe.heartiness.HeartinessListener;
 import com.github.cerealklla.lyfe.hunger.HungerListener;
 import com.github.cerealklla.lyfe.location.ClientLocationState;
 import com.github.cerealklla.lyfe.location.LocationPayload;
 import com.github.cerealklla.lyfe.location.LocationTracker;
+import com.github.cerealklla.lyfe.minimap.ClientMinimapState;
+import com.github.cerealklla.lyfe.minimap.MinimapEntitiesPayload;
+import com.github.cerealklla.lyfe.minimap.MinimapTracker;
 import com.github.cerealklla.lyfe.knowledge.ClientWritingRequest;
+import com.github.cerealklla.lyfe.knowledge.KnowledgeProximityTicker;
 import com.github.cerealklla.lyfe.knowledge.OpenWritingScreenPayload;
 import com.github.cerealklla.lyfe.knowledge.RequestWritingScreenPayload;
 import com.github.cerealklla.lyfe.knowledge.SignListener;
 import com.github.cerealklla.lyfe.knowledge.SubmitWritingPayload;
+import com.github.cerealklla.lyfe.loot.RecipeNoteLootInjector;
+import com.github.cerealklla.lyfe.loot.ResearchNoteLootInjector;
 import com.github.cerealklla.lyfe.merchant.MerchantListener;
+import com.github.cerealklla.lyfe.research.ResearchProgressPayload;
+import com.github.cerealklla.lyfe.research.client.ClientResearchBarState;
+import com.github.cerealklla.lyfe.reincarnation.ReincarnationListener;
 import com.github.cerealklla.lyfe.registration.ModAttachments;
+import com.github.cerealklla.lyfe.registration.ModBlockEntities;
+import com.github.cerealklla.lyfe.registration.ModBlocks;
+import com.github.cerealklla.lyfe.registration.ModEntities;
+import com.github.cerealklla.lyfe.registration.ModFoodItems;
 import com.github.cerealklla.lyfe.registration.ModItems;
+import com.github.cerealklla.lyfe.registration.ModMenus;
+import com.github.cerealklla.lyfe.registration.ModMobEffects;
+import com.github.cerealklla.lyfe.rest.BedRestListener;
 import com.github.cerealklla.lyfe.skill.Skills;
+import com.github.cerealklla.lyfe.swim.SwimmerListener;
+import com.github.cerealklla.lyfe.xpbar.XpGainPayload;
+import com.github.cerealklla.lyfe.xpbar.client.ClientXpBarState;
 
-import net.minecraft.core.Holder;
-import net.minecraft.core.registries.Registries;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
-import net.minecraft.world.item.enchantment.Enchantment;
-import net.minecraft.world.item.enchantment.Enchantments;
 import net.neoforged.bus.api.IEventBus;
-import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.ModList;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.LootTableLoadEvent;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
-import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 
 // The value here must match the modId entry in META-INF/neoforge.mods.toml (sourced from mod_id in gradle.properties)
@@ -48,15 +74,41 @@ public class LyfeMod {
     public LyfeMod(IEventBus modEventBus, ModContainer modContainer) {
         ModAttachments.ATTACHMENT_TYPES.register(modEventBus);
         ModItems.DATA_COMPONENTS.register(modEventBus);
+        ModItems.ITEMS.register(modEventBus);
+        ModFoodItems.ITEMS.register(modEventBus);
+        ModBlocks.BLOCKS.register(modEventBus);
+        ModBlocks.ITEMS.register(modEventBus);
+        ModBlockEntities.BLOCK_ENTITIES.register(modEventBus);
+        ModMenus.MENU_TYPES.register(modEventBus);
+        ModMobEffects.MOB_EFFECTS.register(modEventBus);
+        ModEntities.ENTITIES.register(modEventBus);
         Skills.bootstrap();
 
         modEventBus.addListener(this::commonSetup);
         modEventBus.addListener(this::registerPayloads);
 
-        NeoForge.EVENT_BUS.register(this);
         NeoForge.EVENT_BUS.register(new GatheringListener());
+        NeoForge.EVENT_BUS.register(new LeafDecayAccelerator());
+        NeoForge.EVENT_BUS.register(new SaplingAutoReplant());
+        NeoForge.EVENT_BUS.register(new FarmerListener());
         NeoForge.EVENT_BUS.register(new HungerListener());
+        NeoForge.EVENT_BUS.register(new ReincarnationListener());
+        NeoForge.EVENT_BUS.register(new SwimmerListener());
+        NeoForge.EVENT_BUS.register(new HeartinessListener());
+        NeoForge.EVENT_BUS.register(new BedRestListener());
+        NeoForge.EVENT_BUS.register(new VanillaRecipeStripper());
+        NeoForge.EVENT_BUS.register(new VanillaFoodRecipeStripper());
+        NeoForge.EVENT_BUS.register(new FishermanListener());
+        NeoForge.EVENT_BUS.register(new LockedChestUnlockListener());
+        NeoForge.EVENT_BUS.register(new com.github.cerealklla.lyfe.cook.FoodStarterPackListener());
+        NeoForge.EVENT_BUS.register(new CombatSkillListener());
+        NeoForge.EVENT_BUS.register(new ExcavatorListener());
+        NeoForge.EVENT_BUS.register(new ProficiencyDurabilityListener());
+        NeoForge.EVENT_BUS.register(new UnbreakableToolListener());
+        NeoForge.EVENT_BUS.register(new UnbreakableArmorListener());
         NeoForge.EVENT_BUS.addListener((RegisterCommandsEvent event) -> DebugCommands.register(event.getDispatcher()));
+        NeoForge.EVENT_BUS.addListener((LootTableLoadEvent event) -> ResearchNoteLootInjector.onLootTableLoad(event));
+        NeoForge.EVENT_BUS.addListener((LootTableLoadEvent event) -> RecipeNoteLootInjector.onLootTableLoad(event));
 
         // Soft dependency (design doc Section 8): LocationTracker and SignListener both compile
         // against Cartographyr's real API (a compileOnly dependency, see build.gradle), but are
@@ -67,6 +119,11 @@ public class LyfeMod {
         if (ModList.get().isLoaded("cartographyr")) {
             NeoForge.EVENT_BUS.register(new LocationTracker());
             NeoForge.EVENT_BUS.register(new SignListener());
+            NeoForge.EVENT_BUS.register(new KnowledgeProximityTicker());
+            // Minimap plot/settlement outlines (see MinimapTracker's own doc) -- the minimap's
+            // terrain itself needs no Cartographyr data at all (pure client-side world sampling),
+            // only this outline half does.
+            NeoForge.EVENT_BUS.register(new MinimapTracker());
         }
 
         // Merchant skill (design doc / decisions.md, 2026-09-26): gated on Yconomics being loaded,
@@ -74,6 +131,21 @@ public class LyfeMod {
         // this skill is Coin Purse tier integration, so there's no meaningful standalone mode.
         if (ModList.get().isLoaded("yconomics")) {
             NeoForge.EVENT_BUS.register(new MerchantListener());
+        }
+
+        // The old unconditional-on-login debug item grant (removed 2026-10-02, see decisions.md)
+        // was replaced with a Dev Kyt contribution (/kyt getDev) the same day, but as of 2026-10-05
+        // every item that contribution ever listed now has a real crafting recipe of its own (see
+        // decisions.md's full remove-by-remove history) -- Research Bench and Fish Cleaning Station,
+        // the last two, just gained theirs. With nothing left to contribute, this mod no longer
+        // registers a Dev Kyt contribution at all.
+
+        // Shop auto-seeding (design doc Section 19.9, 2026-10-05) -- registers this mod's own Zone
+        // Types' Shop catalogs (Armorer/Blacksmith/Grocer/Restaurant) with Settlemynts' open
+        // registry. See structure.ShopSeedCatalogs' own doc for why these four specifically live
+        // here, not Blueprynts.
+        if (ModList.get().isLoaded("settlemynts")) {
+            com.github.cerealklla.lyfe.structure.ShopSeedCatalogs.registerAll();
         }
     }
 
@@ -89,6 +161,29 @@ public class LyfeMod {
     private void registerPayloads(RegisterPayloadHandlersEvent event) {
         event.registrar("1").playToClient(LocationPayload.TYPE, LocationPayload.STREAM_CODEC,
                 (payload, context) -> ClientLocationState.set(payload.line1(), payload.line2()));
+
+        // Drives the transient XP bar HUD (replaces the old per-skill chat announcements,
+        // 2026-10-02) -- sent centrally from api.Lyfe#addXp, so this handler covers every skill.
+        event.registrar("1").playToClient(XpGainPayload.TYPE, XpGainPayload.STREAM_CODEC,
+                (payload, context) -> ClientXpBarState.onXpGain(payload.skillId(), payload.oldXp(), payload.newXp()));
+
+        // Fisherman's one-player-visible "lucky spot" bonus (design doc Section D) -- never
+        // broadcast to anyone but the casting player, rendered client-side as a particle effect.
+        event.registrar("1").playToClient(LuckySpotPayload.TYPE, LuckySpotPayload.STREAM_CODEC,
+                (payload, context) -> com.github.cerealklla.lyfe.fishing.client.ClientLuckySpotState.set(payload.pos()));
+
+        // Drives the transient research-progress HUD (2026-10-03, user request) -- sent from both
+        // ResearchMenu (a real Research Bench attempt) and ResearchNoteItem (a note), so this one
+        // handler covers both research paths.
+        event.registrar("1").playToClient(ResearchProgressPayload.TYPE, ResearchProgressPayload.STREAM_CODEC,
+                (payload, context) -> ClientResearchBarState.onProgress(
+                        payload.resultId(), payload.oldPoints(), payload.newPoints(), payload.threshold()));
+
+        // Registered unconditionally, same reasoning as LocationPayload above -- MinimapTracker is
+        // only ever constructed (and so only ever actually sends this) when Cartographyr is loaded,
+        // but the handler itself must exist regardless (one global network registry per modid).
+        event.registrar("1").playToClient(MinimapEntitiesPayload.TYPE, MinimapEntitiesPayload.STREAM_CODEC,
+                (payload, context) -> ClientMinimapState.setOutlines(payload.outlines()));
 
         // Client-side handler writes into the zero-Cartographyr-refs ClientWritingRequest bridge
         // (see its own class doc) rather than opening the Screen directly here -- this method must
@@ -118,34 +213,4 @@ public class LyfeMod {
                 });
     }
 
-    /**
-     * DEBUG ONLY — grants testing items for the sign/map mechanic (design doc Section 9.1): real
-     * vanilla oak signs/maps (2026-09-25 -- no special items anymore, see decisions.md) plus oak
-     * fences to place signs on. Deliberately naive: fires on every login, not just a brand-new
-     * character, since re-supplying test items each session is a minor inconvenience at worst and
-     * precisely detecting "first-ever spawn" adds complexity not worth it for throwaway debug
-     * tooling. Must be removed or gated behind a real debug flag before any actual release.
-     */
-    @SubscribeEvent
-    public void onPlayerLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {
-        Player player = event.getEntity();
-        if (player.level().isClientSide()) {
-            return;
-        }
-        player.addItem(new ItemStack(Items.OAK_SIGN, 16));
-        player.addItem(new ItemStack(Items.MAP, 8));
-        player.addItem(new ItemStack(Items.OAK_FENCE, 16));
-
-        // Fire Aspect sword, for testing Survivalist/Cook's burn-kill XP trigger (design doc Section
-        // 10.2, .hunger.HungerListener#onLivingDrops) without needing flint and steel every time.
-        ItemStack fireSword = new ItemStack(Items.IRON_SWORD);
-        Holder<Enchantment> fireAspect = player.level().registryAccess()
-                .lookupOrThrow(Registries.ENCHANTMENT)
-                .get(Enchantments.FIRE_ASPECT)
-                .orElseThrow();
-        fireSword.enchant(fireAspect, 2);
-        player.addItem(fireSword);
-
-        LOGGER.info("Granted debug sign/fence/map/fire-sword testing items to {}", player.getName().getString());
-    }
 }

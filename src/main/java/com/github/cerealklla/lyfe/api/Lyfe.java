@@ -8,9 +8,12 @@ import com.mojang.authlib.GameProfile;
 
 import com.github.cerealklla.lyfe.LyfeMod;
 import com.github.cerealklla.lyfe.registration.ModAttachments;
+import com.github.cerealklla.lyfe.registration.ModMobEffects;
+import com.github.cerealklla.lyfe.rest.RestConstants;
 import com.github.cerealklla.lyfe.skill.SkillDefinition;
 import com.github.cerealklla.lyfe.skill.SkillId;
 import com.github.cerealklla.lyfe.skill.SkillRegistry;
+import com.github.cerealklla.lyfe.xpbar.XpGainPayload;
 
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.MinecraftServer;
@@ -23,6 +26,7 @@ import net.minecraft.world.level.storage.TagValueInput;
 import net.minecraft.world.level.storage.ValueInput;
 import net.neoforged.fml.ModList;
 import net.neoforged.neoforge.common.util.FakePlayer;
+import net.neoforged.neoforge.network.PacketDistributor;
 
 /**
  * The stable public entry point for a player's skill data. Other mods (and Lyfe's own skill
@@ -39,8 +43,17 @@ public final class Lyfe {
         return player.getData(ModAttachments.PLAYER_SKILLS).getXp(skillId);
     }
 
-    /** Adds XP for a skill and returns the new total. Amounts that would take XP below 0 are clamped. */
+    /**
+     * Adds XP for a skill and returns the new total. Amounts that would take XP below 0 are clamped.
+     * Doubled while the player has Well Rested active (design doc, 2026-10-03 user request) --
+     * centralized here, same reasoning as the XP bar/sync below, so every skill benefits uniformly
+     * rather than each listener needing its own check.
+     */
     public static long addXp(Player player, SkillId skillId, long amount) {
+        if (amount > 0 && player.hasEffect(ModMobEffects.WELL_RESTED)) {
+            amount *= RestConstants.WELL_RESTED_XP_MULTIPLIER;
+        }
+        long oldXp = getXp(player, skillId);
         long newXp = player.getData(ModAttachments.PLAYER_SKILLS).addXp(skillId, amount);
         // Mutating the attachment object in place does NOT trigger a client resync on its own --
         // NeoForge's IAttachmentHolder only syncs from setData()/removeData(), never from an
@@ -48,6 +61,14 @@ public final class Lyfe {
         // AttachmentHolder source, 2026-09-24). Without this, effects that depend on a synced level
         // client-side (e.g. GatheringListener's SpeedMultiplier) would silently use stale data.
         player.syncData(ModAttachments.PLAYER_SKILLS);
+
+        // Centralized here (not per-skill-listener) so every current and future skill gets the
+        // transient XP bar HUD for free -- mirrors syncData/isMaxLevel already being centralized in
+        // this one method. Replaces the old per-listener chat-message announcements (2026-10-02).
+        // Suppressed once already at max level, same as those announcements always were.
+        if (player instanceof ServerPlayer serverPlayer && !isMaxLevel(player, skillId)) {
+            PacketDistributor.sendToPlayer(serverPlayer, new XpGainPayload(skillId, oldXp, newXp));
+        }
         return newXp;
     }
 

@@ -1,0 +1,8 @@
+{
+  "variants": {
+    "facing=north": { "model": "lyfe:block/stove" },
+    "facing=south": { "model": "lyfe:block/stove", "y": 180 },
+    "facing=west": { "model": "lyfe:block/stove", "y": 270 },
+    "facing=east": { "model": "lyfe:block/stove", "y": 90 }
+  }
+}

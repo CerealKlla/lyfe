@@ -1,0 +1,163 @@
+package com.github.cerealklla.lyfe.structure;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.OptionalInt;
+import java.util.UUID;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.Container;
+
+/**
+ * The resource-cost funding logic for a crafting/cooking structure's tier upgrade (design doc
+ * Section 19.9, explicit user spec, 2026-10-05) -- shared by {@code craft.CraftingStructureMenu}
+ * and {@code cook.CookingStructureMenu} so the three-option funding rules live in exactly one
+ * place.
+ *
+ * <p><b>Graceful degradation</b>: if Settlemynts isn't loaded, or the structure isn't on a
+ * Settlemynts plot at all, {@link #fund} succeeds immediately with no cost -- the original
+ * free/instant behavior, unchanged. Funding only ever applies once a real plot is found.
+ *
+ * <p><b>Pricing, per the user's exact spec</b>:
+ * <ul>
+ *   <li>On-hand (Option 1): must fully cover every cost entry from boxes on the structure's own
+ *   plot, or the whole upgrade fails with no mutation at all -- no partial consumption.</li>
+ *   <li>Mix/Gold-only (Options 2/3): whatever isn't covered on-hand (all of it, for Gold-only) is
+ *   bought at 3x the home settlement's own average listed sale price, or -- if nobody in the home
+ *   settlement sells it at all -- from the nearest settlement that does, at 4x their price plus a
+ *   flat transport fee (100 nuggets per 50-item bundle, rouned up for a partial bundle).</li>
+ * </ul>
+ *
+ * <p><b>Known simplification, flagged not fixed</b>: the actual real Shop a purchase drains stock
+ * from (found via {@code SettlemyntsStructureBridge#findSellingPlot}) is charged its own real
+ * listed price by Yconomics' purchase transaction -- the buyer is additionally charged whatever
+ * makes up the difference between that and the full "3x/4x+transport" total, which is not credited
+ * to the seller (a market-markup sink, not a seller windfall or a buyer shortchange). This keeps
+ * the seller's own economy consistent (they're paid their own asking price for their own goods)
+ * while still honoring the user's literal "pay 3x/4x average" spec for the buyer's total cost.
+ */
+public final class StructureUpgradeFunding {
+
+    private static final double NEIGHBOR_SEARCH_RADIUS_BLOCKS = 5000;
+    private static final int TRANSPORT_FEE_PER_BUNDLE = 100;
+    private static final int TRANSPORT_BUNDLE_SIZE = 50;
+    private static final int LOCAL_MARKUP = 3;
+    private static final int NEIGHBOR_MARKUP = 4;
+
+    private StructureUpgradeFunding() {
+    }
+
+    public record Result(boolean success, String message) {
+        static Result ok() {
+            return new Result(true, null);
+        }
+
+        static Result fail(String message) {
+            return new Result(false, message);
+        }
+    }
+
+    private record Need(UpgradeCostEntry entry, int onHand, int shortfall) {
+    }
+
+    private record Purchase(UpgradeCostEntry entry, int quantity, UUID sellerPlotId, int buyerCharge) {
+    }
+
+    public static Result fund(ServerPlayer player, ServerLevel level, BlockPos structurePos, int nextTier, FundingOption option) {
+        if (!SettlemyntsStructureBridge.isAvailable()) {
+            return Result.ok();
+        }
+        Optional<SettlemyntsStructureBridge.PlotInfo> plotInfo = SettlemyntsStructureBridge.findPlotAt(level, structurePos);
+        if (plotInfo.isEmpty()) {
+            return Result.ok();
+        }
+        UUID plotId = plotInfo.get().plotId();
+        UUID settlementCoreId = plotInfo.get().settlementCoreId();
+
+        List<UpgradeCostEntry> cost = StructureUpgradeCost.costFor(nextTier);
+        List<Container> plotBoxes = option == FundingOption.GOLD_ONLY ? List.of() : SettlemyntsStructureBridge.resolvePlotBoxes(level, plotId);
+
+        List<Need> needs = new ArrayList<>();
+        for (UpgradeCostEntry entry : cost) {
+            int available = plotBoxes.isEmpty() ? 0 : StructureCostTransfer.countAvailable(plotBoxes, entry);
+            int onHand = Math.min(available, entry.amount());
+            needs.add(new Need(entry, onHand, entry.amount() - onHand));
+        }
+
+        if (option == FundingOption.ON_HAND) {
+            for (Need need : needs) {
+                if (need.shortfall() > 0) {
+                    return Result.fail("Missing " + need.shortfall() + " more " + need.entry().label() + " on this plot.");
+                }
+            }
+            for (Need need : needs) {
+                StructureCostTransfer.drain(plotBoxes, need.entry(), need.entry().amount());
+            }
+            return Result.ok();
+        }
+
+        List<Purchase> purchases = new ArrayList<>();
+        int totalCharge = 0;
+        for (Need need : needs) {
+            int quantity = option == FundingOption.GOLD_ONLY ? need.entry().amount() : need.shortfall();
+            if (quantity <= 0) {
+                continue;
+            }
+            Purchase purchase = resolvePurchase(level, settlementCoreId, structurePos, need.entry(), quantity);
+            if (purchase == null) {
+                return Result.fail("Nobody sells " + need.entry().label() + " nearby.");
+            }
+            purchases.add(purchase);
+            totalCharge += purchase.buyerCharge();
+        }
+
+        if (SettlemyntsStructureBridge.getNuggetBalance(player) < totalCharge) {
+            return Result.fail("You need " + totalCharge + " Gold Nuggets for the remaining resources.");
+        }
+
+        if (option == FundingOption.MIX) {
+            for (Need need : needs) {
+                if (need.onHand() > 0) {
+                    StructureCostTransfer.drain(plotBoxes, need.entry(), need.onHand());
+                }
+            }
+        }
+        for (Purchase purchase : purchases) {
+            List<Container> sellerBoxes = SettlemyntsStructureBridge.resolvePlotBoxes(level, purchase.sellerPlotId());
+            SettlemyntsStructureBridge.purchase(level, purchase.sellerPlotId(), purchase.entry(), purchase.quantity(), sellerBoxes);
+        }
+        SettlemyntsStructureBridge.withdrawNuggets(player, totalCharge);
+        return Result.ok();
+    }
+
+    private static Purchase resolvePurchase(ServerLevel level, UUID homeSettlementCoreId, BlockPos structurePos, UpgradeCostEntry entry, int quantity) {
+        OptionalInt localPrice = SettlemyntsStructureBridge.getAverageSettlementPrice(level, homeSettlementCoreId, entry);
+        if (localPrice.isPresent()) {
+            Optional<UUID> sellerPlot = SettlemyntsStructureBridge.findSellingPlot(level, homeSettlementCoreId, entry);
+            if (sellerPlot.isPresent()) {
+                return new Purchase(entry, quantity, sellerPlot.get(), quantity * localPrice.getAsInt() * LOCAL_MARKUP);
+            }
+        }
+        for (SettlemyntsStructureBridge.NearbySettlement neighbor : SettlemyntsStructureBridge.findNearbySettlements(level, structurePos, NEIGHBOR_SEARCH_RADIUS_BLOCKS)) {
+            if (neighbor.settlementCoreId().equals(homeSettlementCoreId)) {
+                continue;
+            }
+            OptionalInt neighborPrice = SettlemyntsStructureBridge.getAverageSettlementPrice(level, neighbor.settlementCoreId(), entry);
+            if (neighborPrice.isEmpty()) {
+                continue;
+            }
+            Optional<UUID> sellerPlot = SettlemyntsStructureBridge.findSellingPlot(level, neighbor.settlementCoreId(), entry);
+            if (sellerPlot.isEmpty()) {
+                continue;
+            }
+            int bundles = (int) Math.ceil(quantity / (double) TRANSPORT_BUNDLE_SIZE);
+            int transportFee = bundles * TRANSPORT_FEE_PER_BUNDLE;
+            int charge = quantity * neighborPrice.getAsInt() * NEIGHBOR_MARKUP + transportFee;
+            return new Purchase(entry, quantity, sellerPlot.get(), charge);
+        }
+        return null;
+    }
+}

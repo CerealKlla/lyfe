@@ -10,17 +10,23 @@ import net.neoforged.neoforge.common.Tags;
 
 /** Which gathering skill (if any) a block belongs to, for XP/speed/yield purposes (design doc Section 6). */
 public enum GatheringSkill {
-    LUMBERJACK(new SkillId("lumberjack")),
-    MINER(new SkillId("miner"));
+    LUMBERJACK(new SkillId("lumberjack"), "Lumberjack"),
+    MINER(new SkillId("miner"), "Miner");
 
     private final SkillId skillId;
+    private final String displayName;
 
-    GatheringSkill(SkillId skillId) {
+    GatheringSkill(SkillId skillId, String displayName) {
         this.skillId = skillId;
+        this.displayName = displayName;
     }
 
     public SkillId skillId() {
         return skillId;
+    }
+
+    public String displayName() {
+        return displayName;
     }
 
     @Nullable

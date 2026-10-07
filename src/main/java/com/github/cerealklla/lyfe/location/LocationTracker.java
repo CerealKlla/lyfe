@@ -121,6 +121,16 @@ public final class LocationTracker {
      * Section 9.3): the display only ever shows what's resolved here, and everything found was
      * just recorded as known, so there's no separate filter step needed.
      *
+     * <p><b>Exception, added 2026-10-02</b> (explicit user decision, see decisions.md): Settlemynts
+     * plot/plot-buffer entities are deliberately excluded from this. A settlement with N plots would
+     * otherwise write N near-identical, essentially never-read entries per player into {@code
+     * PlayerKnowledge} just from walking through -- the user's own reasoning was that per-plot
+     * directions are a Mayor/Town-Planner signage concern, which should read Cartographyr's
+     * authoritative data directly rather than routing through a player's personal discovery log.
+     * These entities are still resolved into {@code plot}/{@code plotBuffer} below for the HUD's own
+     * "Residence"/"Town Proper" text -- that display doesn't depend on {@code PlayerKnowledge} at
+     * all, only the sign/map knowledge grant does.
+     *
      * <p><b>Resolution order</b> (most to least specific -- corrected 2026-09-27 after the first
      * live look at it; the original interpretation had "Town Proper"/"Outskirts" swapped):
      * <ol>
@@ -156,7 +166,10 @@ public final class LocationTracker {
         GeographicEntity plotBuffer = null;
 
         for (GeographicEntity entity : here) {
-            knowledge.markVisited(entity.id().value());
+            boolean isZoneEntity = entity.layerId().equals(SETTLEMENTS_ZONE_LAYER_ID);
+            if (!isZoneEntity) {
+                knowledge.markVisited(entity.id().value());
+            }
 
             // Cartography.getEntitiesAt doesn't filter by LifecycleState itself (confirmed against
             // the decompiled source, see Cartographyr's own decisions.md 2026-09-26) -- a RETIRED/
@@ -174,7 +187,7 @@ public final class LocationTracker {
                 } else {
                     settlementPadded = entity;
                 }
-            } else if (entity.layerId().equals(SETTLEMENTS_ZONE_LAYER_ID)) {
+            } else if (isZoneEntity) {
                 if (entity.type().equals(PLOT_TYPE)) {
                     plot = entity;
                 } else if (entity.type().equals(PLOT_BUFFER_TYPE)) {

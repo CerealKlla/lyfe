@@ -158,6 +158,22 @@ dependencies {
     testCompileOnly files("../Yconomics/build/libs/yconomics-${yconomics_version}.jar")
     testRuntimeOnly files("../Yconomics/build/libs/yconomics-${yconomics_version}.jar")
 
+    // Same optional-soft-dependency shape as Cartographyr/Yconomics above, added 2026-10-02 so
+    // LyfeMod can contribute its own custom debug items (Research Bench, Crafting Mat, Tinker
+    // Bench, Crafting Table, Engineer's Bench) into Kyt's mod-managed "Dev" Kyt via
+    // api.Kyt#registerDevKytContribution, gated behind ModList.get().isLoaded("kyt"). Kyt itself
+    // deliberately has zero sibling-mod dependencies ("Kyt stands alone") -- this dependency only
+    // ever points the other way.
+    compileOnly files("../Kyt/build/libs/kyt-${kyt_version}.jar")
+
+    // Same optional-soft-dependency shape as above, added 2026-10-05 for crafting/cooking structure
+    // upgrade costs (structure.SettlemyntsStructureBridge) to resolve "which plot is this structure
+    // on" and reach its settlement's Shop pricing, gated behind
+    // ModList.get().isLoaded("settlemynts") at every actual call site. Also needs Cartographyr's jar
+    // already on the compile classpath above -- Settlemynts' own api.Settlemynts#findPlotAt returns
+    // a record containing a Cartographyr Geometry.Polygon field, which javac must fully resolve.
+    compileOnly files("../Settlemynts/build/libs/settlemynts-${settlemynts_version}.jar")
+
     // For more info:
     // http://www.gradle.org/docs/current/userguide/artifact_dependencies_tutorial.html
     // http://www.gradle.org/docs/current/userguide/dependency_management.html
