@@ -3,7 +3,6 @@ package com.github.cerealklla.lyfe.structure;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.OptionalInt;
 import java.util.UUID;
 
 import net.minecraft.core.BlockPos;
@@ -41,12 +40,6 @@ import net.minecraft.world.Container;
  */
 public final class StructureUpgradeFunding {
 
-    private static final double NEIGHBOR_SEARCH_RADIUS_BLOCKS = 5000;
-    private static final int TRANSPORT_FEE_PER_BUNDLE = 100;
-    private static final int TRANSPORT_BUNDLE_SIZE = 50;
-    private static final int LOCAL_MARKUP = 3;
-    private static final int NEIGHBOR_MARKUP = 4;
-
     private StructureUpgradeFunding() {
     }
 
@@ -61,9 +54,6 @@ public final class StructureUpgradeFunding {
     }
 
     private record Need(UpgradeCostEntry entry, int onHand, int shortfall) {
-    }
-
-    private record Purchase(UpgradeCostEntry entry, int quantity, UUID sellerPlotId, int buyerCharge) {
     }
 
     public static Result fund(ServerPlayer player, ServerLevel level, BlockPos structurePos, int nextTier, FundingOption option) {
@@ -99,14 +89,14 @@ public final class StructureUpgradeFunding {
             return Result.ok();
         }
 
-        List<Purchase> purchases = new ArrayList<>();
+        List<MarketPurchasing.Purchase> purchases = new ArrayList<>();
         int totalCharge = 0;
         for (Need need : needs) {
             int quantity = option == FundingOption.GOLD_ONLY ? need.entry().amount() : need.shortfall();
             if (quantity <= 0) {
                 continue;
             }
-            Purchase purchase = resolvePurchase(level, settlementCoreId, structurePos, need.entry(), quantity);
+            MarketPurchasing.Purchase purchase = MarketPurchasing.resolvePurchase(level, settlementCoreId, structurePos, need.entry(), quantity);
             if (purchase == null) {
                 return Result.fail("Nobody sells " + need.entry().label() + " nearby.");
             }
@@ -125,39 +115,11 @@ public final class StructureUpgradeFunding {
                 }
             }
         }
-        for (Purchase purchase : purchases) {
+        for (MarketPurchasing.Purchase purchase : purchases) {
             List<Container> sellerBoxes = SettlemyntsStructureBridge.resolvePlotBoxes(level, purchase.sellerPlotId());
             SettlemyntsStructureBridge.purchase(level, purchase.sellerPlotId(), purchase.entry(), purchase.quantity(), sellerBoxes);
         }
         SettlemyntsStructureBridge.withdrawNuggets(player, totalCharge);
         return Result.ok();
-    }
-
-    private static Purchase resolvePurchase(ServerLevel level, UUID homeSettlementCoreId, BlockPos structurePos, UpgradeCostEntry entry, int quantity) {
-        OptionalInt localPrice = SettlemyntsStructureBridge.getAverageSettlementPrice(level, homeSettlementCoreId, entry);
-        if (localPrice.isPresent()) {
-            Optional<UUID> sellerPlot = SettlemyntsStructureBridge.findSellingPlot(level, homeSettlementCoreId, entry);
-            if (sellerPlot.isPresent()) {
-                return new Purchase(entry, quantity, sellerPlot.get(), quantity * localPrice.getAsInt() * LOCAL_MARKUP);
-            }
-        }
-        for (SettlemyntsStructureBridge.NearbySettlement neighbor : SettlemyntsStructureBridge.findNearbySettlements(level, structurePos, NEIGHBOR_SEARCH_RADIUS_BLOCKS)) {
-            if (neighbor.settlementCoreId().equals(homeSettlementCoreId)) {
-                continue;
-            }
-            OptionalInt neighborPrice = SettlemyntsStructureBridge.getAverageSettlementPrice(level, neighbor.settlementCoreId(), entry);
-            if (neighborPrice.isEmpty()) {
-                continue;
-            }
-            Optional<UUID> sellerPlot = SettlemyntsStructureBridge.findSellingPlot(level, neighbor.settlementCoreId(), entry);
-            if (sellerPlot.isEmpty()) {
-                continue;
-            }
-            int bundles = (int) Math.ceil(quantity / (double) TRANSPORT_BUNDLE_SIZE);
-            int transportFee = bundles * TRANSPORT_FEE_PER_BUNDLE;
-            int charge = quantity * neighborPrice.getAsInt() * NEIGHBOR_MARKUP + transportFee;
-            return new Purchase(entry, quantity, sellerPlot.get(), charge);
-        }
-        return null;
     }
 }

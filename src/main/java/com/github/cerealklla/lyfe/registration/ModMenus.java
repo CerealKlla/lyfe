@@ -9,6 +9,7 @@ import com.github.cerealklla.lyfe.cook.GeneratedFoodRecipe;
 import com.github.cerealklla.lyfe.craft.CraftingStructureMenu;
 import com.github.cerealklla.lyfe.craft.GeneratedRecipe;
 import com.github.cerealklla.lyfe.fishing.FishCleaningMenu;
+import com.github.cerealklla.lyfe.repair.RepairStructureMenu;
 import com.github.cerealklla.lyfe.research.ResearchMenu;
 
 import net.minecraft.core.registries.Registries;
@@ -31,6 +32,14 @@ public final class ModMenus {
     public static final DeferredHolder<MenuType<?>, MenuType<FishCleaningMenu>> FISH_CLEANING_STATION = MENU_TYPES.register(
             "fish_cleaning_station",
             () -> IMenuTypeExtension.create((windowId, inventory, extraData) -> new FishCleaningMenu(null, windowId, inventory)));
+
+    // Opened by RepairInteractionListener in place of vanilla's own Anvil/Grindstone menu -- no
+    // BlockEntity behind this one (both are plain vanilla blocks), so the client-side reconstruction
+    // just needs an empty repair slot, same null-backed shape as RESEARCH_BENCH/FISH_CLEANING_STATION
+    // above.
+    public static final DeferredHolder<MenuType<?>, MenuType<RepairStructureMenu>> REPAIR_STRUCTURE = MENU_TYPES.register(
+            "repair_structure",
+            () -> IMenuTypeExtension.create((windowId, inventory, extraData) -> new RepairStructureMenu(null, windowId, inventory)));
 
     // One shared MenuType for every crafting-structure tier -- tier and the known/eligible recipe
     // list both come from CraftingStructureBlockEntity#writeClientSideData's extra-data buffer

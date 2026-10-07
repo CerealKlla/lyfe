@@ -66,6 +66,21 @@ public final class MinimapOverlay implements GuiLayer {
     private static final int BUILDING_FIT_COLOR = 0xFF55FF55;
     private static final int BUILDING_NO_FIT_COLOR = 0xFFFF5555;
 
+    // North arrow, 2026-10-07 user request -- always visible for now; user explicitly said this can
+    // be gated behind a skill level later (most natural hook: the same Skills.CARTOGRAPHYR_ID level
+    // already used for radius in maybeResample), not needed yet.
+    private static final int NORTH_ARROW_COLOR = 0xFFFFFFFF;
+    private static final int NORTH_ARROW_HALF_WIDTH = 4;
+    private static final int NORTH_ARROW_HEIGHT = 6;
+    // Gap between the arrow's apex and the circle's true edge, clearing the BORDER_THICKNESS ring
+    // entirely -- the original placement put the arrow *outside* radius, which also meant outside the
+    // outer render()-level enableScissor square (left/top/right/bottom, which only touches the circle
+    // exactly at the 4 cardinal points): fine at diagonal rotation angles where the square has slack
+    // past the circle, but clipped flat at cardinal-ish angles where the square and circle coincide
+    // (user report, 2026-10-07, confirmed live). Moving the whole arrow inside the circle's own
+    // perimeter avoids the square entirely, not just the border ring.
+    private static final int NORTH_ARROW_INSET = BORDER_THICKNESS + 2;
+
     private int ticksSinceLastSample = RESAMPLE_INTERVAL_TICKS;
 
     @Override
@@ -146,6 +161,14 @@ public final class MinimapOverlay implements GuiLayer {
         drawOutlines(guiGraphics, left, top, cx, cz, contentRadius);
         drawInProgressStakes(guiGraphics, left, top, level, player, cx, cz, contentRadius);
         drawBuildingLocatorPreview(guiGraphics, left, top, level, player, cx, cz, contentRadius);
+        // Drawn inside this same (conditionally rotated) block, not after it -- when Auto-Rotate is
+        // on, the pose is rotated so "up" matches the player's facing, and north is wherever that
+        // rotation now puts it; drawing the arrow at its default "straight up" position *inside* the
+        // rotation swings it around the perimeter to the correct real-world-north angle for free, the
+        // same trick drawOutlines/the stakes/the Building Locator preview already rely on. When
+        // Auto-Rotate is off, this block never pushes a rotation at all, so the arrow just stays at
+        // the top -- correct, since Fixed orientation is already north-up.
+        drawNorthArrow(guiGraphics, cx, cz, radius);
         if (autoRotate) {
             guiGraphics.pose().popMatrix();
         }
@@ -225,6 +248,23 @@ public final class MinimapOverlay implements GuiLayer {
             int bandInnerRight = cx + innerHalf;
             guiGraphics.fill(circleLeft, y, bandInnerLeft, y + 1, BORDER_COLOR);
             guiGraphics.fill(bandInnerRight, y, circleRight, y + 1, BORDER_COLOR);
+        }
+    }
+
+    /**
+     * A small solid triangle pointing outward (apex nearest the edge, base toward center), sitting
+     * just inside the circle's own border ring -- not outside the circle, which used to clip at
+     * certain rotation angles (see {@link #NORTH_ARROW_INSET}'s own doc). Appears at whichever
+     * perimeter position currently corresponds to true north -- see the call site's own comment for
+     * how rotation makes that automatic. Scanline-filled the same way as {@link #drawCircularBorder}
+     * rather than via any triangle-fill primitive (none exists on {@code GuiGraphicsExtractor}).
+     */
+    private void drawNorthArrow(GuiGraphicsExtractor guiGraphics, int cx, int cz, int radius) {
+        int apexY = cz - radius + NORTH_ARROW_INSET;
+        for (int row = 0; row < NORTH_ARROW_HEIGHT; row++) {
+            int y = apexY + row;
+            int halfWidth = (int) Math.round(NORTH_ARROW_HALF_WIDTH * (row / (double) (NORTH_ARROW_HEIGHT - 1)));
+            guiGraphics.fill(cx - halfWidth, y, cx + halfWidth + 1, y + 1, NORTH_ARROW_COLOR);
         }
     }
 

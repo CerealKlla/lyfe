@@ -28,6 +28,7 @@ import com.github.cerealklla.lyfe.durability.client.EquipmentStatusOverlay;
 import com.github.cerealklla.lyfe.registration.ModBlockEntities;
 import com.github.cerealklla.lyfe.registration.ModEntities;
 import com.github.cerealklla.lyfe.registration.ModMenus;
+import com.github.cerealklla.lyfe.repair.client.RepairStructureScreen;
 import com.github.cerealklla.lyfe.research.client.ResearchScreen;
 import com.github.cerealklla.lyfe.rest.client.SeatEntityRenderer;
 import com.github.cerealklla.lyfe.skill.client.SkillsScreen;
@@ -241,6 +242,7 @@ public class LyfeModClient {
         event.register(ModMenus.FISH_CLEANING_STATION.get(), FishCleaningScreen::new);
         event.register(ModMenus.CRAFTING_STRUCTURE.get(), CraftingStructureScreen::new);
         event.register(ModMenus.COOKING_STRUCTURE.get(), CookingStructureScreen::new);
+        event.register(ModMenus.REPAIR_STRUCTURE.get(), RepairStructureScreen::new);
     }
 
     @SubscribeEvent
