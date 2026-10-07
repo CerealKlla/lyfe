@@ -38,6 +38,7 @@ public final class Skills {
     public static final SkillId AXEMAN_ID = new SkillId("axeman");
     public static final SkillId PIKEMAN_ID = new SkillId("pikeman");
     public static final SkillId EXCAVATOR_ID = new SkillId("excavator");
+    public static final SkillId EXPEDITIONIST_ID = new SkillId("expeditionist");
 
     // Shared by every curve below; also the level Survivalist's true-hunger-max scaling (see
     // .hunger.HungerListener) treats as "max level" when computing capacity growth.
@@ -65,6 +66,7 @@ public final class Skills {
         SkillRegistry.register(axeman());
         SkillRegistry.register(pikeman());
         SkillRegistry.register(excavator());
+        SkillRegistry.register(expeditionist());
     }
 
     // Placeholder curve, deliberately easy to retune (mirrors the design doc's own framing of the
@@ -391,6 +393,39 @@ public final class Skills {
                 SkillCategory.GATHERING,
                 Optional.empty(),
                 fastCurve(),
+                List.of()
+        );
+    }
+
+    // Expeditionist (2026-10-07, user request) -- XP for discovering Regions/Settlements (first visit
+    // only, see location.LocationTracker#resolve's own hook into PlayerKnowledge#markVisited), unlocks
+    // the minimap itself at level 5, its North indicator at 10, and (a separate future pass) the
+    // full-screen Map at 15/20/25. Also now owns the minimap's own zoom-radius scaling (moved off
+    // Cartographyr 2026-10-07, explicit user request -- see minimap.MinimapZoom), since "how far you
+    // can see on your minimap" fits this skill's own exploration theme better than the knowledge
+    // skill's. Short, capped curve like Cartographyr's own cartographyrCurve() -- deliberately not the
+    // shared 1-50 MAX_LEVEL, since there's nothing left to unlock past 25 yet (explicit user call:
+    // "maybe that's the max level for now"); easy to extend with more levels/unlocks later.
+    private static final int EXPEDITIONIST_MAX_LEVEL = 25;
+
+    private static XpCurve expeditionistCurve() {
+        List<Long> thresholds = new ArrayList<>();
+        for (int level = 1; level <= EXPEDITIONIST_MAX_LEVEL; level++) {
+            thresholds.add(Math.round(60 * Math.pow(level, 1.7)));
+        }
+        return new XpCurve(thresholds);
+    }
+
+    // Effects list empty, same reason every other skill's is -- the minimap/North-indicator unlock
+    // gates and the zoom-radius scaling are all computed directly by minimap.MinimapOverlay reading
+    // Lyfe.getLevel, not driven by SkillEffect data. No requiredModId -- no cross-mod dependency.
+    private static SkillDefinition expeditionist() {
+        return new SkillDefinition(
+                EXPEDITIONIST_ID,
+                "Expeditionist",
+                SkillCategory.EXPLORATION,
+                Optional.empty(),
+                expeditionistCurve(),
                 List.of()
         );
     }

@@ -4,6 +4,7 @@ import java.util.List;
 
 import com.github.cerealklla.lyfe.craft.CrafterConstants;
 import com.github.cerealklla.lyfe.craft.ToolTierUnlocks;
+import com.github.cerealklla.lyfe.expeditionist.ExpeditionistConstants;
 import com.github.cerealklla.lyfe.farming.FarmerListener;
 import com.github.cerealklla.lyfe.gathering.GatheringListener;
 import com.github.cerealklla.lyfe.cook.CookingListener;
@@ -96,6 +97,9 @@ public final class SkillBenefits {
         }
         if (id.equals(Skills.EXCAVATOR_ID)) {
             return List.of("Unlocked Shovel tier: " + ToolTierUnlocks.unlockedTierName(level));
+        }
+        if (id.equals(Skills.EXPEDITIONIST_ID)) {
+            return ExpeditionistConstants.benefitLines(level);
         }
         return List.of();
     }

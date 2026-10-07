@@ -11,8 +11,8 @@ import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.resources.Identifier;
 
 /**
- * Client-side holder for the minimap's current terrain texture, sampling/zoom state, and the
- * latest nearby-entity outlines from the server ({@link MinimapEntitiesPayload}). Mirrors {@code
+ * Client-side holder for the minimap's current terrain texture, sampling state, and the latest
+ * nearby-entity outlines from the server ({@link MinimapEntitiesPayload}). Mirrors {@code
  * location.ClientLocationState}'s "harmless to classload on a dedicated server" shape -- nothing
  * here touches real client-only objects (a {@link DynamicTexture}) except from methods only ever
  * called from a payload handler's lambda body or {@link MinimapOverlay#render}, both of which only
@@ -28,7 +28,6 @@ public final class ClientMinimapState {
     private static int sampledCenterZ = Integer.MIN_VALUE;
     private static int sampledRadius = -1;
 
-    private static int zoomStep = MinimapZoom.DEFAULT_STEP;
     private static List<MinimapEntitiesPayload.Outline> outlines = List.of();
 
     // Auto-Rotate mode, wired up 2026-09-29 for a live test (user request: "turn on rotating mini
@@ -90,14 +89,6 @@ public final class ClientMinimapState {
 
     public static int sampledRadius() {
         return sampledRadius;
-    }
-
-    public static int zoomStep() {
-        return zoomStep;
-    }
-
-    public static void setZoomStep(int step) {
-        zoomStep = MinimapZoom.clampStep(step);
     }
 
     public static void setOutlines(List<MinimapEntitiesPayload.Outline> newOutlines) {

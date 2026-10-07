@@ -120,15 +120,6 @@ public class LyfeModClient {
         SIGN_FIELD = field;
     }
 
-    // Press-to-step zoom, not continuous scroll -- simpler input handling, and default-bound to
-    // "]"/"[" (unbound would be equally valid; these are just accessible non-conflicting defaults).
-    // Minimap zoom is always available (no Cartographyr gate on the keys themselves -- the *range*
-    // they can reach is what's level-gated, see MinimapZoom).
-    private static final KeyMapping MINIMAP_ZOOM_IN = new KeyMapping(
-            "key.lyfe.minimap_zoom_in", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_RIGHT_BRACKET, KeyMapping.Category.MISC);
-    private static final KeyMapping MINIMAP_ZOOM_OUT = new KeyMapping(
-            "key.lyfe.minimap_zoom_out", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_LEFT_BRACKET, KeyMapping.Category.MISC);
-
     // Auto-Rotate toggle, wired up 2026-09-29 for a live test -- see ClientMinimapState's own doc.
     private static final KeyMapping MINIMAP_TOGGLE_ROTATION = new KeyMapping(
             "key.lyfe.minimap_toggle_rotation", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_O, KeyMapping.Category.MISC);
@@ -148,8 +139,6 @@ public class LyfeModClient {
 
     @SubscribeEvent
     static void onRegisterKeyMappings(RegisterKeyMappingsEvent event) {
-        event.register(MINIMAP_ZOOM_IN);
-        event.register(MINIMAP_ZOOM_OUT);
         event.register(MINIMAP_TOGGLE_ROTATION);
         event.register(OPEN_SKILLS);
     }
@@ -257,15 +246,6 @@ public class LyfeModClient {
             }
         });
 
-        // consumeClick() is edge-triggered (fires once per press, not held-repeat) -- exactly the
-        // "step the zoom level" behavior wanted here, same idiom vanilla itself uses for one-shot
-        // keybind actions.
-        while (MINIMAP_ZOOM_IN.consumeClick()) {
-            ClientMinimapState.setZoomStep(ClientMinimapState.zoomStep() - 1);
-        }
-        while (MINIMAP_ZOOM_OUT.consumeClick()) {
-            ClientMinimapState.setZoomStep(ClientMinimapState.zoomStep() + 1);
-        }
         while (MINIMAP_TOGGLE_ROTATION.consumeClick()) {
             ClientMinimapState.setAutoRotate(!ClientMinimapState.autoRotate());
         }

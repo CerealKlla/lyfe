@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.github.cerealklla.lyfe.api.Lyfe;
+import com.github.cerealklla.lyfe.expeditionist.ExpeditionistConstants;
 import com.github.cerealklla.lyfe.skill.Skills;
 
 import net.minecraft.client.DeltaTracker;
@@ -66,9 +67,10 @@ public final class MinimapOverlay implements GuiLayer {
     private static final int BUILDING_FIT_COLOR = 0xFF55FF55;
     private static final int BUILDING_NO_FIT_COLOR = 0xFFFF5555;
 
-    // North arrow, 2026-10-07 user request -- always visible for now; user explicitly said this can
-    // be gated behind a skill level later (most natural hook: the same Skills.CARTOGRAPHYR_ID level
-    // already used for radius in maybeResample), not needed yet.
+    // North arrow -- gated behind Expeditionist level 10 (ExpeditionistConstants.
+    // NORTH_INDICATOR_UNLOCK_LEVEL), added 2026-10-07 once the Expeditionist skill existed to gate it
+    // with, per the user's own original design for this arrow ("this arrow can be level blocked by a
+    // skill").
     private static final int NORTH_ARROW_COLOR = 0xFFFFFFFF;
     private static final int NORTH_ARROW_HALF_WIDTH = 4;
     private static final int NORTH_ARROW_HEIGHT = 6;
@@ -89,6 +91,11 @@ public final class MinimapOverlay implements GuiLayer {
         LocalPlayer player = minecraft.player;
         ClientLevel level = minecraft.level;
         if (player == null || level == null) {
+            return;
+        }
+        // Expeditionist gate (2026-10-07 user request): the minimap doesn't exist at all below this
+        // level -- not a greyed-out/disabled state, nothing renders.
+        if (Lyfe.getLevel(player, Skills.EXPEDITIONIST_ID) < ExpeditionistConstants.MINIMAP_UNLOCK_LEVEL) {
             return;
         }
 
@@ -167,8 +174,12 @@ public final class MinimapOverlay implements GuiLayer {
         // rotation swings it around the perimeter to the correct real-world-north angle for free, the
         // same trick drawOutlines/the stakes/the Building Locator preview already rely on. When
         // Auto-Rotate is off, this block never pushes a rotation at all, so the arrow just stays at
-        // the top -- correct, since Fixed orientation is already north-up.
-        drawNorthArrow(guiGraphics, cx, cz, radius);
+        // the top -- correct, since Fixed orientation is already north-up. Separate, higher
+        // Expeditionist gate than the minimap's own (level 10 vs. 5) -- the minimap can be unlocked
+        // without the North indicator yet.
+        if (Lyfe.getLevel(player, Skills.EXPEDITIONIST_ID) >= ExpeditionistConstants.NORTH_INDICATOR_UNLOCK_LEVEL) {
+            drawNorthArrow(guiGraphics, cx, cz, radius);
+        }
         if (autoRotate) {
             guiGraphics.pose().popMatrix();
         }
@@ -276,15 +287,28 @@ public final class MinimapOverlay implements GuiLayer {
         return (int) Math.floor(Math.sqrt((double) radius * radius - (double) dz * dz));
     }
 
-    /** Throttled: a fresh sample only kicks off once the player has moved past a threshold, the radius/zoom changed, or on the periodic cadence -- and never while one is already in flight. */
+    /** Throttled: a fresh sample only kicks off once the player has moved past a threshold, the radius changed, or on the periodic cadence -- and never while one is already in flight. */
     private void maybeResample(ClientLevel level, LocalPlayer player) {
         if (ClientMinimapState.isSampling()) {
             return;
         }
         ticksSinceLastSample++;
 
-        int cartographyrLevel = Lyfe.getLevel(player, Skills.CARTOGRAPHYR_ID);
-        int radius = MinimapZoom.radiusFor(cartographyrLevel, ClientMinimapState.zoomStep());
+        int expeditionistLevel = Lyfe.getLevel(player, Skills.EXPEDITIONIST_ID);
+        int uncappedRadius = MinimapZoom.radiusFor(expeditionistLevel);
+        // Never sample further than the client can actually guarantee is loaded -- real bug found
+        // live, 2026-10-07 ("tearing" lines, worst at full zoom-out, gone once zoomed in a couple of
+        // steps, happening regardless of where/how the player was moving): ClientTerrainSampler
+        // leaves a transparent gap for any not-yet-loaded chunk, and the minimap's own radius was
+        // free to exceed the client's actual render distance, so the outer ring of the sampled image
+        // sat right at (or past) the edge of loaded terrain -- which flickers in and out of being
+        // loaded as the chunk grid shifts with normal movement, regardless of whether the area is
+        // newly- or long-since-explored. getEffectiveRenderDistance() already accounts for a
+        // server-enforced view-distance cap, not just the client's own setting. One chunk of margin
+        // so the outermost sampled ring isn't sitting exactly on the boundary chunk, which churns
+        // load/unload the most.
+        int renderDistanceBlocks = Math.max(1, Minecraft.getInstance().options.getEffectiveRenderDistance() - 1) * 16;
+        int radius = Math.min(uncappedRadius, renderDistanceBlocks);
 
         int playerX = player.getBlockX();
         int playerZ = player.getBlockZ();

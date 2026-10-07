@@ -15,8 +15,11 @@ import com.github.cerealklla.cartographyr.geo.Layer;
 import com.github.cerealklla.cartographyr.geo.LifecycleState;
 
 import com.github.cerealklla.lyfe.LyfeMod;
+import com.github.cerealklla.lyfe.api.Lyfe;
+import com.github.cerealklla.lyfe.expeditionist.ExpeditionistConstants;
 import com.github.cerealklla.lyfe.knowledge.PlayerKnowledge;
 import com.github.cerealklla.lyfe.registration.ModAttachments;
+import com.github.cerealklla.lyfe.skill.Skills;
 
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
@@ -121,6 +124,15 @@ public final class LocationTracker {
      * Section 9.3): the display only ever shows what's resolved here, and everything found was
      * just recorded as known, so there's no separate filter step needed.
      *
+     * <p><b>Expeditionist XP (2026-10-07 user request)</b> is granted right here, piggybacking on
+     * this same {@code markVisited} call: its return value is already exactly "did this player just
+     * learn something genuinely new," so a first-ever visit to a Region or Settlement grants {@code
+     * ExpeditionistConstants#DISCOVERY_XP}, never a revisit. {@code genuineDiscovery} additionally
+     * tracks whether this call's own {@code discoverNaturalRegion} branch is what just created the
+     * region in Cartographyr at all (vs. the player simply being the first to personally visit an
+     * already-existing one) -- only that case earns {@code GENUINE_DISCOVERY_BONUS_XP} on top.
+     * Settlements can never hit this bonus (always pre-founded via Settlemynts, never created here).
+     *
      * <p><b>Exception, added 2026-10-02</b> (explicit user decision, see decisions.md): Settlemynts
      * plot/plot-buffer entities are deliberately excluded from this. A settlement with N plots would
      * otherwise write N near-identical, essentially never-read entries per player into {@code
@@ -151,11 +163,12 @@ public final class LocationTracker {
      * a generic per-layer map.
      */
     private LocationSnapshot resolve(ServerLevel level, ServerPlayer player) {
+        boolean genuineDiscovery = false;
         Set<GeographicEntity> here = Cartography.getEntitiesAt(level, player.getBlockX(), player.getBlockZ());
         if (here.isEmpty()) {
-            here = Cartography.discoverNaturalRegion(level, player.blockPosition())
-                    .map(Set::of)
-                    .orElse(Set.of());
+            Optional<GeographicEntity> discovered = Cartography.discoverNaturalRegion(level, player.blockPosition());
+            here = discovered.map(Set::of).orElse(Set.of());
+            genuineDiscovery = discovered.isPresent();
         }
 
         PlayerKnowledge knowledge = player.getData(ModAttachments.PLAYER_KNOWLEDGE);
@@ -168,7 +181,12 @@ public final class LocationTracker {
         for (GeographicEntity entity : here) {
             boolean isZoneEntity = entity.layerId().equals(SETTLEMENTS_ZONE_LAYER_ID);
             if (!isZoneEntity) {
-                knowledge.markVisited(entity.id().value());
+                boolean newlyKnown = knowledge.markVisited(entity.id().value());
+                if (newlyKnown) {
+                    int xp = ExpeditionistConstants.DISCOVERY_XP
+                            + (genuineDiscovery ? ExpeditionistConstants.GENUINE_DISCOVERY_BONUS_XP : 0);
+                    Lyfe.addXp(player, Skills.EXPEDITIONIST_ID, xp);
+                }
             }
 
             // Cartography.getEntitiesAt doesn't filter by LifecycleState itself (confirmed against

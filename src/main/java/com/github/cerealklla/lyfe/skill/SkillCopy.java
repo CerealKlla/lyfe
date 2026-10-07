@@ -69,7 +69,10 @@ public record SkillCopy(Item icon, String xpSource, String summary) {
                     "Raises your unlocked Spear tier -- using a higher tier than you've unlocked costs extra durability.")),
             Map.entry(Skills.EXCAVATOR_ID, new SkillCopy(Items.IRON_SHOVEL,
                     "Breaking a shovel-appropriate block with a Shovel",
-                    "Raises your unlocked Shovel tier -- using a higher tier than you've unlocked costs extra durability."))
+                    "Raises your unlocked Shovel tier -- using a higher tier than you've unlocked costs extra durability.")),
+            Map.entry(Skills.EXPEDITIONIST_ID, new SkillCopy(Items.COMPASS,
+                    "Discovering a new Region or Settlement for the first time (bonus XP for a genuinely new Region)",
+                    "Unlocks the minimap (5) and its North indicator (10); increases minimap view radius. A full-screen Map, waypoints, and zoom are planned for a future level."))
     );
 
     public static SkillCopy get(SkillId id) {
