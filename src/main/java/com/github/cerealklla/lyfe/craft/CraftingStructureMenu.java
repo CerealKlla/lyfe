@@ -107,9 +107,11 @@ public class CraftingStructureMenu extends AbstractContainerMenu {
     private static List<GeneratedRecipe> computeCraftable(Player player, int tier) {
         PlayerResearch research = player.getData(ModAttachments.PLAYER_RESEARCH);
 
-        return java.util.stream.Stream.concat(
+        return java.util.stream.Stream.of(
                         EquipmentTierLadder.allGeneratedItemIds().stream(),
-                        EquipmentTierLadder.allGeneratedArmorItemIds().stream())
+                        EquipmentTierLadder.allGeneratedArmorItemIds().stream(),
+                        EquipmentTierLadder.allGeneratedRangedWeaponIds().stream())
+                .flatMap(s -> s)
                 .map(ServerRecipeStore::get)
                 .flatMap(java.util.Optional::stream)
                 .filter(r -> r.tier() <= tier && (r.tier() == 0 || research.isLearned(r.resultId())))

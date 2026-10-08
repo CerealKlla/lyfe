@@ -66,6 +66,14 @@ public final class VanillaRecipeStripper {
             event.getRecipeJsons().remove(smithingArmorRecipeId(armorType));
         }
 
+        // Ranged weapons (Bow/Crossbow, added 2026-10-08) -- plain minecraft:crafting_shaped
+        // recipes whose id matches the result item name exactly, same convention as every other
+        // tool/armor piece above. No smithing-table variant exists for either (they're not part of
+        // vanilla's Netherite upgrade mechanic), so no second removal call is needed per item.
+        for (Identifier itemId : EquipmentTierLadder.allGeneratedRangedWeaponIds()) {
+            event.getRecipeJsons().remove(itemId);
+        }
+
         JsonElement bundleJson = event.getRecipeJsons().get(BUNDLE_RECIPE_ID);
         if (bundleJson != null && bundleJson.isJsonObject()) {
             bundleJson.getAsJsonObject().addProperty("group", "bundle");

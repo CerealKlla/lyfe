@@ -95,6 +95,12 @@ public final class ServerRecipeStore {
                 result.put(itemId, RecipeGenerator.generate(itemId, tier, previousTierItem, random));
             }
         }
+        // Ranged weapons (Bow/Crossbow, added 2026-10-08) -- each a single fixed-tier recipe, not a
+        // per-tier family (see EquipmentTierLadder's own doc). No previousTierItem of their own.
+        for (Identifier itemId : EquipmentTierLadder.allGeneratedRangedWeaponIds()) {
+            int tier = EquipmentTierLadder.rangedWeaponTier(itemId);
+            result.put(itemId, RecipeGenerator.generate(itemId, tier, null, random));
+        }
         return result;
     }
 

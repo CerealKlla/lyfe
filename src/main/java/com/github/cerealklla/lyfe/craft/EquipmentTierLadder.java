@@ -87,6 +87,31 @@ public final class EquipmentTierLadder {
     // is deliberately excluded, see the class doc above.
     public static final List<ArmorType> ARMOR_TYPES = List.of(ArmorType.HELMET, ArmorType.CHESTPLATE, ArmorType.LEGGINGS, ArmorType.BOOTS);
 
+    // Ranged weapons, added 2026-10-08 (explicit user request: "add every kind of bow into the
+    // crafting system... normal bow can be tier 1, but maybe crossbow should be there until the
+    // iron equivalent"). Unlike every other entry on this ladder, vanilla has exactly ONE real item
+    // for each of these -- no wooden_bow/stone_bow/etc. material progression exists at all -- so
+    // they're each a single fixed-tier recipe, not a 7-tier family generated via TIER_ITEM_PREFIXES.
+    // Bow pinned to Tier 1 (Stone-equivalent, cheap/early per the user's own wording); Crossbow
+    // pinned to Tier 3 (Iron-equivalent, "should be there until the iron equivalent" -- read as
+    // "gated behind reaching Iron's own tier/research threshold," not "needs an iron ingredient").
+    // Both have no upgrade-chain predecessor of their own (no "Tier 0 Bow" exists to require), so
+    // RecipeGenerator.generate is called with a null previousTierItem for each -- see ServerRecipeStore.
+    private static final Map<Identifier, Integer> RANGED_WEAPON_TIERS = Map.of(
+            Identifier.withDefaultNamespace("bow"), 1,
+            Identifier.withDefaultNamespace("crossbow"), 3
+    );
+
+    /** Every ranged-weapon item id this slice generates a (single, fixed-tier) recipe for -- Bow and Crossbow. */
+    public static List<Identifier> allGeneratedRangedWeaponIds() {
+        return List.copyOf(RANGED_WEAPON_TIERS.keySet());
+    }
+
+    /** The fixed tier {@code itemId} is generated at (e.g. Crossbow -> 3), or {@code -1} if it isn't one of these two items. */
+    public static int rangedWeaponTier(Identifier itemId) {
+        return RANGED_WEAPON_TIERS.getOrDefault(itemId, -1);
+    }
+
     // Custom base-durability overrides per tier (2026-10-06, explicit user request), applied by
     // CraftingStructureMenu#attemptCraft before QualityApplier's own % bonus so Quality always
     // boosts off the *custom* base, not vanilla's raw ToolMaterial durability. Only tiers listed
