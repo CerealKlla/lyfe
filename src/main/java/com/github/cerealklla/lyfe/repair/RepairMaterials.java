@@ -6,6 +6,8 @@ import com.github.cerealklla.lyfe.structure.UpgradeCostEntry;
 
 import net.minecraft.resources.Identifier;
 import net.minecraft.tags.ItemTags;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.Items;
 
 /**
  * One repair material per {@code craft.EquipmentTierLadder} tier (2026-10-07 user spec, given
@@ -41,10 +43,16 @@ final class RepairMaterials {
     private static final UpgradeCostEntry ARMOR_TIER_0 = UpgradeCostEntry.ofItem(Identifier.withDefaultNamespace("leather"), FULL_REPAIR_AMOUNT);
     private static final UpgradeCostEntry ARMOR_TIER_1 = UpgradeCostEntry.ofItem(Identifier.withDefaultNamespace("iron_ingot"), FULL_REPAIR_AMOUNT);
 
-    // Every damageable vanilla item outside the ladder entirely (shield, bow, trident, elytra, fishing
-    // rod, ...) -- no tier concept exists for these at all, so one flat material covers all of them,
-    // same Iron Ingot already used as Chainmail's own stand-in material.
+    // Every damageable vanilla item outside the ladder entirely (shield, bow, trident, elytra, ...) --
+    // no tier concept exists for these at all, so one flat material covers all of them, same Iron
+    // Ingot already used as Chainmail's own stand-in material.
     private static final UpgradeCostEntry GENERIC = UpgradeCostEntry.ofItem(Identifier.withDefaultNamespace("iron_ingot"), FULL_REPAIR_AMOUNT);
+
+    // Fishing Rod carved out of GENERIC, 2026-10-08 (explicit user request: "should be repaired with
+    // sticks, not iron ingots") -- a real vanilla Fishing Rod is itself mostly Stick (3 of its own 4
+    // crafting-recipe slots), so Iron Ingot never made sense for it specifically, just happened to be
+    // whatever every other off-ladder item defaulted to.
+    private static final UpgradeCostEntry FISHING_ROD = UpgradeCostEntry.ofItem(Identifier.withDefaultNamespace("stick"), FULL_REPAIR_AMOUNT);
 
     // Tiers 2-6, shared by tools and armor alike.
     private static final List<UpgradeCostEntry> SHARED_ENTRY_BY_TIER_FROM_2 = List.of(
@@ -58,10 +66,16 @@ final class RepairMaterials {
     private RepairMaterials() {
     }
 
-    /** {@code tier}'s full-repair cost entry (amount always {@link #FULL_REPAIR_AMOUNT}) -- scale the amount down yourself for a partial repair. */
-    static UpgradeCostEntry fullEntryFor(int tier, boolean isArmor) {
+    /**
+     * {@code tier}'s full-repair cost entry (amount always {@link #FULL_REPAIR_AMOUNT}) -- scale the
+     * amount down yourself for a partial repair. {@code item} is only consulted for {@code tier < 0}
+     * (the generic/off-ladder case), to special-case Fishing Rod away from the shared {@link
+     * #GENERIC} material -- every on-ladder tier already has its own real entry, so it's ignored
+     * otherwise.
+     */
+    static UpgradeCostEntry fullEntryFor(int tier, boolean isArmor, Item item) {
         if (tier < 0) {
-            return GENERIC;
+            return item == Items.FISHING_ROD ? FISHING_ROD : GENERIC;
         }
         if (tier == 0) {
             return isArmor ? ARMOR_TIER_0 : TOOL_TIER_0;
@@ -73,8 +87,8 @@ final class RepairMaterials {
     }
 
     /** Same material as {@link #fullEntryFor}, but with {@code amount} units instead of the full-repair amount. */
-    static UpgradeCostEntry scaledEntryFor(int tier, boolean isArmor, int amount) {
-        UpgradeCostEntry base = fullEntryFor(tier, isArmor);
+    static UpgradeCostEntry scaledEntryFor(int tier, boolean isArmor, Item item, int amount) {
+        UpgradeCostEntry base = fullEntryFor(tier, isArmor, item);
         return base.tag().isPresent()
                 ? UpgradeCostEntry.ofTag(base.tag().get(), amount)
                 : UpgradeCostEntry.ofItem(base.itemId().get(), amount);

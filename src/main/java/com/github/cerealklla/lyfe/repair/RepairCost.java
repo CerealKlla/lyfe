@@ -30,7 +30,7 @@ public final class RepairCost {
         }
         double missingFraction = stack.getDamageValue() / (double) stack.getMaxDamage();
         int amount = (int) Math.ceil(RepairMaterials.FULL_REPAIR_AMOUNT * missingFraction);
-        return RepairMaterials.scaledEntryFor(info.tier(), info.armor(), Math.max(1, amount));
+        return RepairMaterials.scaledEntryFor(info.tier(), info.armor(), stack.getItem(), Math.max(1, amount));
     }
 
     /** {@code null} if the slot is empty -- otherwise a one-line player-facing summary for the screen to show above the buttons. */
