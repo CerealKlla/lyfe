@@ -411,7 +411,7 @@ public final class Skills {
     private static XpCurve expeditionistCurve() {
         List<Long> thresholds = new ArrayList<>();
         for (int level = 1; level <= EXPEDITIONIST_MAX_LEVEL; level++) {
-            thresholds.add(Math.round(60 * Math.pow(level, 1.7)));
+            thresholds.add(Math.round(30 * Math.pow(level, 1.7)));
         }
         return new XpCurve(thresholds);
     }
