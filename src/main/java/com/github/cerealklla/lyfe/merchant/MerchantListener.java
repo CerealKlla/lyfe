@@ -126,7 +126,12 @@ public final class MerchantListener {
                 baselineNuggetValue, level, tierBefore, targetTier, tierAfter);
     }
 
-    private static double bonusFraction(int level) {
+    /**
+     * Public since 2026-10-08 so {@code api.Lyfe#getMerchantPriceBonusFraction} can expose this same
+     * formula to other mods (Settlemynts' Settlement Shop buy/sell pricing) -- previously only this
+     * class's own vanilla-NPC-trade handlers ever called it.
+     */
+    public static double bonusFraction(int level) {
         return Math.min(MAX_PRICE_BONUS, (double) level / Skills.MAX_LEVEL * MAX_PRICE_BONUS);
     }
 

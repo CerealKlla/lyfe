@@ -7,12 +7,14 @@ import java.util.UUID;
 import com.mojang.authlib.GameProfile;
 
 import com.github.cerealklla.lyfe.LyfeMod;
+import com.github.cerealklla.lyfe.merchant.MerchantListener;
 import com.github.cerealklla.lyfe.registration.ModAttachments;
 import com.github.cerealklla.lyfe.registration.ModMobEffects;
 import com.github.cerealklla.lyfe.rest.RestConstants;
 import com.github.cerealklla.lyfe.skill.SkillDefinition;
 import com.github.cerealklla.lyfe.skill.SkillId;
 import com.github.cerealklla.lyfe.skill.SkillRegistry;
+import com.github.cerealklla.lyfe.skill.Skills;
 import com.github.cerealklla.lyfe.xpbar.XpGainPayload;
 
 import net.minecraft.nbt.CompoundTag;
@@ -118,6 +120,18 @@ public final class Lyfe {
         return getSkillDefinition(skillId)
                 .map(def -> def.xpCurve().levelForXp(xp))
                 .orElse(0);
+    }
+
+    /**
+     * The Merchant skill's per-player buy/sell price bonus, as a fraction (0.0-0.20) -- exposed here
+     * (2026-10-08) so other mods can apply the exact same formula {@code merchant.MerchantListener}
+     * already uses for vanilla NPC trades to their own trading systems (Settlemynts' Settlement Shop
+     * buy/sell pricing), without duplicating or re-deriving it. Safe to call even on a server without
+     * Yconomics loaded -- the Merchant skill's XP/level tracking itself has no dependency on Yconomics,
+     * only {@code MerchantListener}'s own trade-granting/Coin-Purse-tier logic does.
+     */
+    public static double getMerchantPriceBonusFraction(Player player) {
+        return MerchantListener.bonusFraction(getLevel(player, Skills.MERCHANT_ID));
     }
 
     /**
