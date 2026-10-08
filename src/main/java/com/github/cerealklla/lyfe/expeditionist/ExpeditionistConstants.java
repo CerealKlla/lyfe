@@ -17,8 +17,13 @@ import com.github.cerealklla.lyfe.minimap.MinimapZoom;
  *
  * <p>{@code minimap.MinimapOverlay} reads the unlock-level constants: the minimap itself is invisible
  * below {@link #MINIMAP_UNLOCK_LEVEL}, its North indicator stays hidden below {@link
- * #NORTH_INDICATOR_UNLOCK_LEVEL} even once the minimap itself is unlocked. The full-screen Map (15/
- * 20/25 unlocks) is explicitly out of scope this pass -- its own separate slice.
+ * #NORTH_INDICATOR_UNLOCK_LEVEL} even once the minimap itself is unlocked. {@code map.client.MapScreen}
+ * reads the remaining three: the full-screen Map ("M") does nothing at all below {@link
+ * #MAP_UNLOCK_LEVEL}, settlement dots/tooltips stay hidden below {@link
+ * #SETTLEMENT_DOTS_UNLOCK_LEVEL}, and scroll-wheel zoom is locked to one fixed step below {@link
+ * #MAP_ZOOM_UNLOCK_LEVEL} -- all added 2026-10-07, the deferred second half of this skill's original
+ * spec (the Map's own persistent backing imagery remains its own further follow-up; this pass reuses
+ * the minimap's live {@code ClientTerrainSampler} instead).
  */
 public final class ExpeditionistConstants {
 
@@ -27,6 +32,9 @@ public final class ExpeditionistConstants {
 
     public static final int MINIMAP_UNLOCK_LEVEL = 5;
     public static final int NORTH_INDICATOR_UNLOCK_LEVEL = 10;
+    public static final int MAP_UNLOCK_LEVEL = 15;
+    public static final int SETTLEMENT_DOTS_UNLOCK_LEVEL = 20;
+    public static final int MAP_ZOOM_UNLOCK_LEVEL = 25;
 
     private ExpeditionistConstants() {
     }
@@ -35,10 +43,13 @@ public final class ExpeditionistConstants {
     public static List<String> benefitLines(int level) {
         String minimapLine = "Minimap: " + (level >= MINIMAP_UNLOCK_LEVEL ? "unlocked" : "locked (requires level " + MINIMAP_UNLOCK_LEVEL + ")");
         String northLine = "North indicator: " + (level >= NORTH_INDICATOR_UNLOCK_LEVEL ? "unlocked" : "locked (requires level " + NORTH_INDICATOR_UNLOCK_LEVEL + ")");
+        String mapLine = "Map (press M): " + (level >= MAP_UNLOCK_LEVEL ? "unlocked" : "locked (requires level " + MAP_UNLOCK_LEVEL + ")");
+        String dotsLine = "Settlement dots on Map: " + (level >= SETTLEMENT_DOTS_UNLOCK_LEVEL ? "unlocked" : "locked (requires level " + SETTLEMENT_DOTS_UNLOCK_LEVEL + ")");
+        String zoomLine = "Map zoom: " + (level >= MAP_ZOOM_UNLOCK_LEVEL ? "unlocked" : "locked (requires level " + MAP_ZOOM_UNLOCK_LEVEL + ")");
         if (level >= MINIMAP_UNLOCK_LEVEL) {
             String radiusLine = "Minimap view radius: " + MinimapZoom.radiusFor(level) + " blocks";
-            return List.of(minimapLine, northLine, radiusLine, "Full map, waypoints, zoom: coming soon");
+            return List.of(minimapLine, northLine, radiusLine, mapLine, dotsLine, zoomLine);
         }
-        return List.of(minimapLine, northLine, "Full map, waypoints, zoom: coming soon");
+        return List.of(minimapLine, northLine, mapLine, dotsLine, zoomLine);
     }
 }

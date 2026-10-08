@@ -1,9 +1,12 @@
 package com.github.cerealklla.lyfe;
 
 import java.lang.reflect.Field;
+import java.util.Optional;
 
+import com.github.cerealklla.lyfe.api.Lyfe;
 import com.github.cerealklla.lyfe.cook.client.CookingStructureScreen;
 import com.github.cerealklla.lyfe.craft.client.CraftingStructureScreen;
+import com.github.cerealklla.lyfe.expeditionist.ExpeditionistConstants;
 import com.github.cerealklla.lyfe.fishing.CatchBagTooltip;
 import com.github.cerealklla.lyfe.fishing.FixedLootTooltip;
 import com.github.cerealklla.lyfe.fishing.client.ClientCatchBagTooltip;
@@ -16,8 +19,13 @@ import com.github.cerealklla.lyfe.fishing.client.FishCleaningScreen;
 import com.github.cerealklla.lyfe.knowledge.WritingScreen;
 import com.github.cerealklla.lyfe.knowledge.WritingTarget;
 import com.github.cerealklla.lyfe.location.LocationOverlay;
+import com.github.cerealklla.lyfe.map.ClientWaypointState;
+import com.github.cerealklla.lyfe.map.cache.TerrainCache;
+import com.github.cerealklla.lyfe.map.cache.TerrainCachePassiveSampler;
+import com.github.cerealklla.lyfe.map.client.MapScreen;
 import com.github.cerealklla.lyfe.minimap.ClientMinimapState;
 import com.github.cerealklla.lyfe.minimap.MinimapOverlay;
+import com.github.cerealklla.lyfe.skill.Skills;
 import com.github.cerealklla.lyfe.client.FloatingIconRenderer;
 import com.github.cerealklla.lyfe.cook.CookingStructureBlockEntity;
 import com.github.cerealklla.lyfe.cook.FoodTierLadder;
@@ -60,6 +68,7 @@ import net.neoforged.fml.ModList;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
+import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 import net.neoforged.neoforge.client.event.RegisterClientTooltipComponentFactoriesEvent;
@@ -129,6 +138,20 @@ public class LyfeModClient {
     private static final KeyMapping OPEN_SKILLS = new KeyMapping(
             "key.lyfe.open_skills", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_K, KeyMapping.Category.MISC);
 
+    // Opens the full-screen Map (Expeditionist level 15), 2026-10-07. "M" is the conventional map
+    // keybind and was still free in this mod.
+    private static final KeyMapping OPEN_MAP = new KeyMapping(
+            "key.lyfe.open_map", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_M, KeyMapping.Category.MISC);
+
+    // Waypoint auto-removal distance (design spec: "within ~10 blocks").
+    private static final double WAYPOINT_AUTO_REMOVE_DISTANCE = 10.0;
+
+    // TerrainCache dirty-region flush cadence -- roughly 15 real seconds, cheap enough to not matter
+    // at this interval but frequent enough that a crash/forced-quit doesn't lose much exploration
+    // progress (a normal disconnect also flushes immediately, see onLoggingOut below).
+    private static final int TERRAIN_CACHE_FLUSH_INTERVAL_TICKS = 300;
+    private static int ticksSinceLastTerrainCacheFlush = 0;
+
     public LyfeModClient(ModContainer container) {
     }
 
@@ -141,6 +164,7 @@ public class LyfeModClient {
     static void onRegisterKeyMappings(RegisterKeyMappingsEvent event) {
         event.register(MINIMAP_TOGGLE_ROTATION);
         event.register(OPEN_SKILLS);
+        event.register(OPEN_MAP);
     }
 
     // Registered unconditionally, same reasoning as LyfeMod#registerPayloads -- harmless if
@@ -254,6 +278,69 @@ public class LyfeModClient {
                 Minecraft.getInstance().setScreen(new SkillsScreen());
             }
         }
+        while (OPEN_MAP.consumeClick()) {
+            // Toggles -- "M" should close the Map too, not only open it (user request, 2026-10-07).
+            if (Minecraft.getInstance().screen instanceof MapScreen) {
+                Minecraft.getInstance().setScreen(null);
+            } else {
+                var player = Minecraft.getInstance().player;
+                if (Minecraft.getInstance().screen == null && player != null
+                        && Lyfe.getLevel(player, Skills.EXPEDITIONIST_ID) >= ExpeditionistConstants.MAP_UNLOCK_LEVEL) {
+                    Minecraft.getInstance().setScreen(new MapScreen());
+                }
+            }
+        }
+
+        // Waypoint auto-removal (design spec: "within ~10 blocks ... automatically removed") -- see
+        // ClientWaypointState's own doc. Also cleared outright on a dimension change, same
+        // simplification that class's doc already flags.
+        var player = Minecraft.getInstance().player;
+        if (player != null && ClientWaypointState.isSet()) {
+            if (!ClientWaypointState.dimension().equals(Optional.of(player.level().dimension()))) {
+                ClientWaypointState.clear();
+            } else {
+                var waypoint = ClientWaypointState.pos().orElseThrow();
+                // Horizontal (X/Z) distance only -- a real bug found live, 2026-10-07: the waypoint's
+                // own Y is just whatever the player's Y happened to be *when they clicked the map*
+                // (the Map has no real elevation data to target), not the actual ground height at the
+                // target. A full 3D distanceTo() against that bogus Y could stay well over 10 even
+                // while standing exactly on the right X/Z (e.g. clicked from a hill, target was at a
+                // lower elevation), so the waypoint would never clear. "Within ~10 blocks" of a map
+                // waypoint should mean horizontal proximity, not a literal 3D sphere around a
+                // meaningless Y.
+                double dx = player.getX() - (waypoint.getX() + 0.5);
+                double dz = player.getZ() - (waypoint.getZ() + 0.5);
+                if (Math.hypot(dx, dz) <= WAYPOINT_AUTO_REMOVE_DISTANCE) {
+                    ClientWaypointState.clear();
+                }
+            }
+        }
+
+        // Passively fills map.cache.TerrainCache as the player walks around -- see that class's own
+        // doc. A no-op once the current chunk and its ring are already cached, so this is cheap on
+        // every tick it doesn't actually have new terrain to sample.
+        var level = Minecraft.getInstance().level;
+        if (player != null && level != null) {
+            TerrainCachePassiveSampler.tick(level, player);
+        }
+
+        ticksSinceLastTerrainCacheFlush++;
+        if (ticksSinceLastTerrainCacheFlush >= TERRAIN_CACHE_FLUSH_INTERVAL_TICKS) {
+            ticksSinceLastTerrainCacheFlush = 0;
+            TerrainCache.flushDirty();
+        }
+    }
+
+    // Waypoint is purely client-side/ephemeral (see ClientWaypointState's own doc) and must not
+    // survive a relog into a different world -- the static field otherwise persists across the
+    // disconnect. TerrainCache is flushed to disk here too (a normal disconnect shouldn't lose the
+    // last few seconds of exploration since the periodic flush) and then cleared from memory so a
+    // different world/server joined afterward starts clean rather than inheriting stale regions.
+    @SubscribeEvent
+    static void onLoggingOut(ClientPlayerNetworkEvent.LoggingOut event) {
+        ClientWaypointState.clear();
+        TerrainCache.flushDirty();
+        TerrainCache.clearAll();
     }
 
     /**

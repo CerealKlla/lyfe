@@ -2,9 +2,11 @@ package com.github.cerealklla.lyfe.minimap;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import com.github.cerealklla.lyfe.api.Lyfe;
 import com.github.cerealklla.lyfe.expeditionist.ExpeditionistConstants;
+import com.github.cerealklla.lyfe.map.ClientWaypointState;
 import com.github.cerealklla.lyfe.skill.Skills;
 
 import net.minecraft.client.DeltaTracker;
@@ -13,6 +15,7 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.core.BlockPos;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.block.Blocks;
 import net.neoforged.neoforge.client.gui.GuiLayer;
@@ -82,6 +85,15 @@ public final class MinimapOverlay implements GuiLayer {
     // (user report, 2026-10-07, confirmed live). Moving the whole arrow inside the circle's own
     // perimeter avoids the square entirely, not just the border ring.
     private static final int NORTH_ARROW_INSET = BORDER_THICKNESS + 2;
+
+    // Waypoint arrow -- 2026-10-07, the Map screen/waypoint pass. 90% the North arrow's own size per
+    // spec ("so that if they overlap both are meaningfully visible"), own color, drawn after (so on
+    // top of) the North arrow for the same reason. No Expeditionist level gate here directly -- it
+    // only ever appears once a waypoint actually exists, which itself requires the Map screen (level
+    // 15) to place one.
+    private static final int WAYPOINT_ARROW_COLOR = 0xFF5588FF;
+    private static final int WAYPOINT_ARROW_HALF_WIDTH = (int) Math.round(NORTH_ARROW_HALF_WIDTH * 0.9);
+    private static final int WAYPOINT_ARROW_HEIGHT = (int) Math.round(NORTH_ARROW_HEIGHT * 0.9);
 
     private int ticksSinceLastSample = RESAMPLE_INTERVAL_TICKS;
 
@@ -178,7 +190,18 @@ public final class MinimapOverlay implements GuiLayer {
         // Expeditionist gate than the minimap's own (level 10 vs. 5) -- the minimap can be unlocked
         // without the North indicator yet.
         if (Lyfe.getLevel(player, Skills.EXPEDITIONIST_ID) >= ExpeditionistConstants.NORTH_INDICATOR_UNLOCK_LEVEL) {
-            drawNorthArrow(guiGraphics, cx, cz, radius);
+            drawBearingArrow(guiGraphics, cx, cz, radius, 0f, NORTH_ARROW_HALF_WIDTH, NORTH_ARROW_HEIGHT, NORTH_ARROW_COLOR);
+        }
+        // Waypoint arrow, drawn after (on top of) the North arrow -- see WAYPOINT_ARROW_* doc.
+        // Dimension-gated: a waypoint set in a different dimension than the player's current one is
+        // never drawn (see ClientWaypointState's own doc for why it's cleared outright on a
+        // dimension change rather than left stale).
+        if (ClientWaypointState.isSet() && ClientWaypointState.dimension().equals(Optional.of(level.dimension()))) {
+            BlockPos waypoint = ClientWaypointState.pos().orElseThrow();
+            double dx = waypoint.getX() + 0.5 - player.getX();
+            double dz = waypoint.getZ() + 0.5 - player.getZ();
+            float bearingRadians = (float) Math.atan2(dx, -dz);
+            drawBearingArrow(guiGraphics, cx, cz, radius, bearingRadians, WAYPOINT_ARROW_HALF_WIDTH, WAYPOINT_ARROW_HEIGHT, WAYPOINT_ARROW_COLOR);
         }
         if (autoRotate) {
             guiGraphics.pose().popMatrix();
@@ -265,17 +288,37 @@ public final class MinimapOverlay implements GuiLayer {
     /**
      * A small solid triangle pointing outward (apex nearest the edge, base toward center), sitting
      * just inside the circle's own border ring -- not outside the circle, which used to clip at
-     * certain rotation angles (see {@link #NORTH_ARROW_INSET}'s own doc). Appears at whichever
-     * perimeter position currently corresponds to true north -- see the call site's own comment for
-     * how rotation makes that automatic. Scanline-filled the same way as {@link #drawCircularBorder}
-     * rather than via any triangle-fill primitive (none exists on {@code GuiGraphicsExtractor}).
+     * certain rotation angles (see {@link #NORTH_ARROW_INSET}'s own doc). {@code bearingRadians}
+     * places it anywhere around the perimeter (0 = straight up/north, increasing clockwise, matching
+     * real-world bearing) -- generalized 2026-10-07 from the North-only version so the same method
+     * also draws the waypoint arrow at its own real bearing. At a non-north bearing the triangle
+     * itself must also rotate (apex-to-center is no longer simply "downward" in screen space), so
+     * this walks along the apex->center direction and its perpendicular directly, filling one pixel
+     * at a time -- cheap at this size (a handful of pixels), and the only correct option since no
+     * triangle-fill primitive exists on {@code GuiGraphicsExtractor} and {@code fill}'s rectangles
+     * can't express an arbitrary rotation the way the old axis-aligned, north-only version got away
+     * with via per-row rectangles.
      */
-    private void drawNorthArrow(GuiGraphicsExtractor guiGraphics, int cx, int cz, int radius) {
-        int apexY = cz - radius + NORTH_ARROW_INSET;
-        for (int row = 0; row < NORTH_ARROW_HEIGHT; row++) {
-            int y = apexY + row;
-            int halfWidth = (int) Math.round(NORTH_ARROW_HALF_WIDTH * (row / (double) (NORTH_ARROW_HEIGHT - 1)));
-            guiGraphics.fill(cx - halfWidth, y, cx + halfWidth + 1, y + 1, NORTH_ARROW_COLOR);
+    private void drawBearingArrow(GuiGraphicsExtractor guiGraphics, int cx, int cz, int radius,
+            float bearingRadians, int halfWidth, int height, int color) {
+        int inset = radius - NORTH_ARROW_INSET;
+        float apexX = cx + inset * (float) Math.sin(bearingRadians);
+        float apexY = cz - inset * (float) Math.cos(bearingRadians);
+        // Unit vector from the apex toward the center (opposite of the outward bearing direction),
+        // and its perpendicular for the triangle's width.
+        float alongX = -(float) Math.sin(bearingRadians);
+        float alongY = (float) Math.cos(bearingRadians);
+        float perpX = alongY;
+        float perpY = -alongX;
+        for (int row = 0; row < height; row++) {
+            float rowHalfWidth = (float) (halfWidth * (row / (double) (height - 1)));
+            int steps = Math.max(1, Math.round(rowHalfWidth * 2) + 1);
+            for (int i = 0; i < steps; i++) {
+                float offset = steps == 1 ? 0f : -rowHalfWidth + (2 * rowHalfWidth) * i / (steps - 1);
+                int x = Math.round(apexX + alongX * row + perpX * offset);
+                int y = Math.round(apexY + alongY * row + perpY * offset);
+                guiGraphics.fill(x, y, x + 1, y + 1, color);
+            }
         }
     }
 

@@ -24,6 +24,10 @@ import com.github.cerealklla.lyfe.hunger.HungerListener;
 import com.github.cerealklla.lyfe.location.ClientLocationState;
 import com.github.cerealklla.lyfe.location.LocationPayload;
 import com.github.cerealklla.lyfe.location.LocationTracker;
+import com.github.cerealklla.lyfe.map.ClientMapState;
+import com.github.cerealklla.lyfe.map.MapDataListener;
+import com.github.cerealklla.lyfe.map.MapSettlementsPayload;
+import com.github.cerealklla.lyfe.map.RequestMapDataPayload;
 import com.github.cerealklla.lyfe.minimap.ClientMinimapState;
 import com.github.cerealklla.lyfe.minimap.MinimapEntitiesPayload;
 import com.github.cerealklla.lyfe.minimap.MinimapTracker;
@@ -213,6 +217,18 @@ public class LyfeMod {
                         SignListener.requestSignWritingScreen(serverPlayer, payload.target());
                     }
                 });
+
+        // map.client.MapScreen's settlement-dot data (2026-10-07) -- same Cartographyr-loaded guard
+        // as every other handler here; without Cartographyr, the client simply never gets a reply
+        // and the Map just shows no dots, same as "no settlements known yet."
+        event.registrar("1").playToServer(RequestMapDataPayload.TYPE, RequestMapDataPayload.STREAM_CODEC,
+                (payload, context) -> {
+                    if (ModList.get().isLoaded("cartographyr") && context.player() instanceof ServerPlayer serverPlayer) {
+                        MapDataListener.handleRequest(serverPlayer);
+                    }
+                });
+        event.registrar("1").playToClient(MapSettlementsPayload.TYPE, MapSettlementsPayload.STREAM_CODEC,
+                (payload, context) -> ClientMapState.setSettlements(payload.settlements()));
     }
 
 }
