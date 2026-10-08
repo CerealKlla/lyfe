@@ -66,18 +66,10 @@ public final class MerchantListener {
             return;
         }
 
-        Lyfe.addXp(player, Skills.MERCHANT_ID, baseline);
-        int level = Lyfe.getLevel(player, Skills.MERCHANT_ID);
-        int tierBefore = Yconomics.getCoinPurseTier(player);
-        int targetTier = Math.min(AUTO_TIER_CAP, level / 2);
-        Yconomics.increaseCoinPurseTierTo(player, targetTier);
-        int tierAfter = Yconomics.getCoinPurseTier(player);
-        com.github.cerealklla.lyfe.LyfeMod.LOGGER.info(
-                "[Merchant] trade: baselineXp={} level={} tierBefore={} targetTier={} tierAfter={}",
-                baseline, level, tierBefore, targetTier, tierAfter);
+        grantXpAndRaiseCoinPurseTier(player, baseline);
 
         if (offer.getResult().is(Items.GOLD_NUGGET)) {
-            int bonus = (int) Math.round(baseline * bonusFraction(level));
+            int bonus = (int) Math.round(baseline * bonusFraction(Lyfe.getLevel(player, Skills.MERCHANT_ID)));
             if (bonus > 0) {
                 ItemStack reward = new ItemStack(Items.GOLD_NUGGET, bonus);
                 if (!player.getInventory().add(reward)) {
@@ -111,6 +103,27 @@ public final class MerchantListener {
                 offer.resetSpecialPriceDiff();
             }
         }
+    }
+
+    /**
+     * Grants Merchant XP and auto-raises the Coin Purse tier (same formula as {@link #onTrade}) --
+     * extracted 2026-10-08 so {@code settlemynts.bridge.LyfeMerchantBridge}'s Settlement Shop
+     * purchase path can share the exact same tier-raise logic, not just the XP half. Fixes a real
+     * live report: a player who leveled Merchant purely through shop purchases (never an NPC trade)
+     * stayed stuck at Coin Purse tier 0 regardless of level, since the bridge originally only called
+     * {@code Lyfe.addXp} and nothing ever invoked {@code Yconomics.increaseCoinPurseTierTo} for that
+     * path.
+     */
+    public static void grantXpAndRaiseCoinPurseTier(ServerPlayer player, int baselineNuggetValue) {
+        Lyfe.addXp(player, Skills.MERCHANT_ID, baselineNuggetValue);
+        int level = Lyfe.getLevel(player, Skills.MERCHANT_ID);
+        int tierBefore = Yconomics.getCoinPurseTier(player);
+        int targetTier = Math.min(AUTO_TIER_CAP, level / 2);
+        Yconomics.increaseCoinPurseTierTo(player, targetTier);
+        int tierAfter = Yconomics.getCoinPurseTier(player);
+        com.github.cerealklla.lyfe.LyfeMod.LOGGER.info(
+                "[Merchant] grantXpAndRaiseCoinPurseTier: baselineXp={} level={} tierBefore={} targetTier={} tierAfter={}",
+                baselineNuggetValue, level, tierBefore, targetTier, tierAfter);
     }
 
     private static double bonusFraction(int level) {
