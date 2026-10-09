@@ -72,7 +72,13 @@ public final class ReincarnationListener {
         if (player.hasEffect(ModMobEffects.SUMMONING_SICKNESS)) {
             pendingNoXpWarning.add(player.getUUID());
         } else {
-            Lyfe.addXp(player, Skills.REINCARNATION_ID, XP_PER_DEATH);
+            // Recallcinite Totem bonus (2026-10-09, user request): "if a player is bound to a
+            // Recallcinite Stone they gain 5% * Tier bonus Reincarnation XP" -- read live off the
+            // player's current bound location rather than anything captured at bind time, so a
+            // plot re-zoned or re-tiered after binding is reflected immediately on the next death.
+            double bonusMultiplier = com.github.cerealklla.lyfe.recallcinite.RecallciniteListener.reincarnationXpBonusMultiplier(player);
+            long xp = Math.round(XP_PER_DEATH * bonusMultiplier);
+            Lyfe.addXp(player, Skills.REINCARNATION_ID, xp);
         }
     }
 

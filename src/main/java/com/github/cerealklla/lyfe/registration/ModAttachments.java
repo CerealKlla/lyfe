@@ -10,6 +10,7 @@ import com.github.cerealklla.lyfe.heartiness.PlayerHeartiness;
 import com.github.cerealklla.lyfe.hunger.PlayerHunger;
 import com.github.cerealklla.lyfe.knowledge.KnowledgeReference;
 import com.github.cerealklla.lyfe.knowledge.PlayerKnowledge;
+import com.github.cerealklla.lyfe.recallcinite.RecallciniteData;
 import com.github.cerealklla.lyfe.research.PlayerResearch;
 import com.github.cerealklla.lyfe.swim.PlayerAir;
 
@@ -112,6 +113,22 @@ public final class ModAttachments {
             () -> AttachmentType.builder(PlayerHeartiness::new)
                     .serialize(PlayerHeartiness.CODEC)
                     .copyOnDeath()
+                    .build()
+    );
+
+    // Synced (added 2026-10-09, user request: "if this is on cooldown the tooltip should show me
+    // what the current cooldown timer is") -- the totem's own tooltip reads the holding player's
+    // own cooldown end-time client-side, same reasoning PLAYER_SKILLS/PLAYER_AIR already document
+    // for why a client-displayed value needs a real sync, not just a one-shot message. copyOnDeath()
+    // matters a lot here specifically: a bound location/cooldown must survive death (that's the
+    // whole point of replacing bed-based respawn), same reasoning as every other attachment's
+    // copyOnDeath() already documents.
+    public static final Supplier<AttachmentType<RecallciniteData>> RECALLCINITE_DATA = ATTACHMENT_TYPES.register(
+            "recallcinite_data",
+            () -> AttachmentType.builder(RecallciniteData::new)
+                    .serialize(RecallciniteData.CODEC)
+                    .copyOnDeath()
+                    .sync(ByteBufCodecs.fromCodecWithRegistries(RecallciniteData.CODEC.codec()))
                     .build()
     );
 }

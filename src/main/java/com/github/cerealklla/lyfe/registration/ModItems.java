@@ -15,6 +15,7 @@ import com.github.cerealklla.lyfe.fishing.SunkenTreasureItem;
 import com.github.cerealklla.lyfe.cook.RecipeNoteItem;
 import com.github.cerealklla.lyfe.cook.RecipeNoteTarget;
 import com.github.cerealklla.lyfe.knowledge.KnowledgeReference;
+import com.github.cerealklla.lyfe.recallcinite.RecallciniteTotemItem;
 import com.github.cerealklla.lyfe.research.ResearchNoteItem;
 import com.github.cerealklla.lyfe.research.ResearchNoteTarget;
 
@@ -158,4 +159,12 @@ public final class ModItems {
     public static DeferredItem<KeyItem> keyFor(String variant) {
         return KEYS.get(variant);
     }
+
+    // The Recallcinite Totem (design doc, 2026-10-09 user request) -- undroppable and stacksTo(1),
+    // every player granted exactly one automatically (see recallcinite.RecallciniteListener).
+    public static final DeferredItem<RecallciniteTotemItem> RECALLCINITE_TOTEM = ITEMS.register(
+            "recallcinite_totem",
+            id -> new RecallciniteTotemItem(new Item.Properties()
+                    .stacksTo(1)
+                    .setId(ResourceKey.create(Registries.ITEM, id))));
 }

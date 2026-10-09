@@ -40,6 +40,7 @@ public final class Skills {
     public static final SkillId EXCAVATOR_ID = new SkillId("excavator");
     public static final SkillId EXPEDITIONIST_ID = new SkillId("expeditionist");
     public static final SkillId MAYOR_ID = new SkillId("mayor");
+    public static final SkillId RECALLCRAFT_ID = new SkillId("recallcraft");
 
     // Shared by every curve below; also the level Survivalist's true-hunger-max scaling (see
     // .hunger.HungerListener) treats as "max level" when computing capacity growth.
@@ -69,6 +70,7 @@ public final class Skills {
         SkillRegistry.register(excavator());
         SkillRegistry.register(expeditionist());
         SkillRegistry.register(mayor());
+        SkillRegistry.register(recallcraft());
     }
 
     // Placeholder curve, deliberately easy to retune (mirrors the design doc's own framing of the
@@ -454,6 +456,36 @@ public final class Skills {
                 SkillCategory.SOCIAL,
                 Optional.of("settlemynts"),
                 mayorCurve(),
+                List.of()
+        );
+    }
+
+    // Recallcraft (2026-10-09, user request) -- the Recallcinite Totem's own skill: XP for binding a
+    // new location or completing a recall teleport (recallcinite.RecallciniteListener/
+    // RecallciniteTotemItem), perk is a cooldown-reduction fraction computed directly by
+    // recallcinite.RecallcraftPerks reading Lyfe.getLevel (same "skills hand-roll their own perk
+    // math" convention every other skill here follows), up to 20% at level 50 -- the shared MAX_LEVEL,
+    // per the user's own explicit "level 50" cap. Own curve rather than fastCurve(): binding/recalling
+    // are deliberately infrequent actions (gated behind a real cooldown), closer in frequency to
+    // Reincarnation's death-triggered XP than to a frequent gathering action, so it uses a similar
+    // moderate coefficient/exponent. No requiredModId -- no cross-mod dependency (the Settlemynts/
+    // Blueprynts integration for Recallcinite Stone plots is an optional bonus on top, not a
+    // requirement for the skill or item to function at all).
+    private static XpCurve recallcraftCurve() {
+        List<Long> thresholds = new ArrayList<>();
+        for (int level = 1; level <= MAX_LEVEL; level++) {
+            thresholds.add(Math.round(60 * Math.pow(level, 1.6)));
+        }
+        return new XpCurve(thresholds);
+    }
+
+    private static SkillDefinition recallcraft() {
+        return new SkillDefinition(
+                RECALLCRAFT_ID,
+                "Recallcraft",
+                SkillCategory.SURVIVAL_CRAFT,
+                Optional.empty(),
+                recallcraftCurve(),
                 List.of()
         );
     }

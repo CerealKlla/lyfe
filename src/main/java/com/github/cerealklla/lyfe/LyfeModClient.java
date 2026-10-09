@@ -25,6 +25,10 @@ import com.github.cerealklla.lyfe.map.cache.TerrainCachePassiveSampler;
 import com.github.cerealklla.lyfe.map.client.MapScreen;
 import com.github.cerealklla.lyfe.minimap.ClientMinimapState;
 import com.github.cerealklla.lyfe.minimap.MinimapOverlay;
+import com.github.cerealklla.lyfe.recallcinite.client.ClientRecallciniteState;
+import com.github.cerealklla.lyfe.recallcinite.client.RecallciniteBindConfirmScreen;
+import com.github.cerealklla.lyfe.recallcinite.client.RecallciniteChannelOverlay;
+import com.github.cerealklla.lyfe.recallcinite.client.RecallciniteHotbarCooldownOverlay;
 import com.github.cerealklla.lyfe.skill.Skills;
 import com.github.cerealklla.lyfe.client.FloatingIconRenderer;
 import com.github.cerealklla.lyfe.cook.CookingStructureBlockEntity;
@@ -179,6 +183,11 @@ public class LyfeModClient {
         event.registerAboveAll(Identifier.fromNamespaceAndPath(LyfeMod.MODID, "location_overlay"), new LocationOverlay());
         event.registerAboveAll(Identifier.fromNamespaceAndPath(LyfeMod.MODID, "xp_bar_overlay"), new XpBarOverlay());
         event.registerAboveAll(Identifier.fromNamespaceAndPath(LyfeMod.MODID, "research_bar_overlay"), new ResearchBarOverlay());
+        // Recallcinite Totem's 10-second recall channel progress bar, 2026-10-09.
+        event.registerAboveAll(Identifier.fromNamespaceAndPath(LyfeMod.MODID, "recallcinite_channel_overlay"), new RecallciniteChannelOverlay());
+        // The custom vanilla-style hotbar swipe for the totem's own cooldown, 2026-10-09 -- see
+        // that class's own doc for why this can't just be vanilla's real ItemCooldowns.
+        event.registerAboveAll(Identifier.fromNamespaceAndPath(LyfeMod.MODID, "recallcinite_hotbar_cooldown_overlay"), new RecallciniteHotbarCooldownOverlay());
         // Red-caution "not enough skill level for this tool/weapon" warning, 2026-10-06 user
         // request -- same above-hotbar placement convention as Settlemynts' PlotValidityOverlay.
         event.registerAboveAll(Identifier.fromNamespaceAndPath(LyfeMod.MODID, "equipment_skill_warning_overlay"), new EquipmentSkillWarningOverlay());
@@ -264,12 +273,16 @@ public class LyfeModClient {
         ClientXpBarState.tick();
         ClientResearchBarState.tick();
         ClientLuckySpotState.tick();
+        ClientRecallciniteState.tick();
 
         ClientWritingRequest.takePending().ifPresent(request -> {
             if (Minecraft.getInstance().screen == null) {
                 Minecraft.getInstance().setScreen(new WritingScreen(request.target(), request.knownPlaces()));
             }
         });
+        if (ClientRecallciniteState.takePendingOpenBindConfirm() && Minecraft.getInstance().screen == null) {
+            Minecraft.getInstance().setScreen(new RecallciniteBindConfirmScreen());
+        }
 
         // Real bug found live, 2026-10-08: "pressing M should toggle the map on and off" appeared to
         // do nothing at all. Root cause: `while (key.consumeClick())` drains and acts on EVERY queued

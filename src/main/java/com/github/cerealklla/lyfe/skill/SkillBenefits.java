@@ -104,6 +104,9 @@ public final class SkillBenefits {
         if (id.equals(Skills.MAYOR_ID)) {
             return com.github.cerealklla.lyfe.mayor.MayorConstants.benefitLines(level);
         }
+        if (id.equals(Skills.RECALLCRAFT_ID)) {
+            return com.github.cerealklla.lyfe.recallcinite.RecallcraftPerks.benefitLines(level);
+        }
         return List.of();
     }
 }

@@ -41,6 +41,11 @@ import com.github.cerealklla.lyfe.knowledge.SubmitWritingPayload;
 import com.github.cerealklla.lyfe.loot.RecipeNoteLootInjector;
 import com.github.cerealklla.lyfe.loot.ResearchNoteLootInjector;
 import com.github.cerealklla.lyfe.merchant.MerchantListener;
+import com.github.cerealklla.lyfe.recallcinite.ConfirmRecallciniteBindPayload;
+import com.github.cerealklla.lyfe.recallcinite.OpenRecallciniteBindConfirmPayload;
+import com.github.cerealklla.lyfe.recallcinite.RecallciniteChannelProgressPayload;
+import com.github.cerealklla.lyfe.recallcinite.RecallciniteListener;
+import com.github.cerealklla.lyfe.recallcinite.client.ClientRecallciniteState;
 import com.github.cerealklla.lyfe.research.ResearchProgressPayload;
 import com.github.cerealklla.lyfe.research.client.ClientResearchBarState;
 import com.github.cerealklla.lyfe.reincarnation.ReincarnationListener;
@@ -98,6 +103,7 @@ public class LyfeMod {
         NeoForge.EVENT_BUS.register(new FarmerListener());
         NeoForge.EVENT_BUS.register(new HungerListener());
         NeoForge.EVENT_BUS.register(new ReincarnationListener());
+        NeoForge.EVENT_BUS.register(new RecallciniteListener());
         NeoForge.EVENT_BUS.register(new SwimmerListener());
         NeoForge.EVENT_BUS.register(new HeartinessListener());
         NeoForge.EVENT_BUS.register(new BedRestListener());
@@ -229,6 +235,22 @@ public class LyfeMod {
                 });
         event.registrar("1").playToClient(MapSettlementsPayload.TYPE, MapSettlementsPayload.STREAM_CODEC,
                 (payload, context) -> ClientMapState.setSettlements(payload.settlements()));
+
+        // Recallcinite Totem (2026-10-09) -- open the bind-confirmation screen, server-to-client,
+        // sent directly from a server-side interaction (same shape as OpenWritingScreenPayload's map
+        // case, no request round trip needed).
+        event.registrar("1").playToClient(OpenRecallciniteBindConfirmPayload.TYPE, OpenRecallciniteBindConfirmPayload.STREAM_CODEC,
+                (payload, context) -> ClientRecallciniteState.requestOpenBindConfirm());
+        // "Yes" clicked on that screen.
+        event.registrar("1").playToServer(ConfirmRecallciniteBindPayload.TYPE, ConfirmRecallciniteBindPayload.STREAM_CODEC,
+                (payload, context) -> {
+                    if (context.player() instanceof ServerPlayer serverPlayer) {
+                        RecallciniteListener.handleBindConfirmed(serverPlayer);
+                    }
+                });
+        // Drives the channel progress bar HUD, sent every server tick while channeling.
+        event.registrar("1").playToClient(RecallciniteChannelProgressPayload.TYPE, RecallciniteChannelProgressPayload.STREAM_CODEC,
+                (payload, context) -> ClientRecallciniteState.onChannelProgress(payload.fraction()));
     }
 
 }

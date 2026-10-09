@@ -10,6 +10,7 @@ import com.github.cerealklla.settlemynts.bridge.YconomicsShopBridge;
 import com.github.cerealklla.settlemynts.zone.ShopResource;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.Container;
 import net.minecraft.world.entity.player.Player;
@@ -32,13 +33,19 @@ public final class SettlemyntsStructureBridge {
         return net.neoforged.fml.ModList.get().isLoaded("settlemynts");
     }
 
-    /** {@code tier} (added 2026-10-09) is the plot's own unlocked construction-Tier cap -- "do not allow the structure to upgrade past the limit of the plot itself." */
-    public record PlotInfo(UUID plotId, UUID settlementCoreId, int tier) {
+    /**
+     * {@code tier} (added 2026-10-09) is the plot's own unlocked construction-Tier cap -- "do not
+     * allow the structure to upgrade past the limit of the plot itself." {@code zoneTypeId} (added
+     * for the Recallcinite Totem feature) is the plot's assigned Blueprint/Zone type id (e.g.
+     * {@code blueprynts:recallcinite_stone}), needed to detect "is this plot zoned as a Recallcinite
+     * Stone" without a second cross-mod call into Blueprynts.
+     */
+    public record PlotInfo(UUID plotId, UUID settlementCoreId, int tier, Identifier zoneTypeId) {
     }
 
     /** Which plot (if any) a structure at {@code pos} sits on -- empty if there's no finalized Settlemynts plot there at all. */
     public static Optional<PlotInfo> findPlotAt(ServerLevel level, BlockPos pos) {
-        return Settlemynts.findPlotAt(level, pos).map(h -> new PlotInfo(h.plotId(), h.settlementCoreId(), h.tier()));
+        return Settlemynts.findPlotAt(level, pos).map(h -> new PlotInfo(h.plotId(), h.settlementCoreId(), h.tier(), h.zoneTypeId()));
     }
 
     /**
