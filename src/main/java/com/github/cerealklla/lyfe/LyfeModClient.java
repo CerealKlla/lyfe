@@ -72,6 +72,7 @@ import net.neoforged.fml.ModList;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
+import net.neoforged.neoforge.event.entity.player.ItemTooltipEvent;
 import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.EntityRenderersEvent;
@@ -216,6 +217,48 @@ public class LyfeModClient {
     static void onRegisterTooltipComponents(RegisterClientTooltipComponentFactoriesEvent event) {
         event.register(CatchBagTooltip.class, ClientCatchBagTooltip::new);
         event.register(FixedLootTooltip.class, ClientFixedLootTooltip::new);
+    }
+
+    // Weak (plain 60-minute base, or unbound) up to Supreme (bound at a Tier 5 Recallcinite Stone) --
+    // 2026-10-09 user request. Index is RecallciniteData#boundPlotTier (0-5), which already IS the
+    // Recallcinite Stone Tier (0 = not on one) that RecallciniteListener#cooldownTicksFor uses for
+    // the real cooldown-reduction formula -- this is purely a human-readable label for that number.
+    private static final String[] RECALLCINITE_STRENGTH_LABELS = {"Weak", "Modest", "Steady", "Potent", "Mighty", "Supreme"};
+
+    /**
+     * The Recallcinite Totem's dynamic tooltip lines (Strength + live cooldown countdown) -- MUST
+     * live here, not in {@code RecallciniteTotemItem#appendHoverText} itself, after a real confirmed
+     * Production crash (2026-10-09): referencing {@code net.minecraft.client.Minecraft} from that
+     * common-sourceset class, even behind a runtime {@code Dist.isClient()} check, still crashed
+     * dedicated-server mod loading with {@code NoClassDefFoundError:
+     * net/minecraft/client/player/LocalPlayer} -- NeoForge's registry-event dispatch eagerly
+     * verifies every method in a registered Item's class regardless of whether that branch would
+     * ever run on this physical side. This class is genuinely {@code dist = Dist.CLIENT}-gated, the
+     * only safe place for this, and {@link ItemTooltipEvent#getEntity()} conveniently hands over the
+     * viewing {@code Player} directly, with no {@code Minecraft.getInstance()} call needed at all.
+     */
+    @SubscribeEvent
+    static void onItemTooltip(ItemTooltipEvent event) {
+        if (!(event.getItemStack().getItem() instanceof com.github.cerealklla.lyfe.recallcinite.RecallciniteTotemItem)
+                || event.getEntity() == null) {
+            return;
+        }
+        var data = event.getEntity().getData(com.github.cerealklla.lyfe.registration.ModAttachments.RECALLCINITE_DATA);
+
+        if (data.boundLocation().isPresent()) {
+            event.getToolTip().add(Component.literal("Strength: " + RECALLCINITE_STRENGTH_LABELS[data.boundPlotTier()])
+                    .withStyle(net.minecraft.ChatFormatting.AQUA));
+        }
+
+        long gameTime = event.getEntity().level().getGameTime();
+        if (data.onCooldown(gameTime)) {
+            long ticksLeft = data.cooldownEndGameTime() - gameTime;
+            long totalSeconds = Math.max(1, ticksLeft / 20);
+            long minutes = totalSeconds / 60;
+            long seconds = totalSeconds % 60;
+            event.getToolTip().add(Component.literal(String.format(java.util.Locale.ROOT, "Recall cooldown: %d:%02d", minutes, seconds))
+                    .withStyle(net.minecraft.ChatFormatting.RED));
+        }
     }
 
     @SubscribeEvent

@@ -141,48 +141,19 @@ public final class RecallciniteTotemItem extends Item {
         return itemStack;
     }
 
+    // Only the two static instruction lines live here -- a real, CONFIRMED Production crash
+    // (2026-10-09, not a theoretical worry) ruled out ever referencing net.minecraft.client.Minecraft
+    // from this class, even behind a runtime Dist.isClient() check: NeoForge's registry-event
+    // dispatch triggers eager verification of this class's own methods during mod loading, which
+    // resolves every referenced type regardless of whether that branch would ever actually run on
+    // this physical side -- NoClassDefFoundError: net/minecraft/client/player/LocalPlayer, server
+    // failed to boot at all. The dynamic "Strength"/cooldown lines moved to a genuine
+    // ItemTooltipEvent listener in LyfeModClient (a real @Mod(dist = Dist.CLIENT) class, the only
+    // safe place for this), which also conveniently hands over the viewing Player directly via
+    // event.getEntity() instead of needing Minecraft.getInstance().player at all.
     @Override
     public void appendHoverText(ItemStack itemStack, TooltipContext context, TooltipDisplay display, Consumer<Component> builder, TooltipFlag tooltipFlag) {
         builder.accept(Component.literal("Right click in a town to bind this stone to the location.").withStyle(ChatFormatting.GRAY));
         builder.accept(Component.literal("Right click + hold for 10 seconds to recall to this location from anywhere in the world.").withStyle(ChatFormatting.GRAY));
-        // Client-only (tooltip rendering never happens on a dedicated server) -- guarded by Dist
-        // rather than relying on that alone, same convention other mods in this suite use before
-        // touching net.minecraft.client.Minecraft from a common-sourceset class. Reads the synced
-        // RecallciniteData attachment directly (2026-10-09, user request: "if this is on cooldown
-        // the tooltip should show me what the current cooldown timer is") rather than vanilla's own
-        // ItemCooldowns, since only the recall cooldown's real end-time (not just a 0-1 percent) is
-        // precise enough to show minutes:seconds.
-        if (net.neoforged.fml.loading.FMLEnvironment.getDist().isClient()) {
-            appendClientLines(builder);
-        }
-    }
-
-    // Weak (plain 60-minute base, or unbound) up to Supreme (bound at a Tier 5 Recallcinite Stone) --
-    // 2026-10-09 user request: "I'd like the tooltip to show the 'strength' of the totem." Index is
-    // RecallciniteData#boundPlotTier (0-5), which already IS the Recallcinite Stone Tier (0 = not on
-    // one) that RecallciniteListener#cooldownTicksFor uses for the real cooldown-reduction formula --
-    // this is purely a human-readable label for that same number, not a separate scale.
-    private static final String[] STRENGTH_LABELS = {"Weak", "Modest", "Steady", "Potent", "Mighty", "Supreme"};
-
-    private static void appendClientLines(Consumer<Component> builder) {
-        Player player = net.minecraft.client.Minecraft.getInstance().player;
-        if (player == null) {
-            return;
-        }
-        RecallciniteData data = player.getData(ModAttachments.RECALLCINITE_DATA);
-
-        if (data.boundLocation().isPresent()) {
-            builder.accept(Component.literal("Strength: " + STRENGTH_LABELS[data.boundPlotTier()]).withStyle(ChatFormatting.AQUA));
-        }
-
-        long gameTime = player.level().getGameTime();
-        if (data.onCooldown(gameTime)) {
-            long ticksLeft = data.cooldownEndGameTime() - gameTime;
-            long totalSeconds = Math.max(1, ticksLeft / 20);
-            long minutes = totalSeconds / 60;
-            long seconds = totalSeconds % 60;
-            builder.accept(Component.literal(String.format(java.util.Locale.ROOT, "Recall cooldown: %d:%02d", minutes, seconds))
-                    .withStyle(ChatFormatting.RED));
-        }
     }
 }
