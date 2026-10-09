@@ -44,6 +44,28 @@ public final class ClientTerrainSampler {
     private ClientTerrainSampler() {
     }
 
+    /**
+     * The real, actual world-block radius a sampled image ends up covering -- added 2026-10-09, real
+     * bug found live: "it's like the map image is at a different zoom than the layer you are drawing
+     * at." {@link #sampleGrid} samples one whole-block-aligned {@code scaleBlocks x scaleBlocks} cell
+     * per output pixel, and {@code scaleBlocks} is floored at 1 (a pixel can't sample a fractional
+     * block) -- so whenever the requested {@code radius} is small enough that {@code radius*2 <
+     * imageSize} (true for the minimap's actual numbers almost always: radius is typically 16-64
+     * blocks against a fixed 128x128 image), the real sampled area silently balloons to {@code
+     * imageSize} blocks in each direction (scaleBlocks clamped to 1) -- far more than the requested
+     * radius, while every overlay drawn on top (stakes, plot/settlement outlines, the Building
+     * Locator preview) still assumed the original, smaller requested radius for its own
+     * blocks-per-pixel math. The two must use the exact same radius value, which is this one -- the
+     * real, post-clamp coverage -- not the raw request.
+     */
+    public static int effectiveRadius(int radius, int imageSize) {
+        return scaleBlocksFor(radius, imageSize) * imageSize / 2;
+    }
+
+    private static int scaleBlocksFor(int radius, int imageSize) {
+        return Math.max(1, Math.round((radius * 2.0f) / imageSize));
+    }
+
     /** Samples an {@code IMAGE_SIZE x IMAGE_SIZE} image covering {@code radius} blocks in every direction from {@code (centerX, centerZ)}, then hands the result to {@code onComplete} on the render thread. */
     public static void sampleAsync(ClientLevel level, int centerX, int centerZ, int radius, Consumer<NativeImage> onComplete) {
         sampleAsync(level, centerX, centerZ, radius, IMAGE_SIZE, false, onComplete);
@@ -115,8 +137,8 @@ public final class ClientTerrainSampler {
      */
     public static void sampleGrid(ClientLevel level, int centerX, int centerZ, int radiusX, int radiusZ,
             int cols, int rows, boolean flatShading, CellWriter writer) {
-        int scaleBlocksX = Math.max(1, Math.round((radiusX * 2.0f) / cols));
-        int scaleBlocksZ = Math.max(1, Math.round((radiusZ * 2.0f) / rows));
+        int scaleBlocksX = scaleBlocksFor(radiusX, cols);
+        int scaleBlocksZ = scaleBlocksFor(radiusZ, rows);
         BlockPos.MutableBlockPos blockPos = new BlockPos.MutableBlockPos();
         BlockPos.MutableBlockPos belowPos = new BlockPos.MutableBlockPos();
 

@@ -256,7 +256,7 @@ public final class MinimapOverlay implements GuiLayer {
         int radius = SIZE / 2;
         int cxInt = left + radius;
 
-        int sampledRadius = ClientMinimapState.sampledRadius();
+        int sampledRadius = ClientMinimapState.sampledEffectiveRadius();
         int shiftX = 0;
         int shiftZ = 0;
         if (sampledRadius > 0) {
@@ -398,7 +398,7 @@ public final class MinimapOverlay implements GuiLayer {
     }
 
     private void drawOutlines(GuiGraphicsExtractor guiGraphics, int left, int top, float cx, float cz, int panelRadius) {
-        int radius = ClientMinimapState.sampledRadius();
+        int radius = ClientMinimapState.sampledEffectiveRadius();
         if (radius <= 0) {
             return;
         }
@@ -433,7 +433,7 @@ public final class MinimapOverlay implements GuiLayer {
      * (i.e. already-finalized) plots/settlements.
      */
     private void drawInProgressStakes(GuiGraphicsExtractor guiGraphics, int left, int top, ClientLevel level, LocalPlayer player, float cx, float cz, int panelRadius) {
-        int radius = ClientMinimapState.sampledRadius();
+        int radius = ClientMinimapState.sampledEffectiveRadius();
         if (radius <= 0) {
             return;
         }
@@ -458,7 +458,7 @@ public final class MinimapOverlay implements GuiLayer {
      * positions and floating block color, never computes fit itself.
      */
     private void drawBuildingLocatorPreview(GuiGraphicsExtractor guiGraphics, int left, int top, ClientLevel level, LocalPlayer player, float cx, float cz, int panelRadius) {
-        int radius = ClientMinimapState.sampledRadius();
+        int radius = ClientMinimapState.sampledEffectiveRadius();
         if (radius <= 0) {
             return;
         }

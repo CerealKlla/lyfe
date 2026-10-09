@@ -27,6 +27,7 @@ public final class ClientMinimapState {
     private static int sampledCenterX = Integer.MIN_VALUE;
     private static int sampledCenterZ = Integer.MIN_VALUE;
     private static int sampledRadius = -1;
+    private static int sampledEffectiveRadius = -1;
 
     private static List<MinimapEntitiesPayload.Outline> outlines = List.of();
 
@@ -68,6 +69,13 @@ public final class ClientMinimapState {
         sampledCenterX = centerX;
         sampledCenterZ = centerZ;
         sampledRadius = radius;
+        // The real, post-clamp coverage radius -- see ClientTerrainSampler#effectiveRadius's own doc
+        // (2026-10-09 fix). Kept separate from sampledRadius itself, which MinimapOverlay#maybeResample
+        // still needs to be the raw REQUESTED value for its own "did the zoom level actually change"
+        // comparison -- using the effective value there instead would falsely compare equal/unequal
+        // whenever the clamp kicks in regardless of the real requested radius, causing either a
+        // resample-every-tick loop or a stuck-stale-zoom bug depending on which way it drifted.
+        sampledEffectiveRadius = ClientTerrainSampler.effectiveRadius(radius, ClientTerrainSampler.IMAGE_SIZE);
         sampling = false;
     }
 
@@ -89,6 +97,11 @@ public final class ClientMinimapState {
 
     public static int sampledRadius() {
         return sampledRadius;
+    }
+
+    /** The real, post-clamp block radius the current texture actually covers -- see {@link #setTexture}'s own doc for why this differs from {@link #sampledRadius()}. Every overlay's own blocks-per-pixel math must use this one, not the raw requested radius. */
+    public static int sampledEffectiveRadius() {
+        return sampledEffectiveRadius;
     }
 
     public static void setOutlines(List<MinimapEntitiesPayload.Outline> newOutlines) {
