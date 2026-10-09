@@ -37,8 +37,14 @@ public record UpgradeCostEntry(Optional<TagKey<Item>> tag, Optional<Identifier> 
         return BuiltInRegistries.ITEM.getKey(stack.getItem()).equals(itemId.get());
     }
 
-    /** A short player-facing label -- "any log" for a tag (stripped of its namespace/path noise), or the plain item id for a specific item. */
+    /**
+     * A short player-facing label -- "any log" for a tag (stripped of its namespace/path noise), or
+     * the item's real display name for a specific item. Fixed 2026-10-09 -- a specific item used to
+     * show its raw registry id ("minecraft:cobblestone") instead of a real name, same class of bug
+     * already fixed once for {@code repair.RepairCost}'s own preview.
+     */
     public String label() {
-        return tag.map(t -> "any " + t.location().getPath().replace('_', ' ')).orElseGet(() -> itemId.get().toString());
+        return tag.map(t -> "any " + t.location().getPath().replace('_', ' '))
+                .orElseGet(() -> new ItemStack(BuiltInRegistries.ITEM.getValue(itemId.get())).getHoverName().getString());
     }
 }
