@@ -16,7 +16,7 @@ import net.minecraft.resources.Identifier;
  * excluded (require an extra axe-strip action, not raw scavenging), and the Nether-exclusive
  * crimson/warped set is excluded (would break Tier 0's "any biome" accessibility rule).
  */
-final class ComponentGroups {
+public final class ComponentGroups {
 
     static final String ANY_LOG = "Any Log";
     static final String ANY_PLANK = "Any Plank";
@@ -36,7 +36,10 @@ final class ComponentGroups {
         return List.of(names).stream().map(Identifier::withDefaultNamespace).toList();
     }
 
-    static List<Identifier> membersOf(String groupName) {
+    /** Exposed publicly 2026-10-09 so {@code api.Lyfe#componentGroupMembers} can forward to it --
+     * see that method's own doc for why (Settlemynts' NPC plot crafting needs to resolve generic
+     * group membership without a live player/menu involved). */
+    public static List<Identifier> membersOf(String groupName) {
         return GROUPS.getOrDefault(groupName, List.of());
     }
 }

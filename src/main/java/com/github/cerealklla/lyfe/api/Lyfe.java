@@ -203,4 +203,16 @@ public final class Lyfe {
     public static Collection<SkillDefinition> getAvailableSkills() {
         return SkillRegistry.available(ModList.get()::isLoaded);
     }
+
+    /**
+     * Every concrete item id a generic crafting-recipe ingredient group (e.g. "Any Log") accepts --
+     * added 2026-10-09 so Settlemynts' NPC plot crafting (a plot autonomously converting raw
+     * materials into finished goods, no live player/menu involved) can resolve {@code
+     * craft.GeneratedRecipe#genericComponents} the same way a real player's own crafting already
+     * does, without needing its own copy of this group data. Forwards to {@code
+     * craft.ComponentGroups#membersOf}; an unknown group name returns an empty list.
+     */
+    public static java.util.List<Identifier> componentGroupMembers(String groupName) {
+        return com.github.cerealklla.lyfe.craft.ComponentGroups.membersOf(groupName);
+    }
 }
