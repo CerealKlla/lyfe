@@ -65,6 +65,7 @@ public class CookingStructureMenu extends AbstractContainerMenu {
     private final int tier;
     private final List<GeneratedFoodRecipe> craftable;
     private final int inventoryY;
+    private final boolean canUpgrade;
     private final Random random = new Random();
 
     public CookingStructureMenu(MenuType<?> type, int containerId, Inventory inventory, CookingStructureBlockEntity structure, Player opener) {
@@ -73,16 +74,24 @@ public class CookingStructureMenu extends AbstractContainerMenu {
         this.tier = structure.tier();
         this.craftable = computeCraftable(opener, tier);
         this.inventoryY = BASE_INVENTORY_Y;
+        this.canUpgrade = opener instanceof ServerPlayer serverOpener && structure.getLevel() instanceof ServerLevel serverLevel
+                && StructureUpgradeFunding.canUpgrade(serverOpener, serverLevel, structure.getBlockPos(), tier);
         layoutSlots(inventory);
     }
 
-    public CookingStructureMenu(MenuType<?> type, int containerId, Inventory inventory, int tier, List<GeneratedFoodRecipe> craftable, int inventoryY) {
+    /** See {@code craft.CraftingStructureMenu}'s identical client-reconstruction constructor for why {@code canUpgrade} is here. */
+    public CookingStructureMenu(MenuType<?> type, int containerId, Inventory inventory, int tier, List<GeneratedFoodRecipe> craftable, int inventoryY, boolean canUpgrade) {
         super(type, containerId);
         this.structure = null;
         this.tier = tier;
         this.craftable = craftable;
         this.inventoryY = inventoryY;
+        this.canUpgrade = canUpgrade;
         layoutSlots(inventory);
+    }
+
+    public boolean canUpgrade() {
+        return canUpgrade;
     }
 
     public int inventoryY() {

@@ -72,5 +72,6 @@ public class CookingStructureBlockEntity extends BlockEntity implements MenuProv
         for (GeneratedFoodRecipe recipe : craftable) {
             GeneratedFoodRecipe.writeTo(buffer, recipe);
         }
+        buffer.writeBoolean(((CookingStructureMenu) menu).canUpgrade());
     }
 }

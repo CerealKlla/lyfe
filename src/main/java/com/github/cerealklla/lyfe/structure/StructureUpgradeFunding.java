@@ -16,9 +16,14 @@ import net.minecraft.world.Container;
  * and {@code cook.CookingStructureMenu} so the three-option funding rules live in exactly one
  * place.
  *
- * <p><b>Graceful degradation</b>: if Settlemynts isn't loaded, or the structure isn't on a
- * Settlemynts plot at all, {@link #fund} succeeds immediately with no cost -- the original
- * free/instant behavior, unchanged. Funding only ever applies once a real plot is found.
+ * <p><b>Graceful degradation</b>: if Settlemynts isn't loaded at all, {@link #fund} succeeds
+ * immediately with no cost -- there's no plot system to gate against in that case. <b>Narrowed
+ * 2026-10-09</b> -- a structure that IS on a Settlemynts server but sitting outside any finalized
+ * plot used to get this same free pass, which was a real bug ("Upgrading stations is still free
+ * despite it giving a cost"): per explicit spec, a station is allowed to exist outside a plot, but
+ * can never be upgraded past Tier 1 there at all -- {@link #canUpgrade} is the real gate for this
+ * (used by the menu to hide the button entirely), and {@link #fund} now fails outright, rather than
+ * silently granting a free upgrade, if it's ever reached without a qualifying plot regardless.
  *
  * <p><b>Pricing, per the user's exact spec</b>:
  * <ul>
@@ -56,13 +61,41 @@ public final class StructureUpgradeFunding {
     private record Need(UpgradeCostEntry entry, int onHand, int shortfall) {
     }
 
+    /**
+     * Should the Upgrade button(s) even be shown -- added 2026-10-09, three real requests at once:
+     * a station outside any plot can never upgrade past Tier 1; a non-owner/non-manager of the plot
+     * shouldn't see the button at all; and the structure can never upgrade past the plot's own
+     * unlocked Tier cap ({@code PlotRecord#tier}, mirrored here via {@code
+     * SettlemyntsStructureBridge.PlotInfo#tier}). Pure read, no mutation -- safe to call every time
+     * the menu is opened/synced.
+     */
+    public static boolean canUpgrade(ServerPlayer player, ServerLevel level, BlockPos structurePos, int currentTier) {
+        if (!SettlemyntsStructureBridge.isAvailable()) {
+            return true;
+        }
+        Optional<SettlemyntsStructureBridge.PlotInfo> plotInfo = SettlemyntsStructureBridge.findPlotAt(level, structurePos);
+        if (plotInfo.isEmpty()) {
+            return false;
+        }
+        if (!SettlemyntsStructureBridge.canManagePlotAt(level, structurePos, player.getUUID())) {
+            return false;
+        }
+        return currentTier + 1 <= plotInfo.get().tier();
+    }
+
     public static Result fund(ServerPlayer player, ServerLevel level, BlockPos structurePos, int nextTier, FundingOption option) {
         if (!SettlemyntsStructureBridge.isAvailable()) {
             return Result.ok();
         }
         Optional<SettlemyntsStructureBridge.PlotInfo> plotInfo = SettlemyntsStructureBridge.findPlotAt(level, structurePos);
         if (plotInfo.isEmpty()) {
-            return Result.ok();
+            return Result.fail("This structure must be inside a settlement plot to upgrade past Tier 1.");
+        }
+        if (!SettlemyntsStructureBridge.canManagePlotAt(level, structurePos, player.getUUID())) {
+            return Result.fail("You don't have permission to upgrade this plot's structures.");
+        }
+        if (nextTier > plotInfo.get().tier()) {
+            return Result.fail("This plot hasn't been upgraded to Tier " + nextTier + " yet -- upgrade the plot itself first.");
         }
         UUID plotId = plotInfo.get().plotId();
         UUID settlementCoreId = plotInfo.get().settlementCoreId();

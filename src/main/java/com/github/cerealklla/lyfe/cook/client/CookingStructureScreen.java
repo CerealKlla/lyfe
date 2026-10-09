@@ -92,8 +92,9 @@ public class CookingStructureScreen extends net.minecraft.client.gui.screens.inv
         cookButton.active = selectedIndex >= 0;
 
         // Three funding-option buttons (2026-10-05) -- see craft.CraftingStructureScreen's own
-        // mirror of this change for the full rationale.
-        if (menu.tier() < CookingStructureBlockEntity.MAX_STRUCTURE_TIER) {
+        // mirror of this change for the full rationale. Gated on menu.canUpgrade() as of 2026-10-09,
+        // same real spec as that screen's own mirror of this gate.
+        if (menu.tier() < CookingStructureBlockEntity.MAX_STRUCTURE_TIER && menu.canUpgrade()) {
             int goldY = cookY - BUTTON_HEIGHT - BUTTON_GAP;
             int mixY = goldY - BUTTON_HEIGHT - BUTTON_GAP;
             int onHandY = mixY - BUTTON_HEIGHT - BUTTON_GAP;

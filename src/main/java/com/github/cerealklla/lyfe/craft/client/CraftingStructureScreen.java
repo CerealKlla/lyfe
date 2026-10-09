@@ -140,10 +140,11 @@ public class CraftingStructureScreen extends net.minecraft.client.gui.screens.in
         // before Copper's insertion made the equipment ladder longer than the 5 real structure blocks.
         // Three funding-option buttons (2026-10-05, replacing the old single free/instant "Upgrade
         // Station" button) -- see structure.StructureUpgradeFunding's own doc for what each option
-        // actually costs. Stacked directly above the Craft button; a Settlemynts-less server or a
-        // structure not on any plot still treats all three identically as free/instant (graceful
-        // degradation handled entirely server-side, see CraftingStructureMenu#upgradeStructure).
-        if (menu.tier() < CraftingStructureBlockEntity.MAX_STRUCTURE_TIER) {
+        // actually costs. Stacked directly above the Craft button. Gated on menu.canUpgrade() as of
+        // 2026-10-09 (real spec: a station outside any plot, a non-owner/manager, or a plot whose own
+        // Tier cap hasn't caught up yet must never even see these buttons -- see
+        // structure.StructureUpgradeFunding#canUpgrade's own doc).
+        if (menu.tier() < CraftingStructureBlockEntity.MAX_STRUCTURE_TIER && menu.canUpgrade()) {
             int goldY = craftY - BUTTON_HEIGHT - BUTTON_GAP;
             int mixY = goldY - BUTTON_HEIGHT - BUTTON_GAP;
             int onHandY = mixY - BUTTON_HEIGHT - BUTTON_GAP;

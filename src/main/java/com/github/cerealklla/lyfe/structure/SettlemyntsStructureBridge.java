@@ -32,12 +32,23 @@ public final class SettlemyntsStructureBridge {
         return net.neoforged.fml.ModList.get().isLoaded("settlemynts");
     }
 
-    public record PlotInfo(UUID plotId, UUID settlementCoreId) {
+    /** {@code tier} (added 2026-10-09) is the plot's own unlocked construction-Tier cap -- "do not allow the structure to upgrade past the limit of the plot itself." */
+    public record PlotInfo(UUID plotId, UUID settlementCoreId, int tier) {
     }
 
     /** Which plot (if any) a structure at {@code pos} sits on -- empty if there's no finalized Settlemynts plot there at all. */
     public static Optional<PlotInfo> findPlotAt(ServerLevel level, BlockPos pos) {
-        return Settlemynts.findPlotAt(level, pos).map(h -> new PlotInfo(h.plotId(), h.settlementCoreId()));
+        return Settlemynts.findPlotAt(level, pos).map(h -> new PlotInfo(h.plotId(), h.settlementCoreId(), h.tier()));
+    }
+
+    /**
+     * Added 2026-10-09, real report: "when a player is interacting with a crafting/cooking structure
+     * in a plot and they are not the owner of the plot, do not show the upgrade button." Thin wrapper
+     * over {@code api.Settlemynts#canManagePlotAt} -- {@code false} if there's no plot at {@code pos}
+     * at all (the caller treats "no plot" as its own separate, already-blocking case).
+     */
+    public static boolean canManagePlotAt(ServerLevel level, BlockPos pos, java.util.UUID playerId) {
+        return Settlemynts.canManagePlotAt(level, pos, playerId);
     }
 
     /** Every real container located within {@code plotId}'s own polygon -- the "on-hand" resource pool. */

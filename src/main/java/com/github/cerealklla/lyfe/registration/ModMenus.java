@@ -61,7 +61,8 @@ public final class ModMenus {
                 // the constructor just below be client-only despite living in this common-package file.
                 int windowHeight = net.minecraft.client.Minecraft.getInstance().getWindow().getGuiScaledHeight();
                 int inventoryY = CraftingStructureMenu.computeInventoryY(windowHeight);
-                return new CraftingStructureMenu(null, windowId, inventory, tier, craftable, inventoryY);
+                boolean canUpgrade = extraData.readBoolean();
+                return new CraftingStructureMenu(null, windowId, inventory, tier, craftable, inventoryY, canUpgrade);
             }));
 
     // Cooking overhaul (design doc Section 19.3/19.6, 2026-10-03) -- direct mirror of
@@ -77,6 +78,7 @@ public final class ModMenus {
                 }
                 int windowHeight = net.minecraft.client.Minecraft.getInstance().getWindow().getGuiScaledHeight();
                 int inventoryY = CookingStructureMenu.computeInventoryY(windowHeight);
-                return new CookingStructureMenu(null, windowId, inventory, tier, craftable, inventoryY);
+                boolean canUpgrade = extraData.readBoolean();
+                return new CookingStructureMenu(null, windowId, inventory, tier, craftable, inventoryY, canUpgrade);
             }));
 }

@@ -92,5 +92,6 @@ public class CraftingStructureBlockEntity extends BlockEntity implements MenuPro
         for (GeneratedRecipe recipe : craftable) {
             GeneratedRecipe.writeTo(buffer, recipe);
         }
+        buffer.writeBoolean(((CraftingStructureMenu) menu).canUpgrade());
     }
 }

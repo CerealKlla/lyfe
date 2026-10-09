@@ -59,6 +59,7 @@ public class CraftingStructureMenu extends AbstractContainerMenu {
     private final int tier;
     private final List<GeneratedRecipe> craftable;
     private final int inventoryY;
+    private final boolean canUpgrade;
     private final Random random = new Random();
 
     /** Server-side: computes the known+eligible recipe list once, up front. */
@@ -70,23 +71,32 @@ public class CraftingStructureMenu extends AbstractContainerMenu {
         // Cosmetic only (Slot x/y never affects server-authoritative click handling) -- the real
         // per-client value is computed client-side, see the other constructor.
         this.inventoryY = BASE_INVENTORY_Y;
+        this.canUpgrade = opener instanceof ServerPlayer serverOpener && structure.getLevel() instanceof ServerLevel serverLevel
+                && StructureUpgradeFunding.canUpgrade(serverOpener, serverLevel, structure.getBlockPos(), tier);
         layoutSlots(inventory);
     }
 
     /**
-     * Client-side reconstruction (see {@code registration.ModMenus}) -- {@code tier}/{@code craftable}
-     * come from {@code writeClientSideData}. {@code inventoryY} is computed by the client factory
-     * from the player's real window size (2026-10-03 fix, see {@link #computeInventoryY}'s doc) --
-     * {@code Slot.x}/{@code Slot.y} are final in this version, so the layout must be correct at
-     * construction time; it can't be shifted afterward the way a mutable field could.
+     * Client-side reconstruction (see {@code registration.ModMenus}) -- {@code tier}/{@code craftable}/
+     * {@code canUpgrade} (added 2026-10-09, gates the Upgrade button(s) -- see {@code
+     * structure.StructureUpgradeFunding#canUpgrade}'s own doc) come from {@code
+     * writeClientSideData}. {@code inventoryY} is computed by the client factory from the player's
+     * real window size (2026-10-03 fix, see {@link #computeInventoryY}'s doc) -- {@code Slot.x}/
+     * {@code Slot.y} are final in this version, so the layout must be correct at construction time;
+     * it can't be shifted afterward the way a mutable field could.
      */
-    public CraftingStructureMenu(MenuType<?> type, int containerId, Inventory inventory, int tier, List<GeneratedRecipe> craftable, int inventoryY) {
+    public CraftingStructureMenu(MenuType<?> type, int containerId, Inventory inventory, int tier, List<GeneratedRecipe> craftable, int inventoryY, boolean canUpgrade) {
         super(type, containerId);
         this.structure = null;
         this.tier = tier;
         this.craftable = craftable;
         this.inventoryY = inventoryY;
+        this.canUpgrade = canUpgrade;
         layoutSlots(inventory);
+    }
+
+    public boolean canUpgrade() {
+        return canUpgrade;
     }
 
     public int inventoryY() {
