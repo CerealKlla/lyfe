@@ -1,8 +1,8 @@
 {
   "variants": {
-    "facing=north": { "model": "lyfe:block/research_bench" },
-    "facing=south": { "model": "lyfe:block/research_bench", "y": 180 },
-    "facing=west": { "model": "lyfe:block/research_bench", "y": 270 },
-    "facing=east": { "model": "lyfe:block/research_bench", "y": 90 }
+    "facing=north": { "model": "minecraft:block/lectern" },
+    "facing=south": { "model": "minecraft:block/lectern", "y": 180 },
+    "facing=west": { "model": "minecraft:block/lectern", "y": 270 },
+    "facing=east": { "model": "minecraft:block/lectern", "y": 90 }
   }
 }

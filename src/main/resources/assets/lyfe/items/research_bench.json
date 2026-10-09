@@ -1,6 +1,6 @@
 {
   "model": {
     "type": "minecraft:model",
-    "model": "lyfe:item/research_bench"
+    "model": "minecraft:block/lectern"
   }
 }
