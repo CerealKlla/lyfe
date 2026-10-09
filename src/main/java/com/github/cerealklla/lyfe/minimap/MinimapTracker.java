@@ -45,6 +45,12 @@ public final class MinimapTracker {
     private static final Identifier SETTLEMENTS_ZONE_LAYER_ID = Identifier.fromNamespaceAndPath("settlemynts", "zone");
     private static final EntityType SETTLEMENT_CORE_TYPE = new EntityType(Identifier.fromNamespaceAndPath("settlemynts", "settlement_core"));
     private static final EntityType PLOT_TYPE = new EntityType(Identifier.fromNamespaceAndPath("settlemynts", "plot"));
+    // Re-added to the minimap 2026-10-08 (explicit user request, as a debugging aid for natural-
+    // village plot detection/zone inference) -- was briefly excluded earlier the same day.
+    private static final EntityType NATURAL_PLOT_TYPE = new EntityType(Identifier.fromNamespaceAndPath("settlemynts", "natural_plot"));
+    // Cartographyr's own naturally-discovered village footprint -- a real compile dependency already
+    // exists on Cartographyr here (unlike Settlemynts' types above), so this one is referenced directly.
+    private static final EntityType NATURAL_SETTLEMENT_TYPE = EntityType.SETTLEMENT;
 
     private final Map<UUID, BlockPos> lastSentAt = new ConcurrentHashMap<>();
 
@@ -72,9 +78,18 @@ public final class MinimapTracker {
             }
             boolean isSettlementCore = entity.type().equals(SETTLEMENT_CORE_TYPE);
             boolean isPlot = entity.layerId().equals(SETTLEMENTS_ZONE_LAYER_ID) && entity.type().equals(PLOT_TYPE);
-            if (!isSettlementCore && !isPlot) {
+            boolean isNaturalPlot = entity.layerId().equals(SETTLEMENTS_ZONE_LAYER_ID) && entity.type().equals(NATURAL_PLOT_TYPE);
+            boolean isNaturalSettlement = entity.type().equals(NATURAL_SETTLEMENT_TYPE);
+            if (!isSettlementCore && !isPlot && !isNaturalPlot && !isNaturalSettlement) {
                 continue; // Skip padded settlement buffers/plot buffers -- clutter, not a real boundary a player cares about seeing.
             }
+            MinimapEntitiesPayload.Kind kind = isSettlementCore
+                    ? MinimapEntitiesPayload.Kind.SETTLEMENT_CORE
+                    : isPlot
+                            ? MinimapEntitiesPayload.Kind.PLOT
+                            : isNaturalPlot
+                                    ? MinimapEntitiesPayload.Kind.NATURAL_PLOT
+                                    : MinimapEntitiesPayload.Kind.NATURAL_SETTLEMENT;
 
             List<Integer> relX = new ArrayList<>(polygon.vertices().size());
             List<Integer> relZ = new ArrayList<>(polygon.vertices().size());
@@ -89,10 +104,15 @@ public final class MinimapTracker {
                 relZ.add(dz);
             }
             if (withinRange) {
-                outlines.add(new MinimapEntitiesPayload.Outline(isSettlementCore, relX, relZ));
+                outlines.add(new MinimapEntitiesPayload.Outline(kind, relX, relZ));
             }
         }
 
+        if (outlines.stream().anyMatch(o -> o.kind() == MinimapEntitiesPayload.Kind.NATURAL_PLOT) || outlines.isEmpty()) {
+            long naturalPlotCount = outlines.stream().filter(o -> o.kind() == MinimapEntitiesPayload.Kind.NATURAL_PLOT).count();
+            com.github.cerealklla.lyfe.LyfeMod.LOGGER.info(
+                    "MinimapTracker: sending {} outline(s) to {} ({} NATURAL_PLOT)", outlines.size(), player.getName().getString(), naturalPlotCount);
+        }
         PacketDistributor.sendToPlayer(player, new MinimapEntitiesPayload(outlines));
     }
 }

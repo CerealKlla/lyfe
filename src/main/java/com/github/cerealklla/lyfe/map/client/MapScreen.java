@@ -8,6 +8,7 @@ import com.google.common.collect.Multiset;
 import com.google.common.collect.Multisets;
 import com.mojang.blaze3d.platform.NativeImage;
 
+import com.github.cerealklla.lyfe.LyfeModClient;
 import com.github.cerealklla.lyfe.api.Lyfe;
 import com.github.cerealklla.lyfe.expeditionist.ExpeditionistConstants;
 import com.github.cerealklla.lyfe.map.ClientMapState;
@@ -102,6 +103,28 @@ public final class MapScreen extends Screen {
         return false;
     }
 
+    /**
+     * Real root cause found live, 2026-10-08, of "pressing M a second time does nothing": confirmed
+     * against the decompiled {@code KeyboardHandler#keyPress} source that {@code KeyMapping.click()}
+     * (what {@code OPEN_MAP.consumeClick()} in {@code LyfeModClient}'s tick handler depends on) is
+     * only ever invoked when {@code Minecraft.screen == null} -- while ANY {@code Screen} is open,
+     * every keypress goes to that screen's own {@code keyPressed} first and the raw {@code
+     * KeyMapping} click-counter below it in that method is never reached at all, by design (keybinds
+     * are an in-game-only concept; a screen that wants to react to one has to check for it itself).
+     * This is why toggling the Map *open* always worked (fired while no screen existed yet) but
+     * toggling it *closed* from the same key never could, regardless of any fix on the
+     * {@code LyfeModClient} side. Checking it directly here, inside this screen's own key handler,
+     * is the actual fix.
+     */
+    @Override
+    public boolean keyPressed(net.minecraft.client.input.KeyEvent event) {
+        if (LyfeModClient.OPEN_MAP.matches(event)) {
+            Minecraft.getInstance().setScreen(null);
+            return true;
+        }
+        return super.keyPressed(event);
+    }
+
     private boolean zoomUnlocked(LocalPlayer player) {
         return Lyfe.getLevel(player, Skills.EXPEDITIONIST_ID) >= ExpeditionistConstants.MAP_ZOOM_UNLOCK_LEVEL;
     }
@@ -155,10 +178,18 @@ public final class MapScreen extends Screen {
         // integers even when width/height were already aspect-matched to radiusX/radiusZ, a real bug
         // found live during the old live-sampling version. Deriving width/height *from* one shared
         // scaleBlocks guarantees both axes land on the exact same integer, by construction.
-        int targetImageHeight = Math.max(MIN_IMAGE_SIZE, Math.min(MAX_IMAGE_SIZE, viewportH));
-        int scaleBlocks = Math.max(1, Math.round((radiusZ * 2f) / targetImageHeight));
-        int imageWidth = Math.max(1, Math.round((radiusX * 2f) / scaleBlocks));
-        int imageHeight = Math.max(1, Math.round((radiusZ * 2f) / scaleBlocks));
+        // scaleBlocks must be derived from whichever axis (X or Z) would produce the LARGER image --
+        // real crash found live, 2026-10-08: it was previously derived from radiusZ/targetImageHeight
+        // alone, but radiusX is scaled up by the viewport's own aspect ratio (always >= radiusZ on a
+        // widescreen display), so imageWidth could exceed CANVAS_SIZE while imageHeight stayed safely
+        // within it -- NativeImage#setPixelABGR then threw "outside of image bounds" the moment a
+        // sampled column landed past the real 512px canvas. Math.ceil (not round) guarantees both
+        // axes' rounded pixel counts stay <= the target, never 1px over from rounding up.
+        int targetImageSize = Math.max(MIN_IMAGE_SIZE, Math.min(MAX_IMAGE_SIZE, viewportH));
+        int largerRadius = Math.max(radiusX, radiusZ);
+        int scaleBlocks = Math.max(1, (int) Math.ceil((largerRadius * 2f) / targetImageSize));
+        int imageWidth = Math.max(1, Math.min(ClientMapState.CANVAS_SIZE, Math.round((radiusX * 2f) / scaleBlocks)));
+        int imageHeight = Math.max(1, Math.min(ClientMapState.CANVAS_SIZE, Math.round((radiusZ * 2f) / scaleBlocks)));
 
         // The sampled view center follows the player unless panned (see this class's own doc) -- once
         // panned, player movement alone no longer triggers a resample, only an actual further pan or

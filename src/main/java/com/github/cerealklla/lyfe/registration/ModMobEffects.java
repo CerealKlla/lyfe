@@ -2,6 +2,7 @@ package com.github.cerealklla.lyfe.registration;
 
 import com.github.cerealklla.lyfe.LyfeMod;
 import com.github.cerealklla.lyfe.heartiness.RapidRecoveryMobEffect;
+import com.github.cerealklla.lyfe.reincarnation.SummoningSicknessMobEffect;
 import com.github.cerealklla.lyfe.rest.WellRestedMobEffect;
 
 import net.minecraft.core.registries.Registries;
@@ -31,4 +32,8 @@ public final class ModMobEffects {
     public static final DeferredHolder<MobEffect, WellRestedMobEffect> WELL_RESTED = MOB_EFFECTS.register(
             "well_rested",
             () -> new WellRestedMobEffect(MobEffectCategory.BENEFICIAL, 0x7EC8E3));
+
+    public static final DeferredHolder<MobEffect, SummoningSicknessMobEffect> SUMMONING_SICKNESS = MOB_EFFECTS.register(
+            "summoning_sickness",
+            () -> new SummoningSicknessMobEffect(MobEffectCategory.HARMFUL, 0x4B2E5A));
 }

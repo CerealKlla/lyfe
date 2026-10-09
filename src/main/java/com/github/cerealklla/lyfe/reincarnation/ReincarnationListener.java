@@ -3,13 +3,18 @@ package com.github.cerealklla.lyfe.reincarnation;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 import com.github.cerealklla.lyfe.api.Lyfe;
+import com.github.cerealklla.lyfe.registration.ModMobEffects;
 import com.github.cerealklla.lyfe.skill.Skills;
 
+import net.minecraft.ChatFormatting;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.gamerules.GameRules;
@@ -30,13 +35,25 @@ import net.neoforged.neoforge.event.entity.player.PlayerEvent;
  * an item doesn't carry it to the next life on its own), each cleared item is stashed in {@link
  * #pendingRestore}, a purely in-memory, per-player map, and handed back onto the new player
  * instance in {@link #onPlayerClone}.
+ *
+ * <p><b>Summoning Sickness, added 2026-10-08</b> (explicit user request) — every respawn applies
+ * {@link ModMobEffects#SUMMONING_SICKNESS} for {@link #SUMMONING_SICKNESS_DURATION_TICKS} (5
+ * minutes). Dying again while it's still active earns zero Reincarnation XP for that death (instead
+ * of discouraging suicide-farming the per-death XP by repeatedly dying in quick succession), and the
+ * next respawn shows a red warning explaining why. The warning can't be sent at the moment of death
+ * itself — the new player instance a respawn message would target doesn't exist yet — so "no XP this
+ * time" is stashed in {@link #pendingNoXpWarning} the same way {@link #pendingRestore} already stages
+ * cross-death state, and consumed in {@link #onPlayerClone}.
  */
 public final class ReincarnationListener {
 
     // Placeholder, flagged as tunable — same convention every other skill's XP amount already uses.
     private static final long XP_PER_DEATH = 50;
 
+    private static final int SUMMONING_SICKNESS_DURATION_TICKS = 5 * 60 * 20;
+
     private final Map<UUID, Map<ProtectedSlot, ItemStack>> pendingRestore = new ConcurrentHashMap<>();
+    private final Set<UUID> pendingNoXpWarning = java.util.concurrent.ConcurrentHashMap.newKeySet();
 
     @SubscribeEvent
     public void onLivingDeath(LivingDeathEvent event) {
@@ -52,7 +69,11 @@ public final class ReincarnationListener {
             protectSlots(player);
         }
 
-        Lyfe.addXp(player, Skills.REINCARNATION_ID, XP_PER_DEATH);
+        if (player.hasEffect(ModMobEffects.SUMMONING_SICKNESS)) {
+            pendingNoXpWarning.add(player.getUUID());
+        } else {
+            Lyfe.addXp(player, Skills.REINCARNATION_ID, XP_PER_DEATH);
+        }
     }
 
     private void protectSlots(ServerPlayer player) {
@@ -82,11 +103,24 @@ public final class ReincarnationListener {
 
     @SubscribeEvent
     public void onPlayerClone(PlayerEvent.Clone event) {
-        Map<ProtectedSlot, ItemStack> saved = pendingRestore.remove(event.getOriginal().getUUID());
-        if (saved == null || !(event.getEntity() instanceof ServerPlayer newPlayer)) {
+        if (!event.isWasDeath() || !(event.getEntity() instanceof ServerPlayer newPlayer)) {
             return;
         }
-        saved.forEach((slot, stack) -> applyStack(newPlayer, slot, stack));
+        UUID originalId = event.getOriginal().getUUID();
+
+        Map<ProtectedSlot, ItemStack> saved = pendingRestore.remove(originalId);
+        if (saved != null) {
+            saved.forEach((slot, stack) -> applyStack(newPlayer, slot, stack));
+        }
+
+        if (pendingNoXpWarning.remove(originalId)) {
+            newPlayer.sendSystemMessage(Component.literal(
+                    "No Reincarnation XP gained -- you died again while Summoning Sickness was still active.")
+                    .withStyle(ChatFormatting.RED));
+        }
+
+        newPlayer.addEffect(new MobEffectInstance(ModMobEffects.SUMMONING_SICKNESS,
+                SUMMONING_SICKNESS_DURATION_TICKS, 0, false, true, true));
     }
 
     private static ItemStack currentStack(ServerPlayer player, ProtectedSlot slot) {

@@ -21,10 +21,21 @@ import net.minecraft.resources.Identifier;
  */
 public record MinimapEntitiesPayload(List<Outline> outlines) implements CustomPacketPayload {
 
-    /** {@code settlement} picks the outline color client-side (v1: a fixed two-color palette -- see {@code MinimapOverlay#drawOutlines}, since Settlemynts' own per-zone-type wall color isn't reachable from Lyfe without a compile dependency). */
-    public record Outline(boolean settlement, List<Integer> relativeX, List<Integer> relativeZ) {
+    /** Picks the outline color client-side (a fixed small palette -- see {@code MinimapOverlay#drawOutlines}, since Settlemynts' own per-zone-type wall color isn't reachable from Lyfe without a compile dependency). */
+    public enum Kind {
+        PLOT,
+        SETTLEMENT_CORE,
+        /** Cartographyr's naturally-discovered village footprint ({@code EntityType.SETTLEMENT}), added 2026-10-08. */
+        NATURAL_SETTLEMENT,
+        /** A natural village's auto-generated per-building plot ({@code settlemynts:natural_plot}) -- re-added to the minimap 2026-10-08 per explicit user request, as a debugging aid for the detection/zone-inference work. */
+        NATURAL_PLOT;
+
+        public static final StreamCodec<ByteBuf, Kind> STREAM_CODEC = ByteBufCodecs.idMapper(i -> values()[i], Kind::ordinal);
+    }
+
+    public record Outline(Kind kind, List<Integer> relativeX, List<Integer> relativeZ) {
         public static final StreamCodec<ByteBuf, Outline> STREAM_CODEC = StreamCodec.composite(
-                ByteBufCodecs.BOOL, Outline::settlement,
+                Kind.STREAM_CODEC, Outline::kind,
                 ByteBufCodecs.collection(ArrayList::new, ByteBufCodecs.VAR_INT), Outline::relativeX,
                 ByteBufCodecs.collection(ArrayList::new, ByteBufCodecs.VAR_INT), Outline::relativeZ,
                 Outline::new);

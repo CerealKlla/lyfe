@@ -375,7 +375,12 @@ public final class MinimapOverlay implements GuiLayer {
         }
         double pixelsPerBlock = (double) SIZE / (radius * 2);
         for (MinimapEntitiesPayload.Outline outline : ClientMinimapState.outlines()) {
-            int color = outline.settlement() ? 0xFFFFFFFF : 0xFF55AAFF;
+            int color = switch (outline.kind()) {
+                case SETTLEMENT_CORE -> 0xFFFFFFFF;
+                case PLOT -> 0xFF55AAFF;
+                case NATURAL_SETTLEMENT -> 0xFFFFD24C; // gold -- distinct from player-founded white/light-blue
+                case NATURAL_PLOT -> 0xFFFF55FF; // magenta -- distinct from all three above
+            };
             var xs = outline.relativeX();
             var zs = outline.relativeZ();
             int count = xs.size();

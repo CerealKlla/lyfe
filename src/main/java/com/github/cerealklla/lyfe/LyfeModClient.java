@@ -139,8 +139,9 @@ public class LyfeModClient {
             "key.lyfe.open_skills", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_K, KeyMapping.Category.MISC);
 
     // Opens the full-screen Map (Expeditionist level 15), 2026-10-07. "M" is the conventional map
-    // keybind and was still free in this mod.
-    private static final KeyMapping OPEN_MAP = new KeyMapping(
+    // keybind and was still free in this mod. Public (not private) so MapScreen's own keyPressed
+    // override can check it directly -- see that class's own doc for why that's necessary at all.
+    public static final KeyMapping OPEN_MAP = new KeyMapping(
             "key.lyfe.open_map", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_M, KeyMapping.Category.MISC);
 
     // Waypoint auto-removal distance (design spec: "within ~10 blocks").
@@ -270,7 +271,18 @@ public class LyfeModClient {
             }
         });
 
+        // Real bug found live, 2026-10-08: "pressing M should toggle the map on and off" appeared to
+        // do nothing at all. Root cause: `while (key.consumeClick())` drains and acts on EVERY queued
+        // click in one tick -- if two clicks ever land in the same client tick (a real, documented
+        // Minecraft keybind quirk, not exotic), a toggle fires twice and cancels itself out, which
+        // looks from the player's side exactly like "nothing happened." A plain open/close action is
+        // naturally idempotent against this (opening twice is a no-op), but a TOGGLE must act at most
+        // once per tick regardless of how many clicks queued -- drain the clicks first, act once.
+        boolean rotationClicked = false;
         while (MINIMAP_TOGGLE_ROTATION.consumeClick()) {
+            rotationClicked = true;
+        }
+        if (rotationClicked) {
             ClientMinimapState.setAutoRotate(!ClientMinimapState.autoRotate());
         }
         while (OPEN_SKILLS.consumeClick()) {
@@ -278,8 +290,11 @@ public class LyfeModClient {
                 Minecraft.getInstance().setScreen(new SkillsScreen());
             }
         }
+        boolean mapClicked = false;
         while (OPEN_MAP.consumeClick()) {
-            // Toggles -- "M" should close the Map too, not only open it (user request, 2026-10-07).
+            mapClicked = true;
+        }
+        if (mapClicked) {
             if (Minecraft.getInstance().screen instanceof MapScreen) {
                 Minecraft.getInstance().setScreen(null);
             } else {

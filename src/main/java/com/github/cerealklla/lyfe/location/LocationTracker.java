@@ -58,6 +58,10 @@ public final class LocationTracker {
     private static final EntityType SETTLEMENT_CORE_TYPE = new EntityType(Identifier.fromNamespaceAndPath("settlemynts", "settlement_core"));
     private static final EntityType PLOT_TYPE = new EntityType(Identifier.fromNamespaceAndPath("settlemynts", "plot"));
     private static final EntityType PLOT_BUFFER_TYPE = new EntityType(Identifier.fromNamespaceAndPath("settlemynts", "plot_buffer"));
+    // A natural village's auto-generated per-building plot (added 2026-10-08) -- shares plot_buffer's
+    // type (no separate natural-buffer type exists), but has its own distinct main-plot type, so it
+    // needs its own check here too or standing inside one never resolves past "Outskirts"/"Town Proper".
+    private static final EntityType NATURAL_PLOT_TYPE = new EntityType(Identifier.fromNamespaceAndPath("settlemynts", "natural_plot"));
 
     // Matched by exact label text, not an id -- Cartographyr's designation field only ever stores
     // Settlemynts' ZoneType#label() string (see FinalizePlotPayload's handler), not its Identifier.
@@ -200,13 +204,18 @@ public final class LocationTracker {
             if (entity.layerId().equals(Layer.REGION_ID)) {
                 region = entity;
             } else if (entity.layerId().equals(Layer.SETTLEMENT_ID)) {
-                if (entity.type().equals(SETTLEMENT_CORE_TYPE)) {
+                // A natural village (Cartographyr's own EntityType.SETTLEMENT, discovered without any
+                // Settlemynts involvement) has no separate core/padded-buffer split the way a
+                // player-founded settlement does -- its one polygon IS the real built-up area. Real
+                // bug found live 2026-10-08: treating it as "padded" by default made every natural
+                // village read as "No Man's Land" instead of "Outskirts" everywhere inside it.
+                if (entity.type().equals(SETTLEMENT_CORE_TYPE) || entity.type().equals(EntityType.SETTLEMENT)) {
                     settlementCore = entity;
                 } else {
                     settlementPadded = entity;
                 }
             } else if (isZoneEntity) {
-                if (entity.type().equals(PLOT_TYPE)) {
+                if (entity.type().equals(PLOT_TYPE) || entity.type().equals(NATURAL_PLOT_TYPE)) {
                     plot = entity;
                 } else if (entity.type().equals(PLOT_BUFFER_TYPE)) {
                     plotBuffer = entity;
@@ -214,14 +223,25 @@ public final class LocationTracker {
             }
         }
 
+        // settlementCore now also covers a natural village's own single entity (see the 2026-10-08 fix
+        // above) -- a real regression caught live the same day: line1 only ever read settlementPadded,
+        // so a natural village (which has no separate padded entity at all) stopped showing its town
+        // name entirely, dropping straight to region/absent. settlementPadded still wins when both
+        // exist (a player-founded settlement's outer buffer, unchanged from before).
         Optional<String> line1 = settlementPadded != null ? Optional.of(DisplayText.forEntity(settlementPadded))
+                : settlementCore != null ? Optional.of(DisplayText.forEntity(settlementCore))
                 : region != null ? Optional.of(DisplayText.forEntity(region))
                 : Optional.empty();
 
         Optional<String> line2;
         if (plot != null) {
             boolean privateResidence = plot.designation().map(PRIVATE_RESIDENCE_LABEL::equals).orElse(false);
-            line2 = Optional.of(privateResidence ? "Residence" : plot.name().orElse("Residence"));
+            // A natural village's auto-generated plot never has a custom name (see
+            // zone.NaturalVillagePlotGenerator -- Optional.empty() passed at creation), so falling
+            // back to a hardcoded "Residence" previously mislabeled every non-Residence natural plot
+            // (a Farm, a Blacksmith) too. Falls back to the zone's own label (its Cartographyr
+            // designation) instead, which both kinds of plot already have set correctly.
+            line2 = Optional.of(privateResidence ? "Residence" : plot.name().or(plot::designation).orElse("Plot"));
         } else if (plotBuffer != null) {
             line2 = Optional.of("Town Proper");
         } else if (settlementCore != null) {
