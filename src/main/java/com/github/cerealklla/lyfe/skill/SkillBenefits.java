@@ -101,6 +101,9 @@ public final class SkillBenefits {
         if (id.equals(Skills.EXPEDITIONIST_ID)) {
             return ExpeditionistConstants.benefitLines(level);
         }
+        if (id.equals(Skills.MAYOR_ID)) {
+            return com.github.cerealklla.lyfe.mayor.MayorConstants.benefitLines(level);
+        }
         return List.of();
     }
 }

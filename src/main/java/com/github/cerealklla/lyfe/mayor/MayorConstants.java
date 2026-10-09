@@ -1,5 +1,8 @@
 package com.github.cerealklla.lyfe.mayor;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * The Mayor skill's tunable numbers (design doc, added 2026-10-09, explicit spec: "Gains XP any time
  * a plot in a Settlement you are the mayor of is upgraded... The XP reward is based on the new Tier,
@@ -46,5 +49,30 @@ public final class MayorConstants {
             case "traveling_merchant_stall" -> 30;
             default -> 0;
         };
+    }
+
+    /** {@code (unlock level, display label)} pairs, in ascending-level order -- drives {@link #benefitLines}. */
+    private static final List<java.util.Map.Entry<Integer, String>> UNLOCK_SCHEDULE = List.of(
+            java.util.Map.entry(5, "Blacksmith"),
+            java.util.Map.entry(10, "Guardhouse, Grocer"),
+            java.util.Map.entry(15, "Armorer, Stonemason"),
+            java.util.Map.entry(20, "Building Supplier, Restaurant"),
+            java.util.Map.entry(25, "Tavern"),
+            java.util.Map.entry(30, "Traveling Merchant Stall")
+    );
+
+    /** Skills screen benefit lines (2026-10-09) -- what's unlocked so far, and the next upcoming unlock, if any. */
+    public static List<String> benefitLines(int level) {
+        List<String> lines = new ArrayList<>();
+        lines.add("Town Hall, Farm, Lumberyard, and Private Residence are always available.");
+        for (var entry : UNLOCK_SCHEDULE) {
+            if (level >= entry.getKey()) {
+                lines.add("Unlocked at level " + entry.getKey() + ": " + entry.getValue());
+            } else {
+                lines.add("Unlocks at level " + entry.getKey() + ": " + entry.getValue());
+                break;
+            }
+        }
+        return lines;
     }
 }

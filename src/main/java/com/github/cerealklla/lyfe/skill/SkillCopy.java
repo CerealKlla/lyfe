@@ -72,7 +72,10 @@ public record SkillCopy(Item icon, String xpSource, String summary) {
                     "Raises your unlocked Shovel tier -- using a higher tier than you've unlocked costs extra durability.")),
             Map.entry(Skills.EXPEDITIONIST_ID, new SkillCopy(Items.COMPASS,
                     "Discovering a new Region or Settlement for the first time (bonus XP for a genuinely new Region)",
-                    "Unlocks the minimap (5) and its North indicator (10); increases minimap view radius. A full-screen Map, waypoints, and zoom are planned for a future level."))
+                    "Unlocks the minimap (5) and its North indicator (10); increases minimap view radius. A full-screen Map, waypoints, and zoom are planned for a future level.")),
+            Map.entry(Skills.MAYOR_ID, new SkillCopy(Items.EMERALD,
+                    "A plot in a Settlement you're the Mayor (or a Town Planner) of being upgraded a Tier",
+                    "Unlocks higher-Tier Zone Types your settlements can establish -- Town Hall Tier also independently gates this."))
     );
 
     public static SkillCopy get(SkillId id) {
