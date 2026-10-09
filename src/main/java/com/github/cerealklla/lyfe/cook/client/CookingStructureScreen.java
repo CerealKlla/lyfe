@@ -6,9 +6,12 @@ import java.util.Map;
 import com.github.cerealklla.lyfe.cook.CookingStructureBlockEntity;
 import com.github.cerealklla.lyfe.cook.CookingStructureMenu;
 import com.github.cerealklla.lyfe.cook.GeneratedFoodRecipe;
+import com.github.cerealklla.lyfe.structure.StructureUpgradeCost;
+import com.github.cerealklla.lyfe.structure.UpgradeCostEntry;
 
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
@@ -94,19 +97,34 @@ public class CookingStructureScreen extends net.minecraft.client.gui.screens.inv
             int goldY = cookY - BUTTON_HEIGHT - BUTTON_GAP;
             int mixY = goldY - BUTTON_HEIGHT - BUTTON_GAP;
             int onHandY = mixY - BUTTON_HEIGHT - BUTTON_GAP;
+            // Hover tooltip showing the actual escalating cost -- see craft.CraftingStructureScreen's
+            // own mirror of this fix (2026-10-09, real report: "I don't see the cost anywhere").
+            Tooltip costTooltip = Tooltip.create(upgradeCostTooltip(menu.tier() + 1));
             addRenderableWidget(Button.builder(Component.literal("Upgrade (Plot Resources)"),
                             button -> minecraft.gameMode.handleInventoryButtonClick(menu.containerId, CookingStructureMenu.UPGRADE_BUTTON_ID))
                     .bounds(buttonX, onHandY, BUTTON_WIDTH, BUTTON_HEIGHT)
+                    .tooltip(costTooltip)
                     .build());
             addRenderableWidget(Button.builder(Component.literal("Upgrade (Mix + Gold)"),
                             button -> minecraft.gameMode.handleInventoryButtonClick(menu.containerId, CookingStructureMenu.UPGRADE_MIX_BUTTON_ID))
                     .bounds(buttonX, mixY, BUTTON_WIDTH, BUTTON_HEIGHT)
+                    .tooltip(costTooltip)
                     .build());
             addRenderableWidget(Button.builder(Component.literal("Upgrade (Gold Only)"),
                             button -> minecraft.gameMode.handleInventoryButtonClick(menu.containerId, CookingStructureMenu.UPGRADE_GOLD_BUTTON_ID))
                     .bounds(buttonX, goldY, BUTTON_WIDTH, BUTTON_HEIGHT)
+                    .tooltip(costTooltip)
                     .build());
         }
+    }
+
+    /** "Upgrade to Tier N costs: AxB, CxD" -- pure/client-computable, same {@link StructureUpgradeCost} table the server itself charges against. */
+    private static Component upgradeCostTooltip(int nextTier) {
+        StringBuilder sb = new StringBuilder("Upgrade to Tier ").append(nextTier).append(" costs:");
+        for (UpgradeCostEntry entry : StructureUpgradeCost.costFor(nextTier)) {
+            sb.append('\n').append(entry.amount()).append("x ").append(entry.label());
+        }
+        return Component.literal(sb.toString());
     }
 
     private void select(int index) {
