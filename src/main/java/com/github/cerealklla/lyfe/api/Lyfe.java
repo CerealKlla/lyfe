@@ -18,6 +18,7 @@ import com.github.cerealklla.lyfe.skill.Skills;
 import com.github.cerealklla.lyfe.xpbar.XpGainPayload;
 
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.players.NameAndId;
@@ -120,6 +121,48 @@ public final class Lyfe {
         return getSkillDefinition(skillId)
                 .map(def -> def.xpCurve().levelForXp(xp))
                 .orElse(0);
+    }
+
+    /**
+     * Reads a skill level for a player by UUID, whether or not they're currently online -- added
+     * 2026-10-09 for the Mayor skill (a settlement's Town Hall-tier zone-type gate needs the
+     * founder's own Mayor level even if they're logged off). Read-only mirror of {@link
+     * #addXp(MinecraftServer, UUID, SkillId, long)}'s own offline-disk-load path -- see that method's
+     * doc for why this goes through {@code PlayerDataStorage}/a scratch {@code FakePlayer} rather
+     * than any simplified/cached approach. Returns 0 if the UUID has never played on this server.
+     */
+    public static int getLevel(MinecraftServer server, UUID playerId, SkillId skillId) {
+        ServerPlayer online = server.getPlayerList().getPlayer(playerId);
+        if (online != null) {
+            return getLevel(online, skillId);
+        }
+
+        PlayerDataStorage playerIo = server.getPlayerList().getPlayerIo();
+        Optional<CompoundTag> saved = playerIo.load(new NameAndId(playerId, "Unknown"));
+        if (saved.isEmpty()) {
+            return 0;
+        }
+
+        FakePlayer fake = new FakePlayer(server.overworld(), new GameProfile(playerId, "Unknown"));
+        try (ProblemReporter.ScopedCollector reporter = new ProblemReporter.ScopedCollector(fake.problemPath(), LyfeMod.LOGGER)) {
+            ValueInput input = TagValueInput.create(reporter, server.registryAccess(), saved.get());
+            fake.load(input);
+        }
+        return getLevel(fake, skillId);
+    }
+
+    /**
+     * The Mayor skill's per-plot-upgrade XP reward and per-Zone-Type unlock level -- exposed here
+     * (2026-10-09) so Settlemynts can grant/gate against them without a direct dependency on this
+     * mod's internal {@code mayor} package. See {@code mayor.MayorConstants}'s own doc for the
+     * reasoning behind the actual numbers (both explicitly flagged as tunable placeholders).
+     */
+    public static int mayorXpForPlotUpgrade(int newTier) {
+        return com.github.cerealklla.lyfe.mayor.MayorConstants.xpForPlotUpgrade(newTier);
+    }
+
+    public static int minMayorLevelForZoneType(Identifier zoneTypeId) {
+        return com.github.cerealklla.lyfe.mayor.MayorConstants.minMayorLevelForZoneType(zoneTypeId.getPath());
     }
 
     /**

@@ -39,6 +39,7 @@ public final class Skills {
     public static final SkillId PIKEMAN_ID = new SkillId("pikeman");
     public static final SkillId EXCAVATOR_ID = new SkillId("excavator");
     public static final SkillId EXPEDITIONIST_ID = new SkillId("expeditionist");
+    public static final SkillId MAYOR_ID = new SkillId("mayor");
 
     // Shared by every curve below; also the level Survivalist's true-hunger-max scaling (see
     // .hunger.HungerListener) treats as "max level" when computing capacity growth.
@@ -67,6 +68,7 @@ public final class Skills {
         SkillRegistry.register(pikeman());
         SkillRegistry.register(excavator());
         SkillRegistry.register(expeditionist());
+        SkillRegistry.register(mayor());
     }
 
     // Placeholder curve, deliberately easy to retune (mirrors the design doc's own framing of the
@@ -426,6 +428,32 @@ public final class Skills {
                 SkillCategory.EXPLORATION,
                 Optional.empty(),
                 expeditionistCurve(),
+                List.of()
+        );
+    }
+
+    // See mayor.MayorConstants' own doc for the reasoning behind k=100/p=1.6 -- roughly matches one
+    // fully-maxed settlement's total achievable Mayor XP, so maxing one settlement lands near level
+    // 50 (explicit spec: "progress through the levels decently up to about level 25/50... at which
+    // point you'd have to either start an additional settlement").
+    private static XpCurve mayorCurve() {
+        List<Long> thresholds = new ArrayList<>();
+        for (int level = 1; level <= MAX_LEVEL; level++) {
+            thresholds.add(Math.round(100 * Math.pow(level, 1.6)));
+        }
+        return new XpCurve(thresholds);
+    }
+
+    // Effects list empty, same reason every other skill's is -- the actual unlock gating
+    // (mayor.MayorConstants#minMayorLevelForZoneType) is consulted directly by Settlemynts via
+    // api.Lyfe, not modeled as a SkillEffect here.
+    private static SkillDefinition mayor() {
+        return new SkillDefinition(
+                MAYOR_ID,
+                "Mayor",
+                SkillCategory.SOCIAL,
+                Optional.of("settlemynts"),
+                mayorCurve(),
                 List.of()
         );
     }
