@@ -157,7 +157,7 @@ public final class MinimapOverlay implements GuiLayer {
         // for the whole content block and then issued each row's scissor *while already rotated*,
         // which is wrong -- a scissor rect is meant to be given in absolute screen space, not the
         // current (possibly rotated) local space.
-        drawTerrainTexture(guiGraphics, left, top, autoRotate, rotationRadians, cx, cz);
+        drawTerrainTexture(guiGraphics, left, top, autoRotate, rotationRadians, cx, cz, player);
 
         // Outlines/stakes/the Building Locator preview don't need per-row scissoring at all -- a
         // single rotation block around all three (exactly like the terrain conceptually wants, but
@@ -232,12 +232,41 @@ public final class MinimapOverlay implements GuiLayer {
      * Each row now pushes rotation fresh, scoped tightly around just that row's own blit call, with
      * the scissor already active and fixed in absolute space before rotation ever begins.
      */
-    private void drawTerrainTexture(GuiGraphicsExtractor guiGraphics, int left, int top, boolean autoRotate, float rotationRadians, float cx, float cz) {
+    /**
+     * Scrolls the cached terrain texture to compensate for how far the player has moved since it was
+     * sampled -- real bug found live, 2026-10-09 ("those four yellow stake icons are supposed to be
+     * on the four corners of the black square [obsidian, real terrain]... clearly the yellow icons
+     * are not in the correct location when compared to the map"). The texture is always blit at a
+     * fixed screen position (as if the player were exactly at {@code sampledCenterX}/{@code
+     * sampledCenterZ}), while every overlay dot/line ({@link #drawOutlines}/{@link
+     * #drawInProgressStakes}/etc.) is computed relative to the player's real, LIVE position --
+     * {@link ClientGhostMarkerOutlines#pointsNear} literally subtracts the player's current {@code
+     * getX()}/{@code getZ()}. Resampling only triggers once the player has drifted {@link
+     * #MOVE_RESAMPLE_THRESHOLD_BLOCKS} blocks from the last sample center, so there's always a
+     * standing gap between "where the cached image is centered" and "where the player actually is
+     * right now" -- previously never corrected for, so the whole terrain image was silently offset
+     * from every overlay drawn on top of it by exactly that drift. Shifting the blit's destination by
+     * the drift (in the same world-to-screen convention every other overlay already uses) keeps the
+     * live player position -- not the stale sample center -- as what's actually centered on screen.
+     */
+    private void drawTerrainTexture(GuiGraphicsExtractor guiGraphics, int left, int top, boolean autoRotate, float rotationRadians, float cx, float cz, LocalPlayer player) {
         if (!ClientMinimapState.hasTexture()) {
             return;
         }
         int radius = SIZE / 2;
         int cxInt = left + radius;
+
+        int sampledRadius = ClientMinimapState.sampledRadius();
+        int shiftX = 0;
+        int shiftZ = 0;
+        if (sampledRadius > 0) {
+            double pixelsPerBlock = (double) SIZE / (sampledRadius * 2);
+            shiftX = (int) Math.round((ClientMinimapState.sampledCenterX() - player.getX()) * pixelsPerBlock);
+            shiftZ = (int) Math.round((ClientMinimapState.sampledCenterZ() - player.getZ()) * pixelsPerBlock);
+        }
+        int blitLeft = left + shiftX;
+        int blitTop = top + shiftZ;
+
         for (int row = 0; row < SIZE; row++) {
             int half = circleHalfWidthAt(radius, row - radius);
             if (half <= 0) {
@@ -255,7 +284,7 @@ public final class MinimapOverlay implements GuiLayer {
                 guiGraphics.pose().pushMatrix();
                 guiGraphics.pose().rotateAbout(rotationRadians, cx, cz);
             }
-            guiGraphics.blit(RenderPipelines.GUI_TEXTURED, ClientMinimapState.textureId(), left, top, 0, 0,
+            guiGraphics.blit(RenderPipelines.GUI_TEXTURED, ClientMinimapState.textureId(), blitLeft, blitTop, 0, 0,
                     SIZE, SIZE, ClientTerrainSampler.IMAGE_SIZE, ClientTerrainSampler.IMAGE_SIZE,
                     ClientTerrainSampler.IMAGE_SIZE, ClientTerrainSampler.IMAGE_SIZE);
             if (autoRotate) {

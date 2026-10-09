@@ -161,6 +161,11 @@ public final class Lyfe {
         return com.github.cerealklla.lyfe.mayor.MayorConstants.xpForPlotUpgrade(newTier);
     }
 
+    /** "Mayor should also gain xp for every 10 gold taxed" -- not called by anything yet, Settlemynts has no tax system to call it from (explicit user note); ready for whenever that exists. */
+    public static int mayorXpForGoldTaxed(int goldTaxed) {
+        return com.github.cerealklla.lyfe.mayor.MayorConstants.xpForGoldTaxed(goldTaxed);
+    }
+
     public static int minMayorLevelForZoneType(Identifier zoneTypeId) {
         return com.github.cerealklla.lyfe.mayor.MayorConstants.minMayorLevelForZoneType(zoneTypeId.getPath());
     }

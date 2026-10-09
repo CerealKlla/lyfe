@@ -38,6 +38,16 @@ public final class MayorConstants {
         };
     }
 
+    /**
+     * "Mayor should also gain xp for every 10 gold taxed" (added 2026-10-09) -- a second, independent
+     * XP source alongside plot-tier-upgrade XP, for whenever Settlemynts' own tax system exists (it
+     * doesn't yet, per the user's own explicit note -- this formula has no real caller today, it's
+     * just ready for one). Flagged placeholder rate, same as every other number in this class.
+     */
+    public static int xpForGoldTaxed(int goldTaxed) {
+        return Math.max(0, goldTaxed) / 10;
+    }
+
     public static int minMayorLevelForZoneType(String zoneTypePath) {
         return switch (zoneTypePath) {
             case "town_hall", "farm", "lumberyard", "private_residence" -> 0;
