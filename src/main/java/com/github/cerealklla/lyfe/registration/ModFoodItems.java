@@ -30,6 +30,14 @@ public final class ModFoodItems {
     public static final DeferredItem<Item> BANQUET_PLATE = register("banquet_plate");
     public static final DeferredItem<Item> FEAST_OF_THE_KYNGDOMS = register("feast_of_the_kyngdoms");
 
+    // Not a Track B signature dish -- a Track A (fixed, non-randomized) Tier 1 recipe added
+    // 2026-10-10 (explicit request: "a T1 Cooked Fish recipe which just takes 1 Fish Meat"), same
+    // VanillaFoodRecipes-backed shape as cooked_beef/cooked_porkchop etc., just a custom item since
+    // vanilla has no "Cooked Fish" of its own (COOKED_FISH_MEAT, the old pre-unified-cooking version
+    // of this exact item, was removed 2026-10-03 -- see ModItems.FISH_MEAT's own doc). Registered
+    // here rather than ModItems since it's a crafted dish, not a raw ingredient.
+    public static final DeferredItem<Item> COOKED_FISH = register("cooked_fish");
+
     private static DeferredItem<Item> register(String name) {
         return ITEMS.register(name, id -> new Item(new Item.Properties()
                 .food(new FoodProperties.Builder().nutrition(1).saturationModifier(0.1F).build())

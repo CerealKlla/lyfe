@@ -52,6 +52,10 @@ final class VanillaFoodRecipes {
         recipes.put(id("bread"), of(id("wheat"), 3));
         recipes.put(id("cookie"), of(id("wheat"), 2, id("cocoa_beans"), 1));
         recipes.put(id("mushroom_stew"), of(id("bowl"), 1, id("red_mushroom"), 1, id("brown_mushroom"), 1));
+        // Not a real vanilla recipe -- a custom Tier 1 item (see FoodTierLadder's own doc, 2026-10-10
+        // explicit request). Lives here anyway since it's fixed/always-known the same way every real
+        // vanilla Track A recipe is, and this is the one place that shape already exists.
+        recipes.put(lyfeId("cooked_fish"), of(lyfeId("fish_meat"), 1));
         // Tier 2.
         recipes.put(id("beetroot_soup"), of(id("beetroot"), 6, id("bowl"), 1));
         recipes.put(id("pumpkin_pie"), of(id("pumpkin"), 1, id("sugar"), 1, id("egg"), 1));
@@ -68,6 +72,10 @@ final class VanillaFoodRecipes {
 
     private static Identifier id(String path) {
         return Identifier.withDefaultNamespace(path);
+    }
+
+    private static Identifier lyfeId(String path) {
+        return Identifier.fromNamespaceAndPath(com.github.cerealklla.lyfe.LyfeMod.MODID, path);
     }
 
     private static Map<Identifier, Integer> of(Identifier a, int qa) {

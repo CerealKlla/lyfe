@@ -14,7 +14,10 @@ import net.minecraft.resources.Identifier;
  * <ul>
  *   <li><b>Track A (staple)</b> -- real, existing vanilla food items, Appendix C's own tier
  *   classification, unchanged. Suspicious Stew is deliberately excluded (a player+flower
- *   interaction, not a real recipe -- nothing to strip or regenerate).</li>
+ *   interaction, not a real recipe -- nothing to strip or regenerate). One deliberate exception,
+ *   2026-10-10: Tier 1 also includes a custom {@code lyfe:cooked_fish} (1 Fish Meat -&gt; 1 Cooked
+ *   Fish) -- vanilla has no "Cooked Fish" of its own, so this rides the Track A (fixed,
+ *   always-known) shape on a custom item instead, same way Track B already does for its 5 dishes.</li>
  *   <li><b>Track B (signature dish)</b> -- 5 brand-new invented items, one per tier, forming a real
  *   chain (confirmed with the user 2026-10-03: each tier &ge;2 requires one or more of the previous
  *   tier's own dish as an ingredient, see {@code FoodRecipeGenerator}). Placeholder names/textures
@@ -34,8 +37,9 @@ public final class FoodTierLadder {
     public static final Identifier GOLDEN_APPLE = Identifier.withDefaultNamespace("golden_apple");
 
     private static final Map<Integer, List<Identifier>> TRACK_A = Map.of(
-            1, idList("cooked_beef", "cooked_porkchop", "cooked_chicken", "cooked_mutton", "cooked_rabbit",
+            1, append(idList("cooked_beef", "cooked_porkchop", "cooked_chicken", "cooked_mutton", "cooked_rabbit",
                     "cooked_cod", "cooked_salmon", "baked_potato", "bread", "cookie", "mushroom_stew"),
+                    lyfeId("cooked_fish")),
             2, idList("beetroot_soup", "pumpkin_pie", "golden_carrot"),
             3, idList("cake", "rabbit_stew"),
             4, idList("golden_apple"),
@@ -115,6 +119,12 @@ public final class FoodTierLadder {
 
     private static List<Identifier> idList(String... names) {
         return List.of(names).stream().map(Identifier::withDefaultNamespace).toList();
+    }
+
+    private static List<Identifier> append(List<Identifier> base, Identifier extra) {
+        List<Identifier> combined = new ArrayList<>(base);
+        combined.add(extra);
+        return List.copyOf(combined);
     }
 
     private static Identifier lyfeId(String name) {
