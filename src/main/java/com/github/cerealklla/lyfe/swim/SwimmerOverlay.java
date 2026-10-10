@@ -1,6 +1,7 @@
 package com.github.cerealklla.lyfe.swim;
 
 import com.github.cerealklla.lyfe.api.Lyfe;
+import com.github.cerealklla.lyfe.hunger.HungerOverlay;
 import com.github.cerealklla.lyfe.registration.ModAttachments;
 import com.github.cerealklla.lyfe.skill.Skills;
 
@@ -32,9 +33,6 @@ public final class SwimmerOverlay implements GuiLayer {
     private static final int BUBBLES_PER_ROW = 10;
     private static final int ROW_SPACING = 10;
     private static final int MARGIN_RIGHT = 10;
-    // One row above HungerOverlay's own bottom row (39) -- this pass's own placement call, same as
-    // every other overlay's positioning in this mod being its own first-pass judgment.
-    private static final int MARGIN_BOTTOM = 49;
 
     @Override
     public void render(GuiGraphicsExtractor guiGraphics, DeltaTracker deltaTracker) {
@@ -57,8 +55,12 @@ public final class SwimmerOverlay implements GuiLayer {
         int fullBubbles = air.getTrueAir() / AirConstants.TICKS_PER_BUBBLE;
         boolean hasPartialPopping = air.getTrueAir() % AirConstants.TICKS_PER_BUBBLE != 0;
 
+        // Dynamic, not a fixed one-row offset (real bug, 2026-10-09: overlapped HungerOverlay the
+        // moment Survivalist's growing max hunger wrapped onto a second/third row) -- always sits
+        // exactly one row above however many rows HungerOverlay is currently actually drawing.
+        int marginBottom = HungerOverlay.MARGIN_BOTTOM + HungerOverlay.currentRowCount(player) * HungerOverlay.ROW_SPACING;
         int xRight = guiGraphics.guiWidth() / 2 + 91 - MARGIN_RIGHT;
-        int yBase = guiGraphics.guiHeight() - MARGIN_BOTTOM;
+        int yBase = guiGraphics.guiHeight() - marginBottom;
 
         for (int i = 0; i < bubbleCount; i++) {
             int row = i / BUBBLES_PER_ROW;

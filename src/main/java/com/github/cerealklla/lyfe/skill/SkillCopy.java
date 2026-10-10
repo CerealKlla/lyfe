@@ -75,7 +75,10 @@ public record SkillCopy(Item icon, String xpSource, String summary) {
                     "Unlocks the minimap (5) and its North indicator (10); increases minimap view radius. A full-screen Map, waypoints, and zoom are planned for a future level.")),
             Map.entry(Skills.MAYOR_ID, new SkillCopy(Items.EMERALD,
                     "A plot in a Settlement you're the Mayor (or a Town Planner) of being upgraded a Tier",
-                    "Unlocks higher-Tier Zone Types your settlements can establish -- Town Hall Tier also independently gates this."))
+                    "Unlocks higher-Tier Zone Types your settlements can establish -- Town Hall Tier also independently gates this.")),
+            Map.entry(Skills.RECALLCRAFT_ID, new SkillCopy(Items.ENDER_PEARL,
+                    "Binding or recalling with the Recallcinite Totem",
+                    "Reduces the Totem's bind/recall cooldown, up to 20% at max level."))
     );
 
     public static SkillCopy get(SkillId id) {

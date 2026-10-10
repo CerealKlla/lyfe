@@ -27,10 +27,30 @@ public final class HungerOverlay implements GuiLayer {
 
     private static final int ICON_SIZE = 9;
     private static final int ICON_SPACING = 8;
-    private static final int ICONS_PER_ROW = 10;
-    private static final int ROW_SPACING = 10;
+    public static final int ICONS_PER_ROW = 10;
+    public static final int ROW_SPACING = 10;
     private static final int MARGIN_RIGHT = 10;
-    private static final int MARGIN_BOTTOM = 39;
+    public static final int MARGIN_BOTTOM = 39;
+
+    /**
+     * The icon count {@link #render} would currently draw, exposed so {@code swim.SwimmerOverlay}
+     * can position itself above however many rows that actually is -- real bug, 2026-10-09: Swimmer's
+     * own bottom margin was a fixed one-row offset, so it only stayed clear of this overlay's single
+     * bottom row and got overlapped the moment Survivalist's growing max hunger wrapped onto a second
+     * (or third) row.
+     */
+    public static int currentIconCount(LocalPlayer player) {
+        PlayerHunger hunger = player.getData(ModAttachments.PLAYER_HUNGER);
+        int survivalistLevel = Lyfe.getLevel(player, Skills.SURVIVALIST_ID);
+        int growth = HungerConstants.MAX_HUNGER_AT_MAX_LEVEL - HungerConstants.BASE_MAX_HUNGER;
+        int currentMax = HungerConstants.BASE_MAX_HUNGER + growth * survivalistLevel / Skills.MAX_LEVEL;
+        return currentMax / 2;
+    }
+
+    /** How many {@link #ICONS_PER_ROW}-wide rows {@link #currentIconCount} currently needs. */
+    public static int currentRowCount(LocalPlayer player) {
+        return (currentIconCount(player) + ICONS_PER_ROW - 1) / ICONS_PER_ROW;
+    }
 
     @Override
     public void render(GuiGraphicsExtractor guiGraphics, DeltaTracker deltaTracker) {
@@ -41,11 +61,7 @@ public final class HungerOverlay implements GuiLayer {
 
         PlayerHunger hunger = player.getData(ModAttachments.PLAYER_HUNGER);
         int trueHunger = hunger.getTrueHunger();
-        int survivalistLevel = Lyfe.getLevel(player, Skills.SURVIVALIST_ID);
-        int growth = HungerConstants.MAX_HUNGER_AT_MAX_LEVEL - HungerConstants.BASE_MAX_HUNGER;
-        int currentMax = HungerConstants.BASE_MAX_HUNGER + growth * survivalistLevel / Skills.MAX_LEVEL;
-
-        int iconCount = currentMax / 2;
+        int iconCount = currentIconCount(player);
         int xRight = guiGraphics.guiWidth() / 2 + 91 - MARGIN_RIGHT;
         int yBase = guiGraphics.guiHeight() - MARGIN_BOTTOM;
 
