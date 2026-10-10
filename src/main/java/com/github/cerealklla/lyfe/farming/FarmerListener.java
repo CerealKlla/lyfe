@@ -1,5 +1,6 @@
 package com.github.cerealklla.lyfe.farming;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -26,6 +27,8 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.neoforge.event.entity.player.BonemealEvent;
 import net.neoforged.neoforge.event.level.BlockDropsEvent;
+import net.neoforged.neoforge.event.level.block.BreakBlockEvent;
+import net.neoforged.neoforge.event.tick.LevelTickEvent;
 
 /**
  * Grants Farmer XP and applies its four level-scaled bonuses (design doc Section 23, 2026-10-04
@@ -57,6 +60,25 @@ public final class FarmerListener {
     // 5% per 5 levels, caps at 50% at level 50.
     private static final double BONEMEAL_SAVE_PER_5_LEVELS = 0.05;
     private static final double BONEMEAL_SAVE_CAP = 0.50;
+
+    // 1%/level, uncapped except by MAX_LEVEL itself -- same shape as BonusSeedChance above. User
+    // request, 2026-10-10: a fully-grown crop harvest has a chance to instantly replant itself
+    // (fresh, age-0 crop) in place instead of leaving bare farmland, protected from being broken
+    // again for 1 real second so a double-click/fast-swing can't insta-break the freebie.
+    private static final double INSTANT_REPLANT_CHANCE_PER_LEVEL = 0.01;
+    private static final int REPLANT_PROTECTION_TICKS = 20; // 1 second
+
+    // Deferred one tick (not placed synchronously inside onBlockDrops) because BlockDropsEvent's own
+    // doc makes no guarantee the broken block has already been removed from the world at that point
+    // -- placing here risks the game's own post-event removal immediately overwriting it with air.
+    private final List<PendingReplant> pendingReplants = new ArrayList<>();
+    private final List<ProtectedCrop> protectedCrops = new ArrayList<>();
+
+    private record PendingReplant(ServerLevel level, BlockPos pos, Block cropBlock, long placeAtTick) {
+    }
+
+    private record ProtectedCrop(ServerLevel level, BlockPos pos, long expiresAtTick) {
+    }
 
     private static final Map<Block, Item> CROP_BONUS_SEED = Map.of(
             Blocks.WHEAT, Items.WHEAT_SEEDS,
@@ -96,6 +118,7 @@ public final class FarmerListener {
 
         rollBonusSeed(event, serverLevel, state, level);
         rollYieldDouble(event, serverLevel, level);
+        rollInstantReplant(serverLevel, event.getPos(), cropBlock, level);
     }
 
     /**
@@ -170,6 +193,53 @@ public final class FarmerListener {
         }
     }
 
+    private void rollInstantReplant(ServerLevel serverLevel, BlockPos pos, CropBlock cropBlock, int level) {
+        double chance = level * INSTANT_REPLANT_CHANCE_PER_LEVEL;
+        if (chance <= 0 || serverLevel.getRandom().nextDouble() >= chance) {
+            return;
+        }
+        pendingReplants.add(new PendingReplant(serverLevel, pos.immutable(), cropBlock, serverLevel.getGameTime() + 1));
+    }
+
+    @SubscribeEvent
+    public void onLevelTick(LevelTickEvent.Post event) {
+        if (!(event.getLevel() instanceof ServerLevel serverLevel)) {
+            return;
+        }
+        long now = serverLevel.getGameTime();
+
+        if (!pendingReplants.isEmpty()) {
+            pendingReplants.removeIf(pending -> {
+                if (pending.level() != serverLevel || now < pending.placeAtTick()) {
+                    return false;
+                }
+                if (serverLevel.isEmptyBlock(pending.pos())) {
+                    serverLevel.setBlockAndUpdate(pending.pos(), pending.cropBlock().defaultBlockState());
+                    protectedCrops.add(new ProtectedCrop(serverLevel, pending.pos(), now + REPLANT_PROTECTION_TICKS));
+                }
+                return true;
+            });
+        }
+        if (!protectedCrops.isEmpty()) {
+            protectedCrops.removeIf(protectedCrop -> protectedCrop.level() == serverLevel && now >= protectedCrop.expiresAtTick());
+        }
+    }
+
+    /** Guards an instant-replanted crop (see {@link #rollInstantReplant}) against being broken again for its brief protection window. */
+    @SubscribeEvent
+    public void onBreakBlock(BreakBlockEvent event) {
+        if (protectedCrops.isEmpty() || !(event.getLevel() instanceof ServerLevel serverLevel)) {
+            return;
+        }
+        for (ProtectedCrop protectedCrop : protectedCrops) {
+            if (protectedCrop.level() == serverLevel && protectedCrop.pos().equals(event.getPos())) {
+                event.setCanceled(true);
+                event.setNotifyClient(true);
+                return;
+            }
+        }
+    }
+
     private void rollYieldDouble(BlockDropsEvent event, ServerLevel serverLevel, int level) {
         if (level < YIELD_DOUBLE_UNLOCK_LEVEL) {
             return;
@@ -227,11 +297,13 @@ public final class FarmerListener {
         double leafPercent = Math.min(LEAF_BONUS_CAP, Math.floorDiv(level, 10) * LEAF_BONUS_PER_10_LEVELS) * 100;
         double yieldPercent = yieldDoublePercent(level);
         double bonemealPercent = Math.min(BONEMEAL_SAVE_CAP, Math.floorDiv(level, 5) * BONEMEAL_SAVE_PER_5_LEVELS) * 100;
+        double instantReplantPercent = level * INSTANT_REPLANT_CHANCE_PER_LEVEL * 100;
         return List.of(
                 "Bonus seed chance " + formatPercent(seedPercent) + "%",
                 "Rare leaf drop bonus (with a Hoe) +" + formatPercent(leafPercent) + "%",
                 "Crop yield doubling chance " + formatPercent(yieldPercent) + "%",
                 "Bonemeal not consumed chance " + formatPercent(bonemealPercent) + "%",
+                "Instant replant chance " + formatPercent(instantReplantPercent) + "%",
                 // 2026-10-06: Farmer also governs Hoe's tier-unlock gate (EquipmentTierLadder#governingSkillId).
                 "Unlocked Hoe tier: " + com.github.cerealklla.lyfe.craft.ToolTierUnlocks.unlockedTierName(level)
         );
