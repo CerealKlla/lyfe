@@ -68,7 +68,7 @@ public final class ShopSeedCatalogs {
         Settlemynts.registerShopSeedCatalog(Identifier.fromNamespaceAndPath("blueprynts", "blacksmith"),
                 tieredCatalog(plotTier -> blacksmithListings(cap(plotTier, EquipmentTierLadder.MAX_REACHABLE_TIER))));
         Settlemynts.registerShopSeedCatalog(Identifier.fromNamespaceAndPath("blueprynts", "grocer"),
-                (level, plotAnchor, plotTier) -> GROCER_LISTINGS);
+                (level, plotAnchor, plotTier) -> grocerListings());
         Settlemynts.registerShopSeedCatalog(Identifier.fromNamespaceAndPath("blueprynts", "restaurant"),
                 tieredCatalog(plotTier -> restaurantListings(cap(plotTier, FoodTierLadder.MAX_TIER))));
     }
@@ -127,18 +127,49 @@ public final class ShopSeedCatalogs {
         return listings;
     }
 
-    // Raw cooking ingredients only -- explicitly NOT finished food (user's own distinction). No Tier
-    // gating -- none of these are on either tier ladder.
-    private static final List<SeedListing> GROCER_LISTINGS = List.of(
-            SeedListing.ofResource(ShopResource.ofItem(Identifier.withDefaultNamespace("wheat")), 1, 64),
-            SeedListing.ofResource(ShopResource.ofItem(Identifier.withDefaultNamespace("carrot")), 1, 64),
-            SeedListing.ofResource(ShopResource.ofItem(Identifier.withDefaultNamespace("potato")), 1, 64),
-            SeedListing.ofResource(ShopResource.ofItem(Identifier.withDefaultNamespace("beef")), 2, 32),
-            SeedListing.ofResource(ShopResource.ofItem(Identifier.withDefaultNamespace("chicken")), 2, 32),
-            SeedListing.ofResource(ShopResource.ofItem(Identifier.withDefaultNamespace("sugar")), 1, 64),
-            SeedListing.ofResource(ShopResource.ofItem(Identifier.withDefaultNamespace("egg")), 1, 32),
-            SeedListing.ofResource(ShopResource.ofItem(Identifier.withDefaultNamespace("milk_bucket")), 3, 8)
-    );
+    private static final int GROCER_STOCK = 64;
+
+    /**
+     * Every raw cooking ingredient, derived live from the real recipe graph (2026-10-10, explicit
+     * user request: "Grocer's by default should want to buy/sell any food related components, but
+     * not final product foods") -- replaces the old hand-picked 8-item list, which was never actually
+     * complete (e.g. never included cocoa beans, mushrooms, a bowl, or anything Track B's randomly-
+     * generated recipes happen to call for this server). A "component" here is any item referenced in
+     * any known food recipe's ingredient map ({@code cook.ServerFoodRecipeStore#all}, Track A's fixed
+     * vanilla recipes plus Track B's server-rolled signature dishes alike) that is *not itself* the
+     * result of some other food recipe -- that second condition is what keeps a dish that's also an
+     * ingredient of a higher-tier one (e.g. Cooked Rabbit feeding into Rabbit Stew) correctly excluded
+     * as a "final product food," even though it technically appears in another recipe's component map.
+     * Computed fresh on every call, not cached statically -- Track B's recipes are only known once
+     * {@code ServerFoodRecipeStore#loadOrGenerate} has actually run for this server, which hasn't
+     * happened yet at class-load time.
+     *
+     * <p>Price is derived from the item's own real vanilla nutrition value when it has one (raw
+     * ingredients like Carrot/Potato/Beef genuinely differ in how "valuable" they feel), floored at 1
+     * for anything non-edible on its own (Cocoa Beans, a Bowl, Gold Nuggets) -- a reasonable default,
+     * not a precisely-tuned economy, same "flagged as tunable" convention every other catalog price
+     * in this file already follows. No Tier gating -- ingredients aren't on either tier ladder.
+     */
+    private static List<SeedListing> grocerListings() {
+        java.util.Set<Identifier> resultIds = new java.util.HashSet<>(FoodTierLadder.allResultIds());
+        java.util.Set<Identifier> components = new java.util.LinkedHashSet<>();
+        for (com.github.cerealklla.lyfe.cook.GeneratedFoodRecipe recipe : com.github.cerealklla.lyfe.cook.ServerFoodRecipeStore.all().values()) {
+            components.addAll(recipe.components().keySet());
+        }
+        components.removeAll(resultIds);
+
+        List<SeedListing> listings = new ArrayList<>();
+        for (Identifier itemId : components) {
+            listings.add(SeedListing.ofResource(ShopResource.ofItem(itemId), grocerPriceFor(itemId), GROCER_STOCK));
+        }
+        return listings;
+    }
+
+    private static int grocerPriceFor(Identifier itemId) {
+        net.minecraft.world.item.Item item = net.minecraft.core.registries.BuiltInRegistries.ITEM.getValue(itemId);
+        net.minecraft.world.food.FoodProperties food = new ItemStack(item).get(net.minecraft.core.component.DataComponents.FOOD);
+        return food != null ? Math.max(1, food.nutrition()) : 1;
+    }
 
     private static List<SeedListing> restaurantListings(int maxTier) {
         List<SeedListing> listings = new ArrayList<>();
