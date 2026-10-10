@@ -42,10 +42,22 @@ class PlayerHungerTest {
     }
 
     @Test
-    void saturationNeverExceedsTrueHunger() {
+    void savedSaturationIsSpentBeforeTrueHungerDrops() {
+        // Real bug fixed 2026-10-10: saturation used to be merely clamped, never actually spent --
+        // true hunger dropped immediately on every real exhaustion crossing regardless of how much
+        // saturation was available. Starts at 20 hunger / 5.0 saturation.
         PlayerHunger hunger = new PlayerHunger();
-        hunger.applyRealHungerDrop(15); // hunger down to 5, saturation clamped to <= 5
-        assertEquals(5.0F, hunger.getTrueSaturation());
+        hunger.applyRealHungerDrop(3);
+        assertEquals(20, hunger.getTrueHunger()); // fully absorbed by saturation
+        assertEquals(2.0F, hunger.getTrueSaturation());
+    }
+
+    @Test
+    void trueHungerOnlyDropsOnceSaturationIsDepleted() {
+        PlayerHunger hunger = new PlayerHunger(); // 20 hunger, 5.0 saturation
+        hunger.applyRealHungerDrop(8); // 5 absorbed by saturation, 3 spills into true hunger
+        assertEquals(0.0F, hunger.getTrueSaturation());
+        assertEquals(17, hunger.getTrueHunger());
     }
 
     @Test

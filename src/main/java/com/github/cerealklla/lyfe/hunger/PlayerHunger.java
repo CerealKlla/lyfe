@@ -44,9 +44,31 @@ public final class PlayerHunger {
         return trueSaturation;
     }
 
-    /** Deducts a real, absolute point loss (never scaled) observed from vanilla's own exhaustion math. Never below 0. */
+    /**
+     * Deducts a real, absolute point loss (never scaled) observed from vanilla's own exhaustion
+     * math -- spends {@code trueSaturation} first and only touches {@code trueHunger} once it's
+     * depleted, the same two-branch shape vanilla's own {@code FoodData#tick} uses on its real
+     * fields ("if (saturationLevel > 0) spend saturation; else drop foodLevel").
+     *
+     * <p><b>Real bug fixed 2026-10-10</b>: this used to unconditionally decrement {@code trueHunger}
+     * every time and only ever *clamp* {@code trueSaturation} down afterward, never actually
+     * spending it -- so saturation (including the real starting 5.0 every fresh player has) did
+     * nothing at all: true hunger started dropping immediately on the very next exhaustion crossing
+     * regardless of how much saturation was sitting there, with no "well fed, hunger isn't dropping
+     * yet" grace period after eating at all (the exact behavior a real report described: "when I eat
+     * a bunch of food back up to full it starts immediately draining instead of being saturated for
+     * a period of time").
+     */
     public void applyRealHungerDrop(int amount) {
-        trueHunger = Math.max(0, trueHunger - amount);
+        int remaining = amount;
+        if (trueSaturation > 0.0F) {
+            int spent = (int) Math.min(trueSaturation, (float) remaining);
+            trueSaturation -= spent;
+            remaining -= spent;
+        }
+        if (remaining > 0) {
+            trueHunger = Math.max(0, trueHunger - remaining);
+        }
         trueSaturation = Mth.clamp(trueSaturation, 0.0F, (float) trueHunger);
     }
 
