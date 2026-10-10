@@ -29,7 +29,10 @@ import net.neoforged.neoforge.client.gui.GuiLayer;
  */
 public final class EquipmentSkillWarningOverlay implements GuiLayer {
 
-    private static final int MARGIN_FROM_BOTTOM = 52; // matches PlotValidityOverlay's own placement
+    // Raised from 52 (PlotValidityOverlay's own placement) 2026-10-10 -- real report: the warning box
+    // overlapped the hunger/health icon rows just above the hotbar. Unlike Settlemynts' plot overlay,
+    // this one shares screen space with vanilla's own food/armor/health HUD rows, which need clearing.
+    private static final int MARGIN_FROM_BOTTOM = 72;
     private static final int PADDING = 4;
     private static final int WARNING_COLOR = 0xFFFF5555;
     private static final int BACKGROUND_COLOR = 0xE0101010;
