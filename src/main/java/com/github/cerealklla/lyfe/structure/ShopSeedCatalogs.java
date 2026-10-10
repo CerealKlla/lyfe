@@ -127,8 +127,6 @@ public final class ShopSeedCatalogs {
         return listings;
     }
 
-    private static final int GROCER_STOCK = 64;
-
     /**
      * Every raw cooking ingredient, derived live from the real recipe graph (2026-10-10, explicit
      * user request: "Grocer's by default should want to buy/sell any food related components, but
@@ -148,7 +146,11 @@ public final class ShopSeedCatalogs {
      * ingredients like Carrot/Potato/Beef genuinely differ in how "valuable" they feel), floored at 1
      * for anything non-edible on its own (Cocoa Beans, a Bowl, Gold Nuggets) -- a reasonable default,
      * not a precisely-tuned economy, same "flagged as tunable" convention every other catalog price
-     * in this file already follows. No Tier gating -- ingredients aren't on either tier ladder.
+     * in this file already follows. Stock target is the item's own real vanilla max stack size (2026-
+     * 10-10, explicit user request: "the grocer should want to keep an entire stack of stock on
+     * hand") -- 64 for most of these, but genuinely smaller for whatever doesn't stack that high (e.g.
+     * Eggs only stack to 16), read live via {@code ItemStack#getMaxStackSize()} rather than a single
+     * flat number. No Tier gating -- ingredients aren't on either tier ladder.
      */
     private static List<SeedListing> grocerListings() {
         java.util.Set<Identifier> resultIds = new java.util.HashSet<>(FoodTierLadder.allResultIds());
@@ -160,14 +162,14 @@ public final class ShopSeedCatalogs {
 
         List<SeedListing> listings = new ArrayList<>();
         for (Identifier itemId : components) {
-            listings.add(SeedListing.ofResource(ShopResource.ofItem(itemId), grocerPriceFor(itemId), GROCER_STOCK));
+            ItemStack sample = new ItemStack(net.minecraft.core.registries.BuiltInRegistries.ITEM.getValue(itemId));
+            listings.add(SeedListing.ofResource(ShopResource.ofItem(itemId), grocerPriceFor(sample), sample.getMaxStackSize()));
         }
         return listings;
     }
 
-    private static int grocerPriceFor(Identifier itemId) {
-        net.minecraft.world.item.Item item = net.minecraft.core.registries.BuiltInRegistries.ITEM.getValue(itemId);
-        net.minecraft.world.food.FoodProperties food = new ItemStack(item).get(net.minecraft.core.component.DataComponents.FOOD);
+    private static int grocerPriceFor(ItemStack sample) {
+        net.minecraft.world.food.FoodProperties food = sample.get(net.minecraft.core.component.DataComponents.FOOD);
         return food != null ? Math.max(1, food.nutrition()) : 1;
     }
 
