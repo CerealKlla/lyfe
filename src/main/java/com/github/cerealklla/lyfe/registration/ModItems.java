@@ -97,6 +97,16 @@ public final class ModItems {
                     .persistent(Codec.BOOL)
                     .networkSynchronized(ByteBufCodecs.BOOL));
 
+    // The exact (unrounded) icons value baked into a crafted food item (2026-10-10, for
+    // Settlemynts' per-quality Shop listings) -- the FOOD component's nutrition is a lossy
+    // round(icons * 2.0), and the custom name is just display text, so neither is a reliable
+    // source of truth for "is this the exact same quality as that other stack." This is the real
+    // one. See cook.CookingListener#bakeIcons.
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<Double>> CRAFTED_FOOD_ICONS =
+            DATA_COMPONENTS.registerComponentType("crafted_food_icons", builder -> builder
+                    .persistent(Codec.DOUBLE)
+                    .networkSynchronized(ByteBufCodecs.DOUBLE));
+
     public static final DeferredRegister.Items ITEMS = DeferredRegister.createItems(LyfeMod.MODID);
 
     // Lyfe's first real custom Item -- every target/tier is baked into RESEARCH_NOTE_TARGET above,

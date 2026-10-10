@@ -183,6 +183,16 @@ public final class Lyfe {
     }
 
     /**
+     * The exact (unrounded) icons value baked into {@code stack} by {@code
+     * cook.CookingListener#bakeIcons}, or empty if it's not a crafted-food item at all -- for
+     * Settlemynts' per-quality Shop listings (2026-10-10), which need the real value rather than
+     * the lossy rounded nutrition or the display-text approximation.
+     */
+    public static java.util.Optional<Double> getCraftedFoodIcons(net.minecraft.world.item.ItemStack stack) {
+        return java.util.Optional.ofNullable(stack.get(com.github.cerealklla.lyfe.registration.ModItems.CRAFTED_FOOD_ICONS.get()));
+    }
+
+    /**
      * Whether the player has already hit {@code skillId}'s max level -- every "+N XP (Level M)"
      * chat message caller should check this first and skip the message once true, since XP earned
      * past max level still gets added (see {@code PlayerSkills#addXp}, uncapped) but no longer

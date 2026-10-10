@@ -43,6 +43,9 @@ public final class CookingListener {
         String baseName = result.getHoverName().getString();
         result.set(DataComponents.CUSTOM_NAME, Component.literal(
                 "[" + trimmed(icons) + "] (T" + tier + ") - " + baseName));
+        // Exact value, for Settlemynts' per-quality Shop listings (2026-10-10) -- see
+        // ModItems.CRAFTED_FOOD_ICONS's own doc for why nutrition/the display text aren't enough.
+        result.set(com.github.cerealklla.lyfe.registration.ModItems.CRAFTED_FOOD_ICONS.get(), icons);
     }
 
     private static String trimmed(double icons) {
