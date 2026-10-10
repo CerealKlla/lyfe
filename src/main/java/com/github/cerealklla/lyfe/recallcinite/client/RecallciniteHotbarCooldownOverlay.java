@@ -40,8 +40,7 @@ public final class RecallciniteHotbarCooldownOverlay implements GuiLayer {
         }
 
         RecallciniteData data = player.getData(ModAttachments.RECALLCINITE_DATA);
-        long gameTime = player.level().getGameTime();
-        float fraction = data.cooldownFractionRemaining(gameTime);
+        float fraction = data.cooldownFractionRemaining(System.currentTimeMillis());
         if (fraction <= 0.0F) {
             return;
         }

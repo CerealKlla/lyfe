@@ -67,7 +67,7 @@ public final class RecallciniteTotemItem extends Item {
     // finishUsingItem -> performRecall path instead of running the full 10s first.
     @Override
     public int getUseDuration(ItemStack itemStack, LivingEntity user) {
-        if (user.getData(ModAttachments.RECALLCINITE_DATA).onCooldown(user.level().getGameTime())) {
+        if (user.getData(ModAttachments.RECALLCINITE_DATA).onCooldown(System.currentTimeMillis())) {
             return TAP_THRESHOLD_TICKS + 1;
         }
         return USE_DURATION_TICKS;

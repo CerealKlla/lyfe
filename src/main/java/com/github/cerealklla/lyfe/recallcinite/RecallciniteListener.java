@@ -247,7 +247,7 @@ public final class RecallciniteListener {
         // Also skipped while on cooldown -- that session's duration is already shortened (see
         // RecallciniteTotemItem#getUseDuration), so letting the progress bar run here would just be
         // a brief, misleading flash to 100% rather than anything meaningful.
-        if (data.boundLocation().isEmpty() || data.onCooldown(player.level().getGameTime())) {
+        if (data.boundLocation().isEmpty() || data.onCooldown(System.currentTimeMillis())) {
             return;
         }
         float fraction = (float) elapsed / duration;
@@ -354,12 +354,12 @@ public final class RecallciniteListener {
 
     private static void performRecall(ServerPlayer player) {
         RecallciniteData data = player.getData(ModAttachments.RECALLCINITE_DATA);
-        long gameTime = player.level().getGameTime();
+        long nowMillis = System.currentTimeMillis();
         if (data.boundLocation().isEmpty()) {
             player.sendSystemMessage(Component.literal("Totem not yet bound.").withStyle(ChatFormatting.RED), true);
             return;
         }
-        if (data.onCooldown(gameTime)) {
+        if (data.onCooldown(nowMillis)) {
             player.sendSystemMessage(Component.literal("Recallcinite Totem is still recharging.").withStyle(ChatFormatting.RED), true);
             return;
         }
@@ -382,7 +382,7 @@ public final class RecallciniteListener {
         int tier = recallciniteStonePlotTier(targetLevel, pos);
         data.setBoundPlotTier(tier);
         long cooldownTicks = cooldownTicksFor(player, tier);
-        data.setCooldown(gameTime, cooldownTicks);
+        data.setCooldown(nowMillis, cooldownTicks);
 
         // Re-opens bind XP eligibility at the settlement just recalled to (explicit user request --
         // see RecallciniteData#clearBindXpAwarded's own doc). The recall cooldown just set above is

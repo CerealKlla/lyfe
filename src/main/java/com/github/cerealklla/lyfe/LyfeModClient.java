@@ -250,10 +250,10 @@ public class LyfeModClient {
                     .withStyle(net.minecraft.ChatFormatting.AQUA));
         }
 
-        long gameTime = event.getEntity().level().getGameTime();
-        if (data.onCooldown(gameTime)) {
-            long ticksLeft = data.cooldownEndGameTime() - gameTime;
-            long totalSeconds = Math.max(1, ticksLeft / 20);
+        long nowMillis = System.currentTimeMillis();
+        if (data.onCooldown(nowMillis)) {
+            long millisLeft = data.cooldownEndEpochMillis() - nowMillis;
+            long totalSeconds = Math.max(1, millisLeft / 1000);
             long minutes = totalSeconds / 60;
             long seconds = totalSeconds % 60;
             event.getToolTip().add(Component.literal(String.format(java.util.Locale.ROOT, "Recall cooldown: %d:%02d", minutes, seconds))
