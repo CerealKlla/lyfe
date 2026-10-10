@@ -49,10 +49,23 @@ final class TerrainCacheIo {
         return chunks;
     }
 
+    /**
+     * Writes to a sibling temp file, then atomically renames it over {@code file} only once every
+     * byte is safely out -- never opens {@code file} itself for writing. <b>Real bug fixed
+     * 2026-10-10</b> (report: "client side saved Map seems to get deleted, either at end of session
+     * or after server update/new build"): {@code Files.newOutputStream(file)} truncates the target
+     * the instant it opens, before any new content is written -- any interruption partway through
+     * (an exception, a transient file lock, the client process exiting mid-write, which lines up
+     * with both reported triggers) left a previously-good region file truncated to empty rather than
+     * either its old or new content. A rename is a single atomic filesystem operation, so a crash at
+     * any point before it leaves the *old* file completely intact, and after it leaves the *new* one
+     * completely intact -- never a half-written file either way.
+     */
     static void write(Path file, Map<Integer, short[]> chunks) {
+        Path tmp = file.resolveSibling(file.getFileName() + ".tmp");
         try {
             Files.createDirectories(file.getParent());
-            try (DataOutputStream out = new DataOutputStream(Files.newOutputStream(file))) {
+            try (DataOutputStream out = new DataOutputStream(Files.newOutputStream(tmp))) {
                 out.writeInt(MAGIC);
                 out.writeInt(VERSION);
                 out.writeShort(chunks.size());
@@ -65,9 +78,17 @@ final class TerrainCacheIo {
                     }
                 }
             }
+            Files.move(tmp, file, java.nio.file.StandardCopyOption.REPLACE_EXISTING, java.nio.file.StandardCopyOption.ATOMIC_MOVE);
         } catch (IOException e) {
             // Best-effort persistence -- a failed write just means this region's progress is lost on
-            // next load, not a crash; nothing else in this mod depends on it succeeding.
+            // next load, not a crash; nothing else in this mod depends on it succeeding. The real
+            // file itself is never touched until the move succeeds, so a failure here can only ever
+            // lose this attempt's *new* data, never destroy what was already safely on disk.
+            try {
+                Files.deleteIfExists(tmp);
+            } catch (IOException ignored) {
+                // Stray .tmp file left behind -- harmless, overwritten by the next successful write.
+            }
         }
     }
 }
