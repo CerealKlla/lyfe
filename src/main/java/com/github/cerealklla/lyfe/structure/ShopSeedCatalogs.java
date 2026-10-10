@@ -64,13 +64,33 @@ public final class ShopSeedCatalogs {
 
     public static void registerAll() {
         Settlemynts.registerShopSeedCatalog(Identifier.fromNamespaceAndPath("blueprynts", "armorer"),
-                (level, plotAnchor, plotTier) -> armorerListings(cap(plotTier, EquipmentTierLadder.MAX_REACHABLE_TIER)));
+                tieredCatalog(plotTier -> armorerListings(cap(plotTier, EquipmentTierLadder.MAX_REACHABLE_TIER))));
         Settlemynts.registerShopSeedCatalog(Identifier.fromNamespaceAndPath("blueprynts", "blacksmith"),
-                (level, plotAnchor, plotTier) -> blacksmithListings(cap(plotTier, EquipmentTierLadder.MAX_REACHABLE_TIER)));
+                tieredCatalog(plotTier -> blacksmithListings(cap(plotTier, EquipmentTierLadder.MAX_REACHABLE_TIER))));
         Settlemynts.registerShopSeedCatalog(Identifier.fromNamespaceAndPath("blueprynts", "grocer"),
                 (level, plotAnchor, plotTier) -> GROCER_LISTINGS);
         Settlemynts.registerShopSeedCatalog(Identifier.fromNamespaceAndPath("blueprynts", "restaurant"),
-                (level, plotAnchor, plotTier) -> restaurantListings(cap(plotTier, FoodTierLadder.MAX_TIER)));
+                tieredCatalog(plotTier -> restaurantListings(cap(plotTier, FoodTierLadder.MAX_TIER))));
+    }
+
+    /**
+     * Wraps a plot-tier-only listing function as a {@code hasTierProgression() == true} catalog --
+     * 2026-10-10, see {@code ShopSeedCatalog#hasTierProgression}'s own doc. A plain lambda can't
+     * override a default method, so this is a real anonymous class instead for just these three
+     * (genuinely tiered) catalogs.
+     */
+    private static com.github.cerealklla.settlemynts.zone.ShopSeedCatalog tieredCatalog(java.util.function.IntFunction<List<SeedListing>> listingsForTier) {
+        return new com.github.cerealklla.settlemynts.zone.ShopSeedCatalog() {
+            @Override
+            public List<SeedListing> seedListingsFor(net.minecraft.server.level.ServerLevel level, net.minecraft.core.BlockPos plotAnchor, int plotTier) {
+                return listingsForTier.apply(plotTier);
+            }
+
+            @Override
+            public boolean hasTierProgression() {
+                return true;
+            }
+        };
     }
 
     private static int cap(int plotTier, int max) {
