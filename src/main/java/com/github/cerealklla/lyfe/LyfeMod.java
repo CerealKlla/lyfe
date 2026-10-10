@@ -46,6 +46,7 @@ import com.github.cerealklla.lyfe.recallcinite.OpenRecallciniteBindConfirmPayloa
 import com.github.cerealklla.lyfe.recallcinite.RecallciniteChannelProgressPayload;
 import com.github.cerealklla.lyfe.recallcinite.RecallciniteListener;
 import com.github.cerealklla.lyfe.recallcinite.client.ClientRecallciniteState;
+import com.github.cerealklla.lyfe.research.PassiveDurabilityResearchListener;
 import com.github.cerealklla.lyfe.research.ResearchProgressPayload;
 import com.github.cerealklla.lyfe.research.client.ClientResearchBarState;
 import com.github.cerealklla.lyfe.reincarnation.ReincarnationListener;
@@ -115,6 +116,7 @@ public class LyfeMod {
         NeoForge.EVENT_BUS.register(new CombatSkillListener());
         NeoForge.EVENT_BUS.register(new ExcavatorListener());
         NeoForge.EVENT_BUS.register(new ProficiencyDurabilityListener());
+        NeoForge.EVENT_BUS.register(new PassiveDurabilityResearchListener());
         NeoForge.EVENT_BUS.register(new UnbreakableToolListener());
         NeoForge.EVENT_BUS.register(new UnbreakableArmorListener());
         NeoForge.EVENT_BUS.register(new RepairInteractionListener());

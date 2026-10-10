@@ -22,6 +22,19 @@ public final class ResearcherConstants {
     static final long RESEARCH_XP_PER_ATTEMPT = 10L;
 
     /**
+     * Chance, per real durability-damage event on an equipped tool/weapon/armor piece, of a passive
+     * Research Points grant (user request, 2026-10-09) -- see {@code PassiveDurabilityResearchListener}.
+     */
+    static final double DURABILITY_RESEARCH_CHANCE = 0.05;
+
+    /**
+     * Points granted per passive durability-damage proc -- deliberately much smaller than a real
+     * Research Bench attempt's {@link #FLAT_RESEARCH_POINTS_PER_ATTEMPT} (reduced from an initial
+     * 10 to 1, user request 2026-10-09, since this fires far more often and for free).
+     */
+    static final int PASSIVE_DURABILITY_RESEARCH_POINTS = 1;
+
+    /**
      * At 0 Researcher bonus, a tier's item should survive roughly this many consecutive
      * un-saved attempts before breaking (2026-10-02 rebalance, user-specified: "4 consecutive
      * attempts + 1 per item Tier").
