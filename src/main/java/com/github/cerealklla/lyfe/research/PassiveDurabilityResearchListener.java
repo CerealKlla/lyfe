@@ -4,6 +4,7 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.IntFunction;
 
 import com.github.cerealklla.lyfe.craft.EquipmentTierLadder;
+import com.github.cerealklla.lyfe.durability.UnbreakableConstants;
 import com.github.cerealklla.lyfe.registration.ModAttachments;
 
 import net.minecraft.resources.Identifier;
@@ -31,6 +32,14 @@ import net.neoforged.neoforge.network.PacketDistributor;
  * already uses (no event exists around {@code ItemStack#hurtAndBreak} itself, confirmed there against
  * the decompiled source) -- block-breaking, a weapon landing a hit, and armor absorbing a hit --
  * rather than only the extra proficiency-penalty damage that listener separately adds on top.
+ *
+ * <p><b>Real bug fixed, 2026-10-11</b>: a "broken" item (durability clamped at {@code maxDamage - 1}
+ * by Unbreakable Equipment's mixin -- it never truly reaches 0/destroys) kept rolling for research
+ * forever, since the event that would have driven further durability loss still fires even though no
+ * further loss actually happens. Explicit user spec: "the cost of the xp and research is supposed to
+ * be actual durability, so once something is 'broken' it should not gain anything." Every roll site
+ * now checks {@code durability.UnbreakableConstants#isAtZero} first and skips entirely if the
+ * relevant tool/weapon/armor piece is already at that floor.
  */
 public final class PassiveDurabilityResearchListener {
 
@@ -40,6 +49,9 @@ public final class PassiveDurabilityResearchListener {
             return;
         }
         ItemStack tool = player.getMainHandItem();
+        if (UnbreakableConstants.isAtZero(tool)) {
+            return; // Broken -- no further real durability is being spent, so no further research.
+        }
         for (EquipmentTierLadder.ToolType toolType : EquipmentTierLadder.ToolType.values()) {
             int tier = EquipmentTierLadder.tierOfItem(toolType, tool.getItem());
             if (tier >= 0) {
@@ -57,6 +69,9 @@ public final class PassiveDurabilityResearchListener {
             return;
         }
         ItemStack weapon = attacker.getMainHandItem();
+        if (UnbreakableConstants.isAtZero(weapon)) {
+            return;
+        }
         for (EquipmentTierLadder.ToolType toolType : EquipmentTierLadder.ToolType.values()) {
             int tier = EquipmentTierLadder.tierOfItem(toolType, weapon.getItem());
             if (tier >= 0) {
@@ -73,7 +88,7 @@ public final class PassiveDurabilityResearchListener {
         }
         for (ArmorType armorType : EquipmentTierLadder.ARMOR_TYPES) {
             ItemStack piece = player.getItemBySlot(armorType.getSlot());
-            if (piece.isEmpty()) {
+            if (piece.isEmpty() || UnbreakableConstants.isAtZero(piece)) {
                 continue;
             }
             int tier = EquipmentTierLadder.tierOfArmorItem(armorType, piece.getItem());

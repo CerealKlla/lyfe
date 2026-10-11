@@ -4,6 +4,7 @@ import java.util.Map;
 
 import com.github.cerealklla.lyfe.api.Lyfe;
 import com.github.cerealklla.lyfe.craft.EquipmentTierLadder;
+import com.github.cerealklla.lyfe.durability.UnbreakableConstants;
 import com.github.cerealklla.lyfe.skill.SkillId;
 import com.github.cerealklla.lyfe.skill.Skills;
 
@@ -51,6 +52,13 @@ public final class CombatSkillListener {
             return;
         }
         ItemStack weapon = attacker.getMainHandItem();
+        // Real bug fixed 2026-10-11: a broken weapon (durability clamped at maxDamage - 1 by
+        // Unbreakable Equipment, never truly destroyed) kept granting XP forever -- explicit user
+        // spec: the cost of XP is supposed to be actual durability spent, so a broken weapon landing
+        // hits with zero real damage/durability effect shouldn't earn anything either.
+        if (UnbreakableConstants.isAtZero(weapon)) {
+            return;
+        }
         long xp = victim instanceof Player ? XP_PER_HIT : XP_PER_HIT * MOB_DAMAGE_XP_MULTIPLIER;
         for (var entry : WEAPON_SKILL.entrySet()) {
             if (EquipmentTierLadder.tierOfItem(entry.getKey(), weapon.getItem()) >= 0) {
