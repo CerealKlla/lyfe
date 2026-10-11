@@ -2,6 +2,8 @@ package com.github.cerealklla.lyfe.repair;
 
 import com.github.cerealklla.lyfe.craft.EquipmentTierLadder;
 
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
 
 /**
@@ -10,8 +12,10 @@ import net.minecraft.world.item.ItemStack;
  * from Tier 2 up, but diverge at Tiers 0-1 (Wood/Stone for tools vs. Leather/Chainmail for armor,
  * see {@link RepairMaterials}), so {@link RepairCost} needs both, not just the bare tier number.
  *
- * <p>{@link TierInfo#GENERIC} covers every other damageable vanilla item -- a shield, bow, trident,
- * elytra, fishing rod, etc. -- none of which this ladder has any tier concept for at all. Real bug
+ * <p>{@link TierInfo#GENERIC} covers every other damageable vanilla item -- a shield, trident,
+ * elytra, fishing rod, etc. (Bow/Crossbow are NOT generic -- see the ranged-weapon check below;
+ * they have their own real fixed Tier 1/3 via {@code EquipmentTierLadder#rangedWeaponTier}) -- none
+ * of which this ladder has any tier concept for at all. Real bug
  * found live, 2026-10-07 ("I cannot repair shields"): this new Repair GUI fully replaces vanilla's
  * own Anvil/Grindstone menu, so an item outside the ladder entirely would otherwise become
  * permanently unrepairable with no other path at all. {@code null} is reserved for a genuinely
@@ -41,6 +45,15 @@ final class RepairableItem {
             if (tier >= 0) {
                 return new TierInfo(tier, true);
             }
+        }
+        // Bow/Crossbow (added 2026-10-10, closing a gap found while wiring repair-XP: these are
+        // real craftable ranged weapons with their own fixed Tier 1/3, but weren't on either loop
+        // above -- EquipmentTierLadder.rangedWeaponTier is a separate table entirely) -- see that
+        // class's own doc.
+        Identifier itemId = BuiltInRegistries.ITEM.getKey(stack.getItem());
+        int rangedTier = EquipmentTierLadder.rangedWeaponTier(itemId);
+        if (rangedTier >= 0) {
+            return new TierInfo(rangedTier, false);
         }
         return TierInfo.GENERIC;
     }

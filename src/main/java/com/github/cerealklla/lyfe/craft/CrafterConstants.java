@@ -6,6 +6,9 @@ package com.github.cerealklla.lyfe.craft;
  */
 public final class CrafterConstants {
 
+    /** Flat Crafter XP for crafting any item through {@code craft.CraftingStructureMenu} -- no tier/item scaling at all. Also the "would crafting this grant X" baseline {@code repair.RepairFunding} scales its own 0-60% repair-XP reward off (2026-10-10). */
+    public static final int CRAFTER_XP_PER_CRAFT = 20;
+
     static final double COMPONENT_SAVE_CHANCE_MIN = 0.05;
     static final double COMPONENT_SAVE_CHANCE_MAX = 0.30;
     static final int MAX_COMPONENTS_SAVED_PER_CRAFT = 2;

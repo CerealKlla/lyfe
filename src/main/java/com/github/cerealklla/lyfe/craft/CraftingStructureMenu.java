@@ -43,7 +43,6 @@ public class CraftingStructureMenu extends AbstractContainerMenu {
     public static final int UPGRADE_MIX_BUTTON_ID = 1;
     public static final int UPGRADE_GOLD_BUTTON_ID = 2;
     private static final int CRAFT_RECIPE_BUTTON_BASE = 100;
-    private static final int CRAFTER_XP_PER_CRAFT = 20;
 
     // Main-inventory-only crafting (2026-10-03, user request): confirmed via the real decompiled
     // Inventory.java that player.getInventory().getContainerSize() spans the hotbar (0-8) + main
@@ -294,7 +293,7 @@ public class CraftingStructureMenu extends AbstractContainerMenu {
             player.drop(result, false);
         }
 
-        Lyfe.addXp(player, Skills.CRAFTER_ID, CRAFTER_XP_PER_CRAFT);
+        Lyfe.addXp(player, Skills.CRAFTER_ID, CrafterConstants.CRAFTER_XP_PER_CRAFT);
         return true;
     }
 

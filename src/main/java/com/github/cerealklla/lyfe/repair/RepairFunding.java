@@ -3,6 +3,9 @@ package com.github.cerealklla.lyfe.repair;
 import java.util.List;
 import java.util.Optional;
 
+import com.github.cerealklla.lyfe.api.Lyfe;
+import com.github.cerealklla.lyfe.craft.CrafterConstants;
+import com.github.cerealklla.lyfe.skill.Skills;
 import com.github.cerealklla.lyfe.structure.FundingOption;
 import com.github.cerealklla.lyfe.structure.MarketPurchasing;
 import com.github.cerealklla.lyfe.structure.SettlemyntsStructureBridge;
@@ -64,6 +67,7 @@ public final class RepairFunding {
                 return Result.fail("Missing " + shortfall + " more " + cost.label() + ".");
             }
             RepairInventoryTransfer.drain(player, cost, quantity);
+            grantRepairXp(player, stack);
             stack.setDamageValue(0);
             return Result.ok();
         }
@@ -97,7 +101,32 @@ public final class RepairFunding {
             SettlemyntsStructureBridge.purchase(level, purchase.sellerPlotId(), purchase.entry(), purchase.quantity(), sellerBoxes);
             SettlemyntsStructureBridge.withdrawNuggets(player, totalCharge);
         }
+        grantRepairXp(player, stack);
         stack.setDamageValue(0);
         return Result.ok();
+    }
+
+    /**
+     * "Repairing something should reward you with Crafter XP, up to 0-60% (based on how damaged it
+     * was) of whatever crafting the base item would grant" -- explicit user spec, 2026-10-10. Must
+     * be called *before* {@code stack.setDamageValue(0)} (both call sites above) -- reads the still-
+     * damaged stack to get how damaged it actually was. Crafter XP-per-craft is a flat amount
+     * regardless of item/tier ({@link CrafterConstants#CRAFTER_XP_PER_CRAFT}, see {@code
+     * craft.CraftingStructureMenu}'s own use of it), so "what crafting this would grant" is always
+     * that same baseline for anything actually on the crafting ladder. An off-ladder item ({@link
+     * RepairableItem.TierInfo#GENERIC} -- a shield, trident, elytra, fishing rod) was never
+     * craftable through this system at all, so there's no crafting-XP baseline to scale a reward
+     * off -- grants nothing for those, not a guessed flat amount.
+     */
+    private static void grantRepairXp(ServerPlayer player, ItemStack stack) {
+        RepairableItem.TierInfo tierInfo = RepairableItem.of(stack);
+        if (tierInfo == null || tierInfo.tier() < 0) {
+            return;
+        }
+        double missingFraction = stack.getDamageValue() / (double) stack.getMaxDamage();
+        long reward = Math.round(CrafterConstants.CRAFTER_XP_PER_CRAFT * missingFraction * 0.60);
+        if (reward > 0) {
+            Lyfe.addXp(player, Skills.CRAFTER_ID, reward);
+        }
     }
 }
