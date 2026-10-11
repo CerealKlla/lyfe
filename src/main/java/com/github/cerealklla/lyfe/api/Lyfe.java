@@ -264,4 +264,18 @@ public final class Lyfe {
                 .map(entry -> entry.locationFactors().size())
                 .orElse(0);
     }
+
+    /**
+     * The actual {@link KnowledgeFactor} set the player has for {@code placeId} (empty set if no
+     * entry at all) -- added 2026-10-11 for Myssions' road-connection quest, which needs to copy a
+     * specific OTHER player's (the posting Mayor's) real knowledge of the destination settlement
+     * onto whoever accepts the quest, not just a count. Only works while that other player is
+     * online (a real, accepted simplification -- no offline-attachment-read path exists yet); the
+     * caller falls back to a flat grant when they aren't.
+     */
+    public static Set<KnowledgeFactor> getKnownFactors(ServerPlayer player, long placeId) {
+        return player.getData(ModAttachments.PLAYER_KNOWLEDGE).get(placeId)
+                .map(entry -> (Set<KnowledgeFactor>) java.util.EnumSet.copyOf(entry.locationFactors()))
+                .orElse(java.util.EnumSet.noneOf(KnowledgeFactor.class));
+    }
 }
