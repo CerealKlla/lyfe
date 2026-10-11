@@ -1,6 +1,446 @@
 {
   "model": {
-    "type": "minecraft:model",
-    "model": "lyfe:item/research_notes"
+    "type": "minecraft:select",
+    "property": "minecraft:custom_model_data",
+    "cases": [
+      {
+        "when": "wooden_sword",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/research_note_wooden_sword"
+        }
+      },
+      {
+        "when": "wooden_pickaxe",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/research_note_wooden_pickaxe"
+        }
+      },
+      {
+        "when": "wooden_axe",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/research_note_wooden_axe"
+        }
+      },
+      {
+        "when": "wooden_shovel",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/research_note_wooden_shovel"
+        }
+      },
+      {
+        "when": "wooden_hoe",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/research_note_wooden_hoe"
+        }
+      },
+      {
+        "when": "wooden_spear",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/research_note_wooden_spear"
+        }
+      },
+      {
+        "when": "stone_sword",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/research_note_stone_sword"
+        }
+      },
+      {
+        "when": "stone_pickaxe",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/research_note_stone_pickaxe"
+        }
+      },
+      {
+        "when": "stone_axe",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/research_note_stone_axe"
+        }
+      },
+      {
+        "when": "stone_shovel",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/research_note_stone_shovel"
+        }
+      },
+      {
+        "when": "stone_hoe",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/research_note_stone_hoe"
+        }
+      },
+      {
+        "when": "stone_spear",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/research_note_stone_spear"
+        }
+      },
+      {
+        "when": "copper_sword",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/research_note_copper_sword"
+        }
+      },
+      {
+        "when": "copper_pickaxe",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/research_note_copper_pickaxe"
+        }
+      },
+      {
+        "when": "copper_axe",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/research_note_copper_axe"
+        }
+      },
+      {
+        "when": "copper_shovel",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/research_note_copper_shovel"
+        }
+      },
+      {
+        "when": "copper_hoe",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/research_note_copper_hoe"
+        }
+      },
+      {
+        "when": "copper_spear",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/research_note_copper_spear"
+        }
+      },
+      {
+        "when": "iron_sword",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/research_note_iron_sword"
+        }
+      },
+      {
+        "when": "iron_pickaxe",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/research_note_iron_pickaxe"
+        }
+      },
+      {
+        "when": "iron_axe",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/research_note_iron_axe"
+        }
+      },
+      {
+        "when": "iron_shovel",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/research_note_iron_shovel"
+        }
+      },
+      {
+        "when": "iron_hoe",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/research_note_iron_hoe"
+        }
+      },
+      {
+        "when": "iron_spear",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/research_note_iron_spear"
+        }
+      },
+      {
+        "when": "golden_sword",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/research_note_golden_sword"
+        }
+      },
+      {
+        "when": "golden_pickaxe",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/research_note_golden_pickaxe"
+        }
+      },
+      {
+        "when": "golden_axe",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/research_note_golden_axe"
+        }
+      },
+      {
+        "when": "golden_shovel",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/research_note_golden_shovel"
+        }
+      },
+      {
+        "when": "golden_hoe",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/research_note_golden_hoe"
+        }
+      },
+      {
+        "when": "golden_spear",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/research_note_golden_spear"
+        }
+      },
+      {
+        "when": "diamond_sword",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/research_note_diamond_sword"
+        }
+      },
+      {
+        "when": "diamond_pickaxe",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/research_note_diamond_pickaxe"
+        }
+      },
+      {
+        "when": "diamond_axe",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/research_note_diamond_axe"
+        }
+      },
+      {
+        "when": "diamond_shovel",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/research_note_diamond_shovel"
+        }
+      },
+      {
+        "when": "diamond_hoe",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/research_note_diamond_hoe"
+        }
+      },
+      {
+        "when": "diamond_spear",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/research_note_diamond_spear"
+        }
+      },
+      {
+        "when": "leather_helmet",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/research_note_leather_helmet"
+        }
+      },
+      {
+        "when": "leather_chestplate",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/research_note_leather_chestplate"
+        }
+      },
+      {
+        "when": "leather_leggings",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/research_note_leather_leggings"
+        }
+      },
+      {
+        "when": "leather_boots",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/research_note_leather_boots"
+        }
+      },
+      {
+        "when": "chainmail_helmet",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/research_note_chainmail_helmet"
+        }
+      },
+      {
+        "when": "chainmail_chestplate",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/research_note_chainmail_chestplate"
+        }
+      },
+      {
+        "when": "chainmail_leggings",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/research_note_chainmail_leggings"
+        }
+      },
+      {
+        "when": "chainmail_boots",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/research_note_chainmail_boots"
+        }
+      },
+      {
+        "when": "copper_helmet",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/research_note_copper_helmet"
+        }
+      },
+      {
+        "when": "copper_chestplate",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/research_note_copper_chestplate"
+        }
+      },
+      {
+        "when": "copper_leggings",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/research_note_copper_leggings"
+        }
+      },
+      {
+        "when": "copper_boots",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/research_note_copper_boots"
+        }
+      },
+      {
+        "when": "iron_helmet",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/research_note_iron_helmet"
+        }
+      },
+      {
+        "when": "iron_chestplate",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/research_note_iron_chestplate"
+        }
+      },
+      {
+        "when": "iron_leggings",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/research_note_iron_leggings"
+        }
+      },
+      {
+        "when": "iron_boots",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/research_note_iron_boots"
+        }
+      },
+      {
+        "when": "golden_helmet",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/research_note_golden_helmet"
+        }
+      },
+      {
+        "when": "golden_chestplate",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/research_note_golden_chestplate"
+        }
+      },
+      {
+        "when": "golden_leggings",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/research_note_golden_leggings"
+        }
+      },
+      {
+        "when": "golden_boots",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/research_note_golden_boots"
+        }
+      },
+      {
+        "when": "diamond_helmet",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/research_note_diamond_helmet"
+        }
+      },
+      {
+        "when": "diamond_chestplate",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/research_note_diamond_chestplate"
+        }
+      },
+      {
+        "when": "diamond_leggings",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/research_note_diamond_leggings"
+        }
+      },
+      {
+        "when": "diamond_boots",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/research_note_diamond_boots"
+        }
+      },
+      {
+        "when": "bow",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/research_note_bow"
+        }
+      },
+      {
+        "when": "crossbow",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/research_note_crossbow"
+        }
+      }
+    ],
+    "fallback": {
+      "type": "minecraft:model",
+      "model": "lyfe:item/research_notes"
+    }
   }
 }

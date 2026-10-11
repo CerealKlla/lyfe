@@ -12,7 +12,9 @@ import com.github.cerealklla.lyfe.registration.ModItems;
 import com.github.cerealklla.lyfe.research.ResearchNoteConstants;
 import com.github.cerealklla.lyfe.research.ResearchNoteTarget;
 
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.item.component.CustomModelData;
 import net.minecraft.util.context.ContextKeySet;
 import net.minecraft.world.level.storage.loot.LootPool;
 import net.minecraft.world.level.storage.loot.LootTable;
@@ -119,7 +121,9 @@ public final class ResearchNoteLootInjector {
                 builder.add(LootItem.lootTableItem(ModItems.RESEARCH_NOTES.get())
                         .setWeight(ResearchNoteConstants.TIER_WEIGHTS[tier - 1])
                         .apply(SetComponentsFunction.setComponent(
-                                ModItems.RESEARCH_NOTE_TARGET.get(), new ResearchNoteTarget(resultId, tier))));
+                                ModItems.RESEARCH_NOTE_TARGET.get(), new ResearchNoteTarget(resultId, tier)))
+                        .apply(SetComponentsFunction.setComponent(
+                                DataComponents.CUSTOM_MODEL_DATA, researchNoteIconFor(resultId))));
             }
         }
         // Armor (added 2026-10-04) -- same loop, same tier bounds, no ToolType at all.
@@ -129,9 +133,23 @@ public final class ResearchNoteLootInjector {
                 builder.add(LootItem.lootTableItem(ModItems.RESEARCH_NOTES.get())
                         .setWeight(ResearchNoteConstants.TIER_WEIGHTS[tier - 1])
                         .apply(SetComponentsFunction.setComponent(
-                                ModItems.RESEARCH_NOTE_TARGET.get(), new ResearchNoteTarget(resultId, tier))));
+                                ModItems.RESEARCH_NOTE_TARGET.get(), new ResearchNoteTarget(resultId, tier)))
+                        .apply(SetComponentsFunction.setComponent(
+                                DataComponents.CUSTOM_MODEL_DATA, researchNoteIconFor(resultId))));
             }
         }
         return builder.build();
+    }
+
+    /**
+     * Same {@link CustomModelData} stamp {@code research.ResearchNoteItem#createFor} applies --
+     * duplicated here (not called through it) because this class builds loot-table entries directly
+     * via {@link SetComponentsFunction} rather than ever constructing a real {@code ItemStack}.
+     * {@code assets/lyfe/items/research_notes.json}'s {@code minecraft:select} model matches on this
+     * same string (the target's vanilla item path, e.g. {@code "iron_sword"}) to pick that item's
+     * dedicated Research Note icon.
+     */
+    private static CustomModelData researchNoteIconFor(Identifier resultId) {
+        return new CustomModelData(List.of(), List.of(), List.of(resultId.getPath()), List.of());
     }
 }
