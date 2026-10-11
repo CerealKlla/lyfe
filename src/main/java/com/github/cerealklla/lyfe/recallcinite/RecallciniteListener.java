@@ -28,6 +28,7 @@ import net.minecraft.world.item.ItemStack;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.ModList;
 import net.neoforged.neoforge.event.entity.item.ItemTossEvent;
+import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerRespawnPositionEvent;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
@@ -84,6 +85,18 @@ public final class RecallciniteListener {
     // inside one.
     private static final Map<UUID, Boolean> wasInsidePlot = new ConcurrentHashMap<>();
 
+    // Cross-death handoff for the totem itself -- death replaces the Player with a brand-new entity
+    // instance, so "don't drop it" alone doesn't carry it to the next life; stashed here in
+    // onLivingDeath, consumed in onPlayerClone. Same proven pattern as reincarnation
+    // .ReincarnationListener's own pendingRestore -- this mod's first LivingDeathEvent/PlayerEvent
+    // .Clone pair wasn't it, but the totem was never actually wired into that system (its own
+    // slot-protection is type-filtered to weapon/tool/torch/food, and the Totem is none of those),
+    // so it was simply dropped (and likely lost) on every death -- real report, 2026-10-11: "I died
+    // and when I respawned i no longer had my recallcinite totem." Deliberately unconditional
+    // (not gated behind any Reincarnation level) -- the totem is meant to be a permanent, always-
+    // undroppable fixture, same as the manual-toss prevention below already treats it.
+    private final Map<UUID, ItemStack> pendingTotemRestore = new ConcurrentHashMap<>();
+
     // --- Grant / drop prevention / hotbar pinning -------------------------------------------------
 
     @SubscribeEvent
@@ -92,6 +105,39 @@ public final class RecallciniteListener {
             return;
         }
         grantTotemIfMissing(player);
+    }
+
+    /** Pulls the totem out of the dying player's inventory before vanilla's own death-drop logic runs (same timing guarantee {@code reincarnation.ReincarnationListener#onLivingDeath} relies on) -- {@code keepInventory} already keeps it, nothing to do there. */
+    @SubscribeEvent
+    public void onLivingDeath(LivingDeathEvent event) {
+        if (!(event.getEntity() instanceof ServerPlayer player)) {
+            return;
+        }
+        if (player.level().getGameRules().get(net.minecraft.world.level.gamerules.GameRules.KEEP_INVENTORY)) {
+            return;
+        }
+        var inventory = player.getInventory();
+        for (int i = 0; i < inventory.getContainerSize(); i++) {
+            if (inventory.getItem(i).getItem() instanceof RecallciniteTotemItem) {
+                pendingTotemRestore.put(player.getUUID(), inventory.getItem(i).copy());
+                inventory.setItem(i, ItemStack.EMPTY);
+                return;
+            }
+        }
+    }
+
+    /** Restores the totem saved in {@link #onLivingDeath} onto the new player instance -- falls back to {@link #grantTotemIfMissing} if nothing was saved (e.g. the player somehow had no totem at all going into death), so a respawn can never leave a player without one. */
+    @SubscribeEvent
+    public void onPlayerClone(PlayerEvent.Clone event) {
+        if (!event.isWasDeath() || !(event.getEntity() instanceof ServerPlayer newPlayer)) {
+            return;
+        }
+        ItemStack saved = pendingTotemRestore.remove(event.getOriginal().getUUID());
+        if (saved != null) {
+            newPlayer.getInventory().setItem(PINNED_SLOT, saved);
+        } else {
+            grantTotemIfMissing(newPlayer);
+        }
     }
 
     private void grantTotemIfMissing(ServerPlayer player) {

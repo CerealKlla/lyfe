@@ -59,7 +59,8 @@ public final class FishingConstants {
     public static final double LOCKED_CHEST_BASE_CHANCE = 0.01;
     public static final double LOCKED_CHEST_SHIPWRECK_CHANCE = 0.10;
     public static final int SHIPWRECK_SEARCH_RADIUS = 32;
-    public static final double KEY_UNLOCK_CHANCE = 0.50;
+    /** 70% unlock / 30% break on a Key attempt -- lowered from a 50/50 break chance, explicit user request 2026-10-11. */
+    public static final double KEY_UNLOCK_CHANCE = 0.70;
     public static final int LOCKED_CHEST_MIN_GOLD_NUGGETS = 500;
     public static final int LOCKED_CHEST_MAX_GOLD_NUGGETS = 1000;
     public static final int LOCKED_CHEST_NOTE_STACKS = 6;
