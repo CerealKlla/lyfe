@@ -6,6 +6,7 @@ import java.util.Optional;
 
 import com.github.cerealklla.lyfe.api.Lyfe;
 import com.github.cerealklla.lyfe.expeditionist.ExpeditionistConstants;
+import com.github.cerealklla.lyfe.map.ClientQuestWaypointState;
 import com.github.cerealklla.lyfe.map.ClientWaypointState;
 import com.github.cerealklla.lyfe.skill.Skills;
 
@@ -94,6 +95,10 @@ public final class MinimapOverlay implements GuiLayer {
     private static final int WAYPOINT_ARROW_COLOR = 0xFF5588FF;
     private static final int WAYPOINT_ARROW_HALF_WIDTH = (int) Math.round(NORTH_ARROW_HALF_WIDTH * 0.9);
     private static final int WAYPOINT_ARROW_HEIGHT = (int) Math.round(NORTH_ARROW_HEIGHT * 0.9);
+
+    // Quest waypoint arrow (2026-10-10, Myssions' design doc item 2) -- same sizing as the manual
+    // waypoint arrow above, own color so the two are distinguishable when both are active at once.
+    private static final int QUEST_WAYPOINT_ARROW_COLOR = 0xFFFF8800;
 
     private int ticksSinceLastSample = RESAMPLE_INTERVAL_TICKS;
 
@@ -202,6 +207,15 @@ public final class MinimapOverlay implements GuiLayer {
             double dz = waypoint.getZ() + 0.5 - player.getZ();
             float bearingRadians = (float) Math.atan2(dx, -dz);
             drawBearingArrow(guiGraphics, cx, cz, radius, bearingRadians, WAYPOINT_ARROW_HALF_WIDTH, WAYPOINT_ARROW_HEIGHT, WAYPOINT_ARROW_COLOR);
+        }
+        // Quest waypoint arrow -- same shape as the manual one above, separate state/color so both
+        // can be active and distinguishable at once.
+        if (ClientQuestWaypointState.isSet() && ClientQuestWaypointState.dimension().equals(Optional.of(level.dimension()))) {
+            BlockPos waypoint = ClientQuestWaypointState.pos().orElseThrow();
+            double dx = waypoint.getX() + 0.5 - player.getX();
+            double dz = waypoint.getZ() + 0.5 - player.getZ();
+            float bearingRadians = (float) Math.atan2(dx, -dz);
+            drawBearingArrow(guiGraphics, cx, cz, radius, bearingRadians, WAYPOINT_ARROW_HALF_WIDTH, WAYPOINT_ARROW_HEIGHT, QUEST_WAYPOINT_ARROW_COLOR);
         }
         if (autoRotate) {
             guiGraphics.pose().popMatrix();

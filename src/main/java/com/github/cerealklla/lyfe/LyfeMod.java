@@ -25,8 +25,10 @@ import com.github.cerealklla.lyfe.location.ClientLocationState;
 import com.github.cerealklla.lyfe.location.LocationPayload;
 import com.github.cerealklla.lyfe.location.LocationTracker;
 import com.github.cerealklla.lyfe.map.ClientMapState;
+import com.github.cerealklla.lyfe.map.ClientQuestWaypointState;
 import com.github.cerealklla.lyfe.map.MapDataListener;
 import com.github.cerealklla.lyfe.map.MapSettlementsPayload;
+import com.github.cerealklla.lyfe.map.QuestWaypointPayload;
 import com.github.cerealklla.lyfe.map.RequestMapDataPayload;
 import com.github.cerealklla.lyfe.minimap.ClientMinimapState;
 import com.github.cerealklla.lyfe.minimap.MinimapEntitiesPayload;
@@ -237,6 +239,19 @@ public class LyfeMod {
                 });
         event.registrar("1").playToClient(MapSettlementsPayload.TYPE, MapSettlementsPayload.STREAM_CODEC,
                 (payload, context) -> ClientMapState.setSettlements(payload.settlements()));
+
+        // Quest-origin waypoint (2026-10-10, for Myssions' own design doc item 2) -- see
+        // map.ClientQuestWaypointState's own doc.
+        event.registrar("1").playToClient(QuestWaypointPayload.TYPE, QuestWaypointPayload.STREAM_CODEC,
+                (payload, context) -> {
+                    if (payload.pos().isPresent()) {
+                        net.minecraft.resources.ResourceKey<net.minecraft.world.level.Level> dimension =
+                                net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.DIMENSION, payload.dimensionId());
+                        ClientQuestWaypointState.set(payload.pos().get(), dimension, payload.radiusBlocks());
+                    } else {
+                        ClientQuestWaypointState.clear();
+                    }
+                });
 
         // Recallcinite Totem (2026-10-09) -- open the bind-confirmation screen, server-to-client,
         // sent directly from a server-side interaction (same shape as OpenWritingScreenPayload's map

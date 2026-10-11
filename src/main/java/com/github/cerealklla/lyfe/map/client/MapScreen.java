@@ -12,6 +12,7 @@ import com.github.cerealklla.lyfe.LyfeModClient;
 import com.github.cerealklla.lyfe.api.Lyfe;
 import com.github.cerealklla.lyfe.expeditionist.ExpeditionistConstants;
 import com.github.cerealklla.lyfe.map.ClientMapState;
+import com.github.cerealklla.lyfe.map.ClientQuestWaypointState;
 import com.github.cerealklla.lyfe.map.ClientWaypointState;
 import com.github.cerealklla.lyfe.map.MapSettlementsPayload;
 import com.github.cerealklla.lyfe.map.MapZoom;
@@ -68,6 +69,10 @@ public final class MapScreen extends Screen {
     private static final int SETTLEMENT_HOVER_RADIUS = 5;
     private static final int WAYPOINT_DOT_COLOR = 0xFF5588FF;
     private static final int WAYPOINT_DOT_RADIUS = 3;
+    // Quest waypoint vague-circle (2026-10-10, Myssions' design doc item 2) -- a translucent fill,
+    // not a dot, since the whole point is "somewhere in this area," not a precise point.
+    private static final int QUEST_WAYPOINT_CIRCLE_COLOR = 0x40FF8800;
+    private static final int QUEST_WAYPOINT_CIRCLE_BORDER_COLOR = 0xFFFF8800;
     private static final int WAYPOINT_CLICK_TOLERANCE = 8;
 
     private static final int MOVE_RESAMPLE_THRESHOLD_BLOCKS = 8;
@@ -408,6 +413,33 @@ public final class MapScreen extends Screen {
                 if (x >= left && x <= left + w && y >= top && y <= top + h) {
                     graphics.fill(x - WAYPOINT_DOT_RADIUS, y - WAYPOINT_DOT_RADIUS,
                             x + WAYPOINT_DOT_RADIUS, y + WAYPOINT_DOT_RADIUS, WAYPOINT_DOT_COLOR);
+                }
+            }
+
+            // Quest waypoint -- a translucent vague-circle, not a dot, scaled by the issuing mod's
+            // own radiusBlocks (see api.Lyfe#setQuestWaypoint). Per-row fill, same sqrt-based
+            // circle technique minimap.MinimapOverlay#circleHalfWidthAt already uses, clipped to the
+            // map's own viewport via scissor so a circle near the edge doesn't paint outside it.
+            if (ClientQuestWaypointState.isSet() && ClientQuestWaypointState.dimension().equals(Optional.of(level.dimension()))) {
+                BlockPos waypoint = ClientQuestWaypointState.pos().orElseThrow();
+                int cxScreen = centerScreenX + (int) Math.round((waypoint.getX() - playerX) * ppbX);
+                int czScreen = centerScreenY + (int) Math.round((waypoint.getZ() - playerZ) * ppbY);
+                int screenRadiusX = (int) Math.round(ClientQuestWaypointState.radiusBlocks() * ppbX);
+                int screenRadiusY = (int) Math.round(ClientQuestWaypointState.radiusBlocks() * ppbY);
+                if (screenRadiusX > 0 && screenRadiusY > 0
+                        && cxScreen + screenRadiusX >= left && cxScreen - screenRadiusX <= left + w
+                        && czScreen + screenRadiusY >= top && czScreen - screenRadiusY <= top + h) {
+                    graphics.enableScissor(left, top, left + w, top + h);
+                    for (int row = -screenRadiusY; row <= screenRadiusY; row++) {
+                        double frac = 1.0 - (row * (double) row) / (double) (screenRadiusY * screenRadiusY);
+                        if (frac <= 0) {
+                            continue;
+                        }
+                        int halfWidth = (int) Math.round(screenRadiusX * Math.sqrt(frac));
+                        graphics.fill(cxScreen - halfWidth, czScreen + row, cxScreen + halfWidth, czScreen + row + 1, QUEST_WAYPOINT_CIRCLE_COLOR);
+                    }
+                    graphics.disableScissor();
+                    graphics.fill(cxScreen - 2, czScreen - 2, cxScreen + 2, czScreen + 2, QUEST_WAYPOINT_CIRCLE_BORDER_COLOR);
                 }
             }
         }

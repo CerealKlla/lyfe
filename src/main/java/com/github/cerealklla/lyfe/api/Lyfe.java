@@ -2,11 +2,14 @@ package com.github.cerealklla.lyfe.api;
 
 import java.util.Collection;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import com.mojang.authlib.GameProfile;
 
 import com.github.cerealklla.lyfe.LyfeMod;
+import com.github.cerealklla.lyfe.knowledge.KnowledgeFactor;
+import com.github.cerealklla.lyfe.map.QuestWaypointPayload;
 import com.github.cerealklla.lyfe.merchant.MerchantListener;
 import com.github.cerealklla.lyfe.registration.ModAttachments;
 import com.github.cerealklla.lyfe.registration.ModMobEffects;
@@ -224,5 +227,41 @@ public final class Lyfe {
      */
     public static java.util.List<Identifier> componentGroupMembers(String groupName) {
         return com.github.cerealklla.lyfe.craft.ComponentGroups.membersOf(groupName);
+    }
+
+    /**
+     * Sets the player's quest-origin waypoint (added 2026-10-10 for Myssions' design doc item 2) --
+     * shows as an arrow on the minimap and a vague circle on the full Map screen (see {@code
+     * map.ClientQuestWaypointState}'s own doc). {@code radiusBlocks} is the vagueness circle's own
+     * size, entirely the caller's responsibility to compute (e.g. from {@link #getKnownFactorCount}).
+     * Always private to the one targeted player.
+     */
+    public static void setQuestWaypoint(ServerPlayer player, net.minecraft.resources.ResourceKey<net.minecraft.world.level.Level> dimension,
+                                         net.minecraft.core.BlockPos pos, double radiusBlocks) {
+        PacketDistributor.sendToPlayer(player, new QuestWaypointPayload(Optional.of(pos), dimension.identifier(), radiusBlocks));
+    }
+
+    public static void clearQuestWaypoint(ServerPlayer player) {
+        PacketDistributor.sendToPlayer(player, new QuestWaypointPayload(Optional.empty(),
+                Identifier.fromNamespaceAndPath("minecraft", "overworld"), 0));
+    }
+
+    /**
+     * Directly grants {@code factors} toward the player's {@code knowledge.PlayerKnowledge} of
+     * {@code placeId} -- added 2026-10-10 alongside the quest waypoint system, for a quest to be
+     * able to simulate "someone described the place to you" (DIRECTION/DISTANCE) without the player
+     * needing to have physically visited anywhere yet. {@code placeId} doesn't need to correspond to
+     * a real Cartographyr entity -- {@code PlayerKnowledge} is just keyed by a stable long, nothing
+     * validates it against Cartographyr's own registry.
+     */
+    public static void grantKnowledgeFactors(ServerPlayer player, long placeId, Set<KnowledgeFactor> factors) {
+        player.getData(ModAttachments.PLAYER_KNOWLEDGE).learnLocationFactors(placeId, factors);
+    }
+
+    /** How many of the 3 {@link KnowledgeFactor}s the player has for {@code placeId} (0 if no entry at all). */
+    public static int getKnownFactorCount(ServerPlayer player, long placeId) {
+        return player.getData(ModAttachments.PLAYER_KNOWLEDGE).get(placeId)
+                .map(entry -> entry.locationFactors().size())
+                .orElse(0);
     }
 }
