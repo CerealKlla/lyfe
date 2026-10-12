@@ -278,4 +278,44 @@ public final class Lyfe {
                 .map(entry -> (Set<KnowledgeFactor>) java.util.EnumSet.copyOf(entry.locationFactors()))
                 .orElse(java.util.EnumSet.noneOf(KnowledgeFactor.class));
     }
+
+    /**
+     * Grants {@code factors} toward {@code placeId} (same union-merge {@link #grantKnowledgeFactors}
+     * already does) plus records *where this hint came from* -- added 2026-10-12, the real missing
+     * half a caller needs for {@link #resolveLocationText} to be able to say "to the northeast, 2
+     * days' journey from Bramton" instead of a bare, unanchored "somewhere." {@code referencePos}
+     * is wherever the hint was given from (e.g. the issuing NPC's plot), not the target itself.
+     * {@code grantsName} separately marks the place's real name as known, independent of direction/
+     * distance (an NPC might say "there's trouble near Bramton" -- naming the place with no bearing
+     * at all, or vice versa).
+     */
+    public static void grantPartialLocationKnowledge(ServerPlayer player, long placeId,
+                                                       net.minecraft.core.BlockPos referencePos, String referenceDimensionId, String referenceDisplayName,
+                                                       boolean grantsName, boolean grantsDirection, boolean grantsDistance) {
+        var pk = player.getData(ModAttachments.PLAYER_KNOWLEDGE);
+        java.util.Set<KnowledgeFactor> factors = java.util.EnumSet.noneOf(KnowledgeFactor.class);
+        if (grantsDirection) {
+            factors.add(KnowledgeFactor.DIRECTION);
+        }
+        if (grantsDistance) {
+            factors.add(KnowledgeFactor.DISTANCE);
+        }
+        pk.learnLocationFactorsWithReference(placeId, factors, referencePos, referenceDimensionId, referenceDisplayName);
+        if (grantsName) {
+            pk.markNamed(placeId);
+        }
+    }
+
+    /**
+     * The single, canonical "what should this player see for {@code placeId} right now" text --
+     * added 2026-10-12 to replace equivalent logic that used to live duplicated in Myssions (its own
+     * {@code QuestWaypointTicker} re-implementing the same "is this upgraded yet" decision {@code
+     * api.Lyfe} already had the real inputs for). {@code realName}/{@code targetPos} are the
+     * caller's own already-known facts about the place itself (not persisted here -- only *how much
+     * of them to reveal* is this mod's call). See {@code knowledge.PlayerKnowledge#resolveDisplayText}
+     * for the actual phrasing algorithm.
+     */
+    public static String resolveLocationText(ServerPlayer player, long placeId, String realName, net.minecraft.core.BlockPos targetPos) {
+        return player.getData(ModAttachments.PLAYER_KNOWLEDGE).resolveDisplayText(placeId, realName, targetPos);
+    }
 }

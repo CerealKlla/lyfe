@@ -110,6 +110,61 @@ public final class PlayerKnowledge {
         return changed;
     }
 
+    /**
+     * Same union-merge as {@link #learnLocationFactors}, plus records "where was this hint granted
+     * from" -- the reference point {@link #resolveDisplayText} needs to actually phrase a compass
+     * direction/distance. Overwrites any previous reference bundle for this place (latest grant
+     * wins -- see {@link KnowledgeEntry}'s own doc for why this isn't a history list). Always
+     * returns true (the reference itself always counts as new information, even if every factor in
+     * {@code factors} was already known) so a caller never skips a sync/log step it would have done
+     * for a plain factor grant.
+     */
+    public boolean learnLocationFactorsWithReference(long placeId, Set<KnowledgeFactor> factors,
+                                                       net.minecraft.core.BlockPos referencePos, String referenceDimensionId, String referenceDisplayName) {
+        KnowledgeEntry current = entries.getOrDefault(placeId, KnowledgeEntry.EMPTY);
+        Set<KnowledgeFactor> merged = new HashSet<>(current.locationFactors());
+        merged.addAll(factors);
+        entries.put(placeId, current.withLocationFactors(Set.copyOf(merged)).withReference(referencePos, referenceDimensionId, referenceDisplayName));
+        return true;
+    }
+
+    /**
+     * Builds the actual display text for {@code placeId} given this player's current knowledge --
+     * the single, canonical "how much is known, and how should that look as a sentence" decision,
+     * added 2026-10-12 to replace equivalent logic that used to live duplicated/scattered across
+     * Myssions (see its own CLAUDE.md's "Lyfe owns location-knowledge text" cleanup). Mirrors
+     * {@code location.LocationTracker}'s own "is this fully known" bar -- {@link
+     * KnowledgeEntry#visited()} or all 3 {@link KnowledgeFactor}s known means the real name is shown
+     * outright, no hedging. Below that: {@code realName} itself only appears if {@link
+     * KnowledgeEntry#named()}, otherwise "somewhere"; direction/distance clauses are appended only
+     * for the factors actually known, and only if a reference point was ever granted (if not,
+     * there's nothing to measure direction/distance *from*, so those clauses are silently dropped
+     * rather than showing something nonsensical).
+     */
+    public String resolveDisplayText(long placeId, String realName, net.minecraft.core.BlockPos targetPos) {
+        KnowledgeEntry entry = entries.getOrDefault(placeId, KnowledgeEntry.EMPTY);
+        if (entry.visited() || entry.locationFactors().size() >= EnumSet.allOf(KnowledgeFactor.class).size()) {
+            return realName;
+        }
+        String base = entry.named() ? realName : "somewhere";
+        if (entry.referencePos().isEmpty() || entry.referenceDisplayName().isEmpty()) {
+            return base;
+        }
+        java.util.List<String> clauses = new java.util.ArrayList<>();
+        if (entry.locationFactors().contains(KnowledgeFactor.DIRECTION)) {
+            clauses.add(CompassText.wordFor(entry.referencePos().get(), targetPos));
+        }
+        if (entry.locationFactors().contains(KnowledgeFactor.DISTANCE)) {
+            double dx = targetPos.getX() - entry.referencePos().get().getX();
+            double dz = targetPos.getZ() - entry.referencePos().get().getZ();
+            clauses.add(JourneyText.describe(Math.sqrt(dx * dx + dz * dz)));
+        }
+        if (clauses.isEmpty()) {
+            return base;
+        }
+        return base + " " + String.join(" and ", clauses) + " from " + entry.referenceDisplayName().get();
+    }
+
     public boolean markNamed(long placeId) {
         KnowledgeEntry current = entries.getOrDefault(placeId, KnowledgeEntry.EMPTY);
         if (current.named()) {
