@@ -3,6 +3,10 @@ package com.github.cerealklla.lyfe.repair;
 import java.util.List;
 import java.util.Optional;
 
+import org.slf4j.Logger;
+
+import com.mojang.logging.LogUtils;
+
 import com.github.cerealklla.lyfe.api.Lyfe;
 import com.github.cerealklla.lyfe.craft.CrafterConstants;
 import com.github.cerealklla.lyfe.skill.Skills;
@@ -12,6 +16,7 @@ import com.github.cerealklla.lyfe.structure.SettlemyntsStructureBridge;
 import com.github.cerealklla.lyfe.structure.UpgradeCostEntry;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.Container;
@@ -32,6 +37,14 @@ import net.minecraft.world.item.ItemStack;
  */
 public final class RepairFunding {
 
+    // [RepairDebug] -- temporary, chasing a real live report (2026-10-13): a single click of
+    // "Repair with Resources" on Golden Boots reportedly drained far more than this method's own
+    // hard-capped-at-9 formula should ever allow in one call, and still failed with "insufficient."
+    // Logs every real invocation of #repair with its full inputs/outputs so a reproduction reveals
+    // whether this is being called more than once per click, and with what numbers each time.
+    // Remove once the real root cause is found and fixed.
+    private static final Logger LOGGER = LogUtils.getLogger();
+
     private RepairFunding() {
     }
 
@@ -46,6 +59,9 @@ public final class RepairFunding {
     }
 
     public static Result repair(ServerPlayer player, ServerLevel level, BlockPos stationPos, ItemStack stack, FundingOption option) {
+        LOGGER.info("[RepairDebug] repair() called: player={} option={} item={} damage={}/{}",
+                player.getName().getString(), option, BuiltInRegistries.ITEM.getKey(stack.getItem()),
+                stack.getDamageValue(), stack.getMaxDamage());
         if (stack.isEmpty()) {
             return Result.fail("Put a damaged item in the slot first.");
         }
@@ -61,11 +77,14 @@ public final class RepairFunding {
         int onHand = option == FundingOption.GOLD_ONLY ? 0 : RepairInventoryTransfer.countAvailable(player, cost);
         int onHandUsed = Math.min(onHand, quantity);
         int shortfall = quantity - onHandUsed;
+        LOGGER.info("[RepairDebug] quantity={} onHand={} onHandUsed={} shortfall={}", quantity, onHand, onHandUsed, shortfall);
 
         if (option == FundingOption.ON_HAND) {
             if (shortfall > 0) {
+                LOGGER.info("[RepairDebug] ON_HAND failing with shortfall {} -- no drain should happen", shortfall);
                 return Result.fail("Missing " + shortfall + " more " + cost.label() + ".");
             }
+            LOGGER.info("[RepairDebug] ON_HAND succeeding, draining {}", quantity);
             RepairInventoryTransfer.drain(player, cost, quantity);
             grantRepairXp(player, stack);
             stack.setDamageValue(0);
@@ -73,6 +92,7 @@ public final class RepairFunding {
         }
 
         int purchaseQuantity = option == FundingOption.GOLD_ONLY ? quantity : shortfall;
+        LOGGER.info("[RepairDebug] {} path, purchaseQuantity={}", option, purchaseQuantity);
         MarketPurchasing.Purchase purchase = null;
         if (purchaseQuantity > 0) {
             if (!SettlemyntsStructureBridge.isAvailable()) {
