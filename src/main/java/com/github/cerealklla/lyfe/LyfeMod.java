@@ -6,6 +6,7 @@ import com.mojang.logging.LogUtils;
 
 import com.github.cerealklla.lyfe.combat.CombatSkillListener;
 import com.github.cerealklla.lyfe.cook.VanillaFoodRecipeStripper;
+import com.github.cerealklla.lyfe.craft.EquipmentDefaultComponents;
 import com.github.cerealklla.lyfe.craft.ProficiencyDurabilityListener;
 import com.github.cerealklla.lyfe.craft.VanillaRecipeStripper;
 import com.github.cerealklla.lyfe.gathering.ExcavatorListener;
@@ -99,6 +100,7 @@ public class LyfeMod {
 
         modEventBus.addListener(this::commonSetup);
         modEventBus.addListener(this::registerPayloads);
+        modEventBus.addListener(EquipmentDefaultComponents::onModifyDefaultComponents);
 
         NeoForge.EVENT_BUS.register(new GatheringListener());
         NeoForge.EVENT_BUS.register(new LeafDecayAccelerator());
