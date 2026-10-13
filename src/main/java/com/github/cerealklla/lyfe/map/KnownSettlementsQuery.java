@@ -7,6 +7,7 @@ import java.util.Optional;
 
 import com.github.cerealklla.cartographyr.api.Cartography;
 import com.github.cerealklla.cartographyr.geo.EntityId;
+import com.github.cerealklla.cartographyr.geo.EntityType;
 import com.github.cerealklla.cartographyr.geo.GeographicEntity;
 import com.github.cerealklla.cartographyr.geo.Layer;
 import com.github.cerealklla.cartographyr.geo.LifecycleState;
@@ -54,7 +55,17 @@ public final class KnownSettlementsQuery {
                 continue;
             }
             GeographicEntity entity = maybeEntity.get();
-            if (!entity.layerId().equals(Layer.SETTLEMENT_ID) || entity.lifecycleState() != LifecycleState.REALIZED) {
+            // Settlemynts registers TWO entities per settlement on this same layer -- the real
+            // padded Classification.CONSTRUCTED/EntityType.SETTLEMENT entity (every placeId used
+            // elsewhere, e.g. the Establish Highway origin check, refers to this one) plus a purely-
+            // additive inner SETTLEMENT_CORE_ENTITY_TYPE entity it uses only to distinguish "genuinely
+            // inside town" for its own HUD. Both land in PlayerKnowledge once a player walks through
+            // either one (see Lyfe's own location.LocationTracker), so without this filter the inner
+            // core entity slipped through as what LOOKED like a second, different, selectable
+            // settlement at the exact same spot -- including the player's own settlement, which they
+            // should never be able to target. Restricting to the real SETTLEMENT type excludes it.
+            if (!entity.layerId().equals(Layer.SETTLEMENT_ID) || entity.lifecycleState() != LifecycleState.REALIZED
+                    || !entity.type().equals(EntityType.SETTLEMENT)) {
                 continue;
             }
             int x = entity.geometry().centerBlockX();
