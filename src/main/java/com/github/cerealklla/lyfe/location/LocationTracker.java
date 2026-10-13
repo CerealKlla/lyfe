@@ -166,6 +166,18 @@ public final class LocationTracker {
      * merge this class already did before this rework, just computed directly here instead of via
      * a generic per-layer map.
      */
+    /** Whether a real {@code SETTLEMENT_CORE_TYPE} entity exists at {@code paddedEntity}'s own geometric center -- see the 2026-10-13 fix above this call site for why this is how a player-founded settlement's outer padding is told apart from a natural village's one lone polygon. */
+    private static boolean hasRealCoreNear(ServerLevel level, GeographicEntity paddedEntity) {
+        int centerX = paddedEntity.geometry().centerBlockX();
+        int centerZ = paddedEntity.geometry().centerBlockZ();
+        for (GeographicEntity candidate : Cartography.getEntitiesAt(level, centerX, centerZ)) {
+            if (candidate.layerId().equals(Layer.SETTLEMENT_ID) && candidate.type().equals(SETTLEMENT_CORE_TYPE)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private LocationSnapshot resolve(ServerLevel level, ServerPlayer player) {
         boolean genuineDiscovery = false;
         Set<GeographicEntity> here = Cartography.getEntitiesAt(level, player.getBlockX(), player.getBlockZ());
@@ -209,10 +221,24 @@ public final class LocationTracker {
                 // player-founded settlement does -- its one polygon IS the real built-up area. Real
                 // bug found live 2026-10-08: treating it as "padded" by default made every natural
                 // village read as "No Man's Land" instead of "Outskirts" everywhere inside it.
-                if (entity.type().equals(SETTLEMENT_CORE_TYPE) || entity.type().equals(EntityType.SETTLEMENT)) {
+                //
+                // Real regression found live 2026-10-13: that fix over-corrected -- standing in a
+                // PLAYER-FOUNDED settlement's own outer padding (outside its real core, where only the
+                // padded EntityType.SETTLEMENT entity contains this exact point) was *also* read as
+                // "core," mislabeling real No Man's Land as "Outskirts" (confirmed live: Highway
+                // Stakes were correctly allowed there by Settlemynts' own, separately-fixed check, yet
+                // the HUD still said "Outskirts"). A natural village has no core entity registered
+                // *anywhere*, so the two cases are told apart by checking whether a real core entity
+                // exists at this padded entity's own geometric center -- which a player-founded
+                // settlement's padding always surrounds, but a natural village never has at all.
+                if (entity.type().equals(SETTLEMENT_CORE_TYPE)) {
                     settlementCore = entity;
-                } else {
-                    settlementPadded = entity;
+                } else if (entity.type().equals(EntityType.SETTLEMENT)) {
+                    if (hasRealCoreNear(level, entity)) {
+                        settlementPadded = entity;
+                    } else {
+                        settlementCore = entity;
+                    }
                 }
             } else if (isZoneEntity) {
                 if (entity.type().equals(PLOT_TYPE) || entity.type().equals(NATURAL_PLOT_TYPE)) {
