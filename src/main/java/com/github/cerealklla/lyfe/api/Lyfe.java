@@ -266,6 +266,23 @@ public final class Lyfe {
     }
 
     /**
+     * Every settlement {@code player} has personal knowledge of (visited, or partially known via
+     * {@link KnowledgeFactor}s) within {@code radiusBlocks} of {@code origin} -- added 2026-10-13 for
+     * Settlemynts' Establish Highway quest, explicit user spec: "every settlement the Mayor knows
+     * about (including partially known settlements)." Real logic lives in {@code
+     * map.KnownSettlementsQuery} (already hard-dependent on Cartographyr, same as {@code
+     * map.MapDataListener}) -- this method is just the {@code ModList}-guarded entry point, empty if
+     * Cartographyr isn't loaded.
+     */
+    public static java.util.List<com.github.cerealklla.lyfe.map.KnownSettlementsQuery.Result> getKnownSettlementsNear(
+            ServerPlayer player, net.minecraft.server.level.ServerLevel level, net.minecraft.core.BlockPos origin, double radiusBlocks) {
+        if (!ModList.get().isLoaded("cartographyr")) {
+            return java.util.List.of();
+        }
+        return com.github.cerealklla.lyfe.map.KnownSettlementsQuery.find(player, level, origin, radiusBlocks);
+    }
+
+    /**
      * The actual {@link KnowledgeFactor} set the player has for {@code placeId} (empty set if no
      * entry at all) -- added 2026-10-11 for Myssions' road-connection quest, which needs to copy a
      * specific OTHER player's (the posting Mayor's) real knowledge of the destination settlement
