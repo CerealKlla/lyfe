@@ -43,7 +43,9 @@ import net.neoforged.neoforge.event.level.BlockDropsEvent;
  *   {@code LivingEntity#doHurtEquipment} formula ({@code max(1, rawDamage / 4)}) for the base,
  *   fires via {@code LivingIncomingDamageEvent} -- confirmed (decompiled source) to run before
  *   armor's own durability loss, which happens inside {@code actuallyHurt}'s armor-reduction step.
- *   Governed by Crafter level (no dedicated armor skill exists).</li>
+ *   Governed by Heartiness level (2026-10-13, explicit user correction -- originally stood in on
+ *   Crafter level since "no dedicated armor skill exists," but wearing armor is a constitution/
+ *   toughness proficiency, not a crafting one; Heartiness is the skill that actually fits).</li>
  * </ul>
  */
 public final class ProficiencyDurabilityListener {
@@ -95,7 +97,7 @@ public final class ProficiencyDurabilityListener {
             return;
         }
         int baseArmorDamage = (int) Math.max(1.0F, event.getAmount() / 4.0F);
-        int crafterLevel = Lyfe.getLevel(player, Skills.CRAFTER_ID);
+        int heartinessLevel = Lyfe.getLevel(player, Skills.HEARTINESS_ID);
         for (ArmorType armorType : EquipmentTierLadder.ARMOR_TYPES) {
             ItemStack piece = player.getItemBySlot(armorType.getSlot());
             if (piece.isEmpty()) {
@@ -105,7 +107,7 @@ public final class ProficiencyDurabilityListener {
             if (tier < 0) {
                 continue;
             }
-            applyExtra(player, piece, armorType.getSlot(), tier, crafterLevel, baseArmorDamage);
+            applyExtra(player, piece, armorType.getSlot(), tier, heartinessLevel, baseArmorDamage);
         }
     }
 

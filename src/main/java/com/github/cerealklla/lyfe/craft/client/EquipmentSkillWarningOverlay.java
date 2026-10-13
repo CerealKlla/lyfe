@@ -73,7 +73,7 @@ public final class EquipmentSkillWarningOverlay implements GuiLayer {
                 return warning;
             }
         }
-        int crafterLevel = Lyfe.getLevel(player, Skills.CRAFTER_ID);
+        int heartinessLevel = Lyfe.getLevel(player, Skills.HEARTINESS_ID);
         for (ArmorType armorType : EquipmentTierLadder.ARMOR_TYPES) {
             ItemStack piece = player.getItemBySlot(armorType.getSlot());
             if (piece.isEmpty()) {
@@ -83,7 +83,7 @@ public final class EquipmentSkillWarningOverlay implements GuiLayer {
             if (tier < 0) {
                 continue;
             }
-            String warning = proficiencyWarning(tier, crafterLevel);
+            String warning = proficiencyWarning(tier, heartinessLevel);
             if (warning != null) {
                 return warning;
             }

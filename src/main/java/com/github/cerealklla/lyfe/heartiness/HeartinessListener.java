@@ -2,6 +2,7 @@ package com.github.cerealklla.lyfe.heartiness;
 
 import com.github.cerealklla.lyfe.LyfeMod;
 import com.github.cerealklla.lyfe.api.Lyfe;
+import com.github.cerealklla.lyfe.craft.ToolTierUnlocks;
 import com.github.cerealklla.lyfe.registration.ModAttachments;
 import com.github.cerealklla.lyfe.registration.ModMobEffects;
 import com.github.cerealklla.lyfe.skill.Skills;
@@ -154,6 +155,10 @@ public final class HeartinessListener {
         } else {
             lines.add("Rapid Recovery unlocks at level " + HeartinessConstants.RAPID_HEAL_MIN_LEVEL);
         }
+        // Added 2026-10-13, explicit user correction -- armor proficiency (wearing a tier without
+        // excessive extra durability damage) is governed by Heartiness, not Crafter (see
+        // craft.ProficiencyDurabilityListener's own doc for the full reasoning).
+        lines.add("Unlocked Armor tier: " + ToolTierUnlocks.unlockedTierName(level));
         return lines;
     }
 }
