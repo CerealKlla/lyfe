@@ -11,7 +11,17 @@ import com.github.cerealklla.lyfe.minimap.ClientTerrainSampler;
  * while the Map screen happens to be open. Hooked into {@code LyfeModClient}'s client-tick handler,
  * throttled to roughly once a second; each firing samples the player's current chunk plus its
  * immediate 1-chunk ring (so walking along a chunk border fills in both sides, not just whichever
- * chunk the player's feet happen to be in) for any chunk not already in the cache.
+ * chunk the player's feet happen to be in). Deliberately re-samples a chunk every time it's visited,
+ * even if already cached -- terrain genuinely changes (a road gets paved, a building goes up, a tree
+ * is chopped), and a player walking back over a changed area is exactly how the user's own original
+ * spec ("dynamically created and edited by the player moving around") expects the Map to catch up.
+ * Found live 2026-10-13: a settlement-to-settlement Highway the player paved and walked repeatedly
+ * never appeared on the Map at all, because every one of its chunks had already been sampled (with
+ * the pre-road terrain) back when the player first walked the route to place its stakes -- the old
+ * "skip if already in the cache" check meant it could never be corrected afterward, no matter how many
+ * more times the player actually walked over it. {@link TerrainCache#put} only marks a region dirty
+ * when a value genuinely changes, so routinely re-sampling unchanged ground doesn't cause needless
+ * disk churn.
  *
  * <p>Runs synchronously on the client thread, not a background executor -- deliberate, so {@link
  * TerrainCache} never needs to be thread-safe (both this writer and {@code map.client.MapScreen}'s
@@ -48,9 +58,6 @@ public final class TerrainCachePassiveSampler {
     private static void sampleChunkIfNeeded(ClientLevel level, int chunkX, int chunkZ) {
         int originX = chunkX * 16;
         int originZ = chunkZ * 16;
-        if (TerrainCache.isChunkSampled(level.dimension(), originX, originZ)) {
-            return;
-        }
         if (level.getChunk(chunkX, chunkZ).isEmpty()) {
             return; // Not actually loaded client-side yet -- try again on a later tick.
         }

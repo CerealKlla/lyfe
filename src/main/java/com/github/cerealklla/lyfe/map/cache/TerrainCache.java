@@ -56,13 +56,12 @@ public final class TerrainCache {
             java.util.Arrays.fill(fresh, MapPalette.UNSAMPLED);
             return fresh;
         });
-        chunk[columnIndex(blockX, blockZ)] = value;
+        int index = columnIndex(blockX, blockZ);
+        if (chunk[index] == value) {
+            return; // Re-sampled, unchanged -- avoid marking the whole region dirty for no real change.
+        }
+        chunk[index] = value;
         region.dirty = true;
-    }
-
-    public static boolean isChunkSampled(ResourceKey<Level> dimension, int blockX, int blockZ) {
-        Region region = regionFor(dimension, blockX, blockZ, false);
-        return region != null && region.chunks.containsKey(chunkKey(blockX, blockZ));
     }
 
     /** Writes every dirty region to disk and clears their dirty flags -- called periodically and on logout. */
