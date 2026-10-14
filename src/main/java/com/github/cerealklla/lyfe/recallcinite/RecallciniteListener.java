@@ -31,6 +31,7 @@ import net.neoforged.neoforge.event.entity.item.ItemTossEvent;
 import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerRespawnPositionEvent;
+import net.neoforged.neoforge.event.entity.player.PlayerSetSpawnEvent;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
 
@@ -250,6 +251,22 @@ public final class RecallciniteListener {
     }
 
     // --- Respawn override (replaces bed-based spawn) -----------------------------------------------
+
+    /**
+     * Vanilla's own respawn-point system ({@code Player#setRespawnPosition}, called whenever a player
+     * sleeps in a bed or uses a respawn anchor) is left completely unused by this mod -- the Totem
+     * tracks its own bound location in {@link RecallciniteData}, a separate attachment, and {@link
+     * #onRespawnPosition} below overrides the actual respawn destination directly. Left alone, a bed
+     * would still silently set vanilla's spawn point (and send its own "Respawn point set" message)
+     * even though it has no effect on where the player actually respawns -- confusing, and contrary
+     * to the explicit design that only the Totem should ever change a player's spawn point (user
+     * correction, 2026-10-13). Canceled unconditionally for every cause (bed, respawn anchor, or
+     * otherwise), since nothing in this mod's own respawn logic reads vanilla's stored value at all.
+     */
+    @SubscribeEvent
+    public void onSetSpawn(PlayerSetSpawnEvent event) {
+        event.setCanceled(true);
+    }
 
     @SubscribeEvent
     public void onRespawnPosition(PlayerRespawnPositionEvent event) {
