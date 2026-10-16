@@ -12,16 +12,22 @@ import net.neoforged.neoforge.client.gui.GuiLayer;
  * Transient Quarry Knowledge HUD (explicit user spec, 2026-10-16: "I'd like to use the same visual
  * style researcher uses for it's knowledge bars") -- a line-for-line copy of {@code
  * research.client.ResearchBarOverlay}'s own layout/colors/positioning, just reading {@link
- * ClientHuntsmanBarState} and showing the mob's current Quarry Knowledge level alongside its
- * progress. Stacks in the same bottom-right corner, below the Research bars (its own {@code
- * BOTTOM_MARGIN} clears both the XP bar stack and the Research bar stack above it).
+ * ClientHuntsmanBarState} and showing the mob's current Quarry Knowledge level (not a percentage,
+ * per explicit request) alongside its progress bar. Stacks in the same bottom-right corner, below
+ * the Research bars (its own {@code BOTTOM_MARGIN} clears both the XP bar stack and the Research
+ * bar stack above it).
  */
 public final class HuntsmanBarOverlay implements GuiLayer {
 
     private static final int BAR_WIDTH = 180;
     private static final int BAR_HEIGHT = 5;
     private static final int GAP = 3;
-    private static final int BOTTOM_MARGIN = 135; // clears XpBarOverlay (45) and ResearchBarOverlay (70) plus their block heights
+    // Real live report, 2026-10-16: "slide the quarry knoweldge down a few pixels, i can't read
+    // it" -- 135 sat too close above the Research bar stack (whose own BOTTOM_MARGIN=70 was sized
+    // for a single active bar; this mod's Research bars can stack more than one at once, so a wider
+    // Research stack could reach high enough to overlap this bar's text). Lowered toward the hotbar,
+    // keeping the same ~25px single-bar clearance Research itself uses above the XP bar (70 - 45).
+    private static final int BOTTOM_MARGIN = 95;
     private static final int RIGHT_MARGIN = 10;
 
     private static final int ACCENT_RGB = 0xFF5555;
@@ -59,7 +65,9 @@ public final class HuntsmanBarOverlay implements GuiLayer {
             int backgroundColor = (Math.min(alpha255, BACKGROUND_MAX_ALPHA) << 24) | BACKGROUND_RGB;
             int fillColor = (alpha255 << 24) | ACCENT_RGB;
 
-            String label = "Quarry Knowledge: " + bar.displayName() + " (Lv" + bar.level() + ", " + Math.round(bar.fraction() * 100) + "%)";
+            // Explicit user request, 2026-10-16: "the text should just say teh level, no %" -- the
+            // fill bar itself still shows fractional progress visually, just the label doesn't.
+            String label = "Quarry Knowledge: " + bar.displayName() + " (Lv" + bar.level() + ")";
             int textWidth = font.width(label);
             guiGraphics.text(font, label, right - textWidth, textY, textColor);
 
