@@ -78,7 +78,10 @@ public record SkillCopy(Item icon, String xpSource, String summary) {
                     "Unlocks higher-Tier Zone Types your settlements can establish -- Town Hall Tier also independently gates this.")),
             Map.entry(Skills.RECALLCRAFT_ID, new SkillCopy(Items.ENDER_PEARL,
                     "Binding or recalling with the Recallcinite Totem",
-                    "Reduces the Totem's bind/recall cooldown, up to 20% at max level."))
+                    "Reduces the Totem's bind/recall cooldown, up to 20% at max level.")),
+            Map.entry(Skills.HUNTSMAN_ID, new SkillCopy(Items.BOW,
+                    "A Quarry Knowledge level increasing (fighting mobs, tracked per mob type)",
+                    "No bonuses of its own yet -- see your per-mob-type Quarry Knowledge for its real combat bonus."))
     );
 
     public static SkillCopy get(SkillId id) {

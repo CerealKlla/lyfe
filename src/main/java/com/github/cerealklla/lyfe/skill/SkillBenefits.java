@@ -107,6 +107,13 @@ public final class SkillBenefits {
         if (id.equals(Skills.RECALLCRAFT_ID)) {
             return com.github.cerealklla.lyfe.recallcinite.RecallcraftPerks.benefitLines(level);
         }
+        if (id.equals(Skills.HUNTSMAN_ID)) {
+            // "No rewards for the Huntsman skill itself yet" -- explicit user spec. The real combat
+            // bonus (+0.5 damage/level) lives on per-mob-type Quarry Knowledge, a separate tracked
+            // value this generic single-level screen has no slot for -- same reasoning as Historian's
+            // own placeholder line above.
+            return List.of("No bonuses yet -- see your per-mob-type Quarry Knowledge for its own damage bonus");
+        }
         return List.of();
     }
 }
