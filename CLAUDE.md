@@ -236,3 +236,25 @@ Tier 1/3 — fixed, they now grant repair XP too. `./gradlew build` green, whole
 tested clean. **Not yet live-tested or deployed.**
 
 **Quest-origin waypoint system added, 2026-10-10 — the new Myssions mod's design doc item 2** (see context/decisions.md) — a new standalone quest mod needed a way to show a player a vague "search this area" hint, and its own author initially assumed Cartographyr owned the minimap; corrected mid-conversation ("Lyfe owns the mini-map, not Cartographyr, right?") before any wrong-mod work started. The existing `map.ClientWaypointState` (the player's own manually-placed single pin) turned out to be purely client-side with no server/radius concept at all, so this needed real new capability here, not just exposing something that already existed: `api.Lyfe#setQuestWaypoint`/`#clearQuestWaypoint` (a new server-pushed `map.QuestWaypointPayload`/`ClientQuestWaypointState`, entirely separate from the manual pin, radius fully caller-controlled), rendered as a second-color arrow on the minimap (`MinimapOverlay`) and a translucent vague circle on the full Map screen (`map.client.MapScreen`, same per-row sqrt-based circle technique the minimap's own background fill already uses). Also added `api.Lyfe#grantKnowledgeFactors`/`#getKnownFactorCount`, letting another mod read/grant a player's `knowledge.PlayerKnowledge` completeness for an arbitrary `placeId` that never needs to correspond to a real Cartographyr entity (confirmed `PlayerKnowledge` never validates its key against Cartographyr's registry at all). `./gradlew build` green, whole-suite boot-smoke-tested clean alongside Myssions actually using it. **Never rendered in a live client** — see Myssions' own CLAUDE.md/context for the consuming side.
+
+**General assist-marker kill-credit system, and the Huntsman skill, 2026-10-16** (see
+[context/decisions.md](context/decisions.md)) -- the kill-assist/combat feature explicitly queued
+("when you are done with the NPC menu overhaul") behind Settlemynts' NPC Menu overhaul, picked up
+the same day that finished. New `combat.AssistTracker`: injuring a mob sets a 15-second assist
+marker (`combat.AssistMarkers`, a non-persisted, non-synced `LivingEntity` attachment) for the
+attacking player; on death, every player with a still-live marker gets equal credit, not just
+whoever landed the killing blow -- exposed via `api.Lyfe#getAssistCredit` for Myssions' quest-kill
+tracking to consume (see that mod's own CLAUDE.md for `bridge.LyfeAssistBridge`). New Huntsman skill
+(`huntsman` package): a per-mob-type "Quarry Knowledge" kill count (`PlayerHuntsman`) leveled on a
+doubling curve (`QuarryKnowledgeCurve`, pure and unit-tested -- 5 kills for level 1, double each
+level after, Phantom starting at 1), each level adding +0.5 flat damage against that mob type on any
+direct hit (a `LivingIncomingDamageEvent` listener) -- "not counting damage over time" needed no
+special-casing at all, since gating on `event.getSource().getEntity() instanceof ServerPlayer` (the
+same check `combat.CombatSkillListener`/`durability.UnbreakableToolListener` already use elsewhere
+in this mod) already excludes DoT ticks for free, as they carry no live attacking entity at the
+instant they're applied. Huntsman's own skill (flat 5 XP/level, no scaling, no rewards yet) gains 1
+XP every time any Quarry Knowledge level increases. The progress HUD
+(`huntsman.client.ClientHuntsmanBarState`/`HuntsmanBarOverlay`) is a line-for-line copy of
+Researcher's own transient knowledge-bar visual style, per explicit request. `./gradlew build`/`test`
+green, whole-suite (11 mods) boot-smoke-tested clean via `runServer` from Cartographyr. **Not yet
+live-tested or deployed.**
