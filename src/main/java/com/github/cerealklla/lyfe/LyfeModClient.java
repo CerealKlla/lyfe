@@ -339,7 +339,12 @@ public class LyfeModClient {
             rotationClicked = true;
         }
         if (rotationClicked) {
-            ClientMinimapState.setAutoRotate(!ClientMinimapState.autoRotate());
+            var togglePlayer = Minecraft.getInstance().player;
+            // Locked below this level (2026-10-15 re-shuffle) -- orientation stays Fixed until then
+            // regardless of what's stored, so there's nothing meaningful to toggle yet.
+            if (togglePlayer != null && Lyfe.getLevel(togglePlayer, Skills.EXPEDITIONIST_ID) >= ExpeditionistConstants.ORIENTATION_TOGGLE_UNLOCK_LEVEL) {
+                ClientMinimapState.setAutoRotate(!ClientMinimapState.autoRotate());
+            }
         }
         while (OPEN_SKILLS.consumeClick()) {
             if (Minecraft.getInstance().screen == null) {

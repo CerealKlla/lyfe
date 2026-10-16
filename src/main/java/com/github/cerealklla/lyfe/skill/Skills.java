@@ -402,9 +402,11 @@ public final class Skills {
     }
 
     // Expeditionist (2026-10-07, user request) -- XP for discovering Regions/Settlements (first visit
-    // only, see location.LocationTracker#resolve's own hook into PlayerKnowledge#markVisited), unlocks
-    // the minimap itself at level 5, its North indicator at 10, and (a separate future pass) the
-    // full-screen Map at 15/20/25. Also now owns the minimap's own zoom-radius scaling (moved off
+    // only, see location.LocationTracker#resolve's own hook into PlayerKnowledge#markVisited).
+    // Reshuffled 2026-10-15 (see expeditionist.ExpeditionistConstants' own doc for the full table):
+    // minimap at level 1 (locked orientation), orientation toggle + North indicator at 5, the
+    // full-screen Map at 10 (no custom waypoints yet), custom waypoints at 15, settlement dots at 20,
+    // Map zoom at 25. Also now owns the minimap's own zoom-radius scaling (moved off
     // Cartographyr 2026-10-07, explicit user request -- see minimap.MinimapZoom), since "how far you
     // can see on your minimap" fits this skill's own exploration theme better than the knowledge
     // skill's. Short, capped curve like Cartographyr's own cartographyrCurve() -- deliberately not the

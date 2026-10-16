@@ -71,10 +71,10 @@ public final class MinimapOverlay implements GuiLayer {
     private static final int BUILDING_FIT_COLOR = 0xFF55FF55;
     private static final int BUILDING_NO_FIT_COLOR = 0xFFFF5555;
 
-    // North arrow -- gated behind Expeditionist level 10 (ExpeditionistConstants.
-    // NORTH_INDICATOR_UNLOCK_LEVEL), added 2026-10-07 once the Expeditionist skill existed to gate it
-    // with, per the user's own original design for this arrow ("this arrow can be level blocked by a
-    // skill").
+    // North arrow -- gated behind ExpeditionistConstants.NORTH_INDICATOR_UNLOCK_LEVEL (level 5 as of
+    // the 2026-10-15 re-shuffle, originally 10), added 2026-10-07 once the Expeditionist skill
+    // existed to gate it with, per the user's own original design for this arrow ("this arrow can be
+    // level blocked by a skill").
     private static final int NORTH_ARROW_COLOR = 0xFFFFFFFF;
     private static final int NORTH_ARROW_HALF_WIDTH = 4;
     private static final int NORTH_ARROW_HEIGHT = 6;
@@ -89,9 +89,10 @@ public final class MinimapOverlay implements GuiLayer {
 
     // Waypoint arrow -- 2026-10-07, the Map screen/waypoint pass. 90% the North arrow's own size per
     // spec ("so that if they overlap both are meaningfully visible"), own color, drawn after (so on
-    // top of) the North arrow for the same reason. No Expeditionist level gate here directly -- it
-    // only ever appears once a waypoint actually exists, which itself requires the Map screen (level
-    // 15) to place one.
+    // top of) the North arrow for the same reason. Gated behind ExpeditionistConstants#
+    // CUSTOM_WAYPOINT_UNLOCK_LEVEL (2026-10-15 re-shuffle) -- placement itself already requires that
+    // level via the Map screen, so this is really just defensive (a stale waypoint from before a
+    // future re-balance, say), not something normally reachable any other way.
     private static final int WAYPOINT_ARROW_COLOR = 0xFF5588FF;
     private static final int WAYPOINT_ARROW_HALF_WIDTH = (int) Math.round(NORTH_ARROW_HALF_WIDTH * 0.9);
     private static final int WAYPOINT_ARROW_HEIGHT = (int) Math.round(NORTH_ARROW_HEIGHT * 0.9);
@@ -151,7 +152,14 @@ public final class MinimapOverlay implements GuiLayer {
         // (east=+x/right, south=+z/down) convention; solving for the rotation that sends that vector
         // to (0,-1) ("up") gives angle = 180 - yaw, applied directly since JOML's rotation matrix
         // convention matches this same unmodified (x, y-down) formula.
-        boolean autoRotate = ClientMinimapState.autoRotate();
+        //
+        // Orientation is locked Fixed below ExpeditionistConstants#ORIENTATION_TOGGLE_UNLOCK_LEVEL
+        // regardless of the player's own stored toggle state (2026-10-15 re-shuffle) -- the toggle
+        // keybind itself is also a no-op below that level (see LyfeModClient), so the stored value
+        // never actually changes until the player can reach this level, at which point it's already
+        // ClientMinimapState's own default (true/Auto-Rotate) unless they've since toggled it off.
+        boolean orientationToggleUnlocked = Lyfe.getLevel(player, Skills.EXPEDITIONIST_ID) >= ExpeditionistConstants.ORIENTATION_TOGGLE_UNLOCK_LEVEL;
+        boolean autoRotate = orientationToggleUnlocked && ClientMinimapState.autoRotate();
         float rotationRadians = autoRotate ? (float) Math.toRadians(180.0 - player.getYRot()) : 0f;
 
         // Terrain gets its own per-row scissor+rotate+blit+unrotate+unscissor cycle (see
@@ -192,7 +200,7 @@ public final class MinimapOverlay implements GuiLayer {
         // same trick drawOutlines/the stakes/the Building Locator preview already rely on. When
         // Auto-Rotate is off, this block never pushes a rotation at all, so the arrow just stays at
         // the top -- correct, since Fixed orientation is already north-up. Separate, higher
-        // Expeditionist gate than the minimap's own (level 10 vs. 5) -- the minimap can be unlocked
+        // Expeditionist gate than the minimap's own (level 5 vs. 1) -- the minimap can be unlocked
         // without the North indicator yet.
         if (Lyfe.getLevel(player, Skills.EXPEDITIONIST_ID) >= ExpeditionistConstants.NORTH_INDICATOR_UNLOCK_LEVEL) {
             drawBearingArrow(guiGraphics, cx, cz, radius, 0f, NORTH_ARROW_HALF_WIDTH, NORTH_ARROW_HEIGHT, NORTH_ARROW_COLOR);
@@ -201,7 +209,8 @@ public final class MinimapOverlay implements GuiLayer {
         // Dimension-gated: a waypoint set in a different dimension than the player's current one is
         // never drawn (see ClientWaypointState's own doc for why it's cleared outright on a
         // dimension change rather than left stale).
-        if (ClientWaypointState.isSet() && ClientWaypointState.dimension().equals(Optional.of(level.dimension()))) {
+        if (ClientWaypointState.isSet() && ClientWaypointState.dimension().equals(Optional.of(level.dimension()))
+                && Lyfe.getLevel(player, Skills.EXPEDITIONIST_ID) >= ExpeditionistConstants.CUSTOM_WAYPOINT_UNLOCK_LEVEL) {
             BlockPos waypoint = ClientWaypointState.pos().orElseThrow();
             double dx = waypoint.getX() + 0.5 - player.getX();
             double dz = waypoint.getZ() + 0.5 - player.getZ();

@@ -33,7 +33,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.common.ServerboundCustomPayloadPacket;
 
 /**
- * The full-screen Map (Expeditionist level 15, "press M") -- design doc's original spec, built as
+ * The full-screen Map (Expeditionist level 10, "press M") -- design doc's original spec, built as
  * its own slice after the Expeditionist skill/minimap unlock-gate pass, deliberately split off at
  * the time ("explicit scope split with the user," see {@code expeditionist.ExpeditionistConstants}'
  * own doc). Renders from {@code map.cache.TerrainCache} -- a persisted, palette-indexed grid the
@@ -44,20 +44,25 @@ import net.minecraft.network.protocol.common.ServerboundCustomPayloadPacket;
  * matching it the way an always-live view would. Corrected 2026-10-07 after the Map was first built
  * live-sampling like the minimap (a wrong simplification the user caught and asked to be redone).
  *
- * <p>North-up fixed only -- no Auto-Rotate here, not asked for. Settlement dots with hover tooltips
- * unlock at level 20 ({@link ExpeditionistConstants#SETTLEMENT_DOTS_UNLOCK_LEVEL}), driven by a
- * one-shot {@link RequestMapDataPayload}/{@link MapSettlementsPayload} round trip on open (not a
- * continuous stream like the minimap's own outlines -- settlement knowledge doesn't change fast
- * enough to need it). Scroll-wheel zoom unlocks at level 25 ({@link MapZoom}).
+ * <p>North-up fixed only -- no Auto-Rotate here, not asked for. The quest-origin waypoint ({@link
+ * ClientQuestWaypointState}) always shows regardless of level, same as on the minimap -- it's not a
+ * player-placed "custom" waypoint. Settlement dots with hover tooltips unlock at level 20 ({@link
+ * ExpeditionistConstants#SETTLEMENT_DOTS_UNLOCK_LEVEL}), driven by a one-shot {@link
+ * RequestMapDataPayload}/{@link MapSettlementsPayload} round trip on open (not a continuous stream
+ * like the minimap's own outlines -- settlement knowledge doesn't change fast enough to need it).
+ * Scroll-wheel zoom unlocks at level 25 ({@link MapZoom}).
  *
- * <p>Right-click places or removes the single active waypoint ({@link ClientWaypointState}) --
- * right-clicking near the existing waypoint's own screen position removes it, any other right-click
- * moves it there instead (spec: "only 1 waypoint active").
+ * <p>Right-click places or removes the single active custom waypoint ({@link ClientWaypointState})
+ * -- right-clicking near the existing waypoint's own screen position removes it, any other
+ * right-click moves it there instead (spec: "only 1 waypoint active"). Locked below level 15
+ * ({@link ExpeditionistConstants#CUSTOM_WAYPOINT_UNLOCK_LEVEL}, 2026-10-15 re-shuffle) -- the Map
+ * itself is usable from level 10, just without this.
  *
  * <p>Left-click-drag pans the view ({@link #panCenterX}/{@link #panCenterZ}, world coordinates --
  * {@code null} means "follow the player live," set on the first drag). Deliberately a plain instance
  * field, not persisted anywhere -- the user's own explicit spec: "it forgets where the pan was when
- * closing, so opening the map again starts centered on the player again."
+ * closing, so opening the map again starts centered on the player again." Never level-gated -- usable
+ * at any level the Map itself is open.
  */
 public final class MapScreen extends Screen {
 
@@ -136,6 +141,10 @@ public final class MapScreen extends Screen {
 
     private boolean dotsUnlocked(LocalPlayer player) {
         return Lyfe.getLevel(player, Skills.EXPEDITIONIST_ID) >= ExpeditionistConstants.SETTLEMENT_DOTS_UNLOCK_LEVEL;
+    }
+
+    private boolean customWaypointUnlocked(LocalPlayer player) {
+        return Lyfe.getLevel(player, Skills.EXPEDITIONIST_ID) >= ExpeditionistConstants.CUSTOM_WAYPOINT_UNLOCK_LEVEL;
     }
 
     // Fills the whole window (minus a small margin), not just a square bounded by the shorter
@@ -298,7 +307,7 @@ public final class MapScreen extends Screen {
             LocalPlayer player = Minecraft.getInstance().player;
             double ppbX = pixelsPerBlockX();
             double ppbY = pixelsPerBlockY();
-            if (player != null && ppbX > 0 && ppbY > 0) {
+            if (player != null && ppbX > 0 && ppbY > 0 && customWaypointUnlocked(player)) {
                 int centerScreenX = width / 2;
                 int centerScreenY = height / 2;
                 int playerX = ClientMapState.sampledCenterX();
@@ -406,7 +415,8 @@ public final class MapScreen extends Screen {
                 }
             }
 
-            if (ClientWaypointState.isSet() && ClientWaypointState.dimension().equals(Optional.of(level.dimension()))) {
+            if (ClientWaypointState.isSet() && ClientWaypointState.dimension().equals(Optional.of(level.dimension()))
+                    && customWaypointUnlocked(player)) {
                 BlockPos waypoint = ClientWaypointState.pos().orElseThrow();
                 int x = centerScreenX + (int) Math.round((waypoint.getX() - playerX) * ppbX);
                 int y = centerScreenY + (int) Math.round((waypoint.getZ() - playerZ) * ppbY);
