@@ -41,6 +41,7 @@ public final class Skills {
     public static final SkillId EXPEDITIONIST_ID = new SkillId("expeditionist");
     public static final SkillId MAYOR_ID = new SkillId("mayor");
     public static final SkillId RECALLCRAFT_ID = new SkillId("recallcraft");
+    public static final SkillId HUNTSMAN_ID = new SkillId("huntsman");
 
     // Shared by every curve below; also the level Survivalist's true-hunger-max scaling (see
     // .hunger.HungerListener) treats as "max level" when computing capacity growth.
@@ -71,6 +72,7 @@ public final class Skills {
         SkillRegistry.register(expeditionist());
         SkillRegistry.register(mayor());
         SkillRegistry.register(recallcraft());
+        SkillRegistry.register(huntsman());
     }
 
     // Placeholder curve, deliberately easy to retune (mirrors the design doc's own framing of the
@@ -488,6 +490,35 @@ public final class Skills {
                 SkillCategory.SURVIVAL_CRAFT,
                 Optional.empty(),
                 recallcraftCurve(),
+                List.of()
+        );
+    }
+
+    // Huntsman (2026-10-16, explicit user request) -- gains XP every time any per-mob-type Quarry
+    // Knowledge level increases (huntsman.HuntsmanListener), not from kills directly. "Each level of
+    // Huntsman only requires 5xp, no scaling" -- a flat curve (cumulative threshold = 5 * level) is
+    // exactly that: every level costs the same 5 XP, unlike every other curve's growing coefficient.
+    private static XpCurve huntsmanCurve() {
+        List<Long> thresholds = new ArrayList<>();
+        for (int level = 1; level <= MAX_LEVEL; level++) {
+            thresholds.add(5L * level);
+        }
+        return new XpCurve(thresholds);
+    }
+
+    // Effects list empty, same reason every other skill's is -- the per-mob-type damage bonus and
+    // Quarry Knowledge leveling are computed directly by huntsman.HuntsmanListener/
+    // QuarryKnowledgeCurve reading huntsman.PlayerHuntsman, not driven by SkillEffect data. No
+    // requiredModId -- no cross-mod dependency. "No rewards for the Huntsman skill itself yet" --
+    // explicit user spec, so this skill's own level has no perk attached (unlike every combat skill
+    // above it), purely a progress counter for now.
+    private static SkillDefinition huntsman() {
+        return new SkillDefinition(
+                HUNTSMAN_ID,
+                "Huntsman",
+                SkillCategory.COMBAT,
+                Optional.empty(),
+                huntsmanCurve(),
                 List.of()
         );
     }

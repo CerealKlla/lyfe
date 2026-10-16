@@ -5,9 +5,11 @@ import java.util.UUID;
 import java.util.function.Supplier;
 
 import com.github.cerealklla.lyfe.LyfeMod;
+import com.github.cerealklla.lyfe.combat.AssistMarkers;
 import com.github.cerealklla.lyfe.data.PlayerSkills;
 import com.github.cerealklla.lyfe.heartiness.PlayerHeartiness;
 import com.github.cerealklla.lyfe.hunger.PlayerHunger;
+import com.github.cerealklla.lyfe.huntsman.PlayerHuntsman;
 import com.github.cerealklla.lyfe.knowledge.KnowledgeReference;
 import com.github.cerealklla.lyfe.knowledge.PlayerKnowledge;
 import com.github.cerealklla.lyfe.recallcinite.RecallciniteData;
@@ -129,6 +131,25 @@ public final class ModAttachments {
                     .serialize(RecallciniteData.CODEC)
                     .copyOnDeath()
                     .sync(ByteBufCodecs.fromCodecWithRegistries(RecallciniteData.CODEC.codec()))
+                    .build()
+    );
+
+    // In-memory only (no serialize/sync) -- a 15-second combat window (General spec, 2026-10-16)
+    // never needs to survive a save/reload or be visible client-side. Attached to any LivingEntity
+    // (the mob being hurt), not a player -- see combat.AssistTracker.
+    public static final Supplier<AttachmentType<AssistMarkers>> MOB_ASSIST_MARKERS = ATTACHMENT_TYPES.register(
+            "mob_assist_markers",
+            () -> AttachmentType.builder(holder -> new AssistMarkers()).build()
+    );
+
+    // Not synced -- server-only logic (Huntsman skill, 2026-10-16), same reasoning as
+    // PLAYER_RESEARCH above (the transient progress bar is pushed via its own explicit payload
+    // instead). copyOnDeath() so per-mob-type kill counts survive death like every other attachment.
+    public static final Supplier<AttachmentType<PlayerHuntsman>> PLAYER_HUNTSMAN = ATTACHMENT_TYPES.register(
+            "player_huntsman",
+            () -> AttachmentType.builder(PlayerHuntsman::new)
+                    .serialize(PlayerHuntsman.CODEC)
+                    .copyOnDeath()
                     .build()
     );
 }

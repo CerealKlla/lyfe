@@ -4,6 +4,7 @@ import org.slf4j.Logger;
 
 import com.mojang.logging.LogUtils;
 
+import com.github.cerealklla.lyfe.combat.AssistTracker;
 import com.github.cerealklla.lyfe.combat.CombatSkillListener;
 import com.github.cerealklla.lyfe.cook.VanillaFoodRecipeStripper;
 import com.github.cerealklla.lyfe.craft.EquipmentDefaultComponents;
@@ -22,6 +23,9 @@ import com.github.cerealklla.lyfe.gathering.LeafDecayAccelerator;
 import com.github.cerealklla.lyfe.gathering.SaplingAutoReplant;
 import com.github.cerealklla.lyfe.heartiness.HeartinessListener;
 import com.github.cerealklla.lyfe.hunger.HungerListener;
+import com.github.cerealklla.lyfe.huntsman.HuntsmanListener;
+import com.github.cerealklla.lyfe.huntsman.QuarryKnowledgeProgressPayload;
+import com.github.cerealklla.lyfe.huntsman.client.ClientHuntsmanBarState;
 import com.github.cerealklla.lyfe.location.ClientLocationState;
 import com.github.cerealklla.lyfe.location.LocationPayload;
 import com.github.cerealklla.lyfe.location.LocationTracker;
@@ -118,6 +122,8 @@ public class LyfeMod {
         NeoForge.EVENT_BUS.register(new LockedChestUnlockListener());
         NeoForge.EVENT_BUS.register(new com.github.cerealklla.lyfe.cook.FoodStarterPackListener());
         NeoForge.EVENT_BUS.register(new CombatSkillListener());
+        NeoForge.EVENT_BUS.register(new AssistTracker());
+        NeoForge.EVENT_BUS.register(new HuntsmanListener());
         NeoForge.EVENT_BUS.register(new ExcavatorListener());
         NeoForge.EVENT_BUS.register(new ProficiencyDurabilityListener());
         NeoForge.EVENT_BUS.register(new PassiveDurabilityResearchListener());
@@ -196,6 +202,12 @@ public class LyfeMod {
         event.registrar("1").playToClient(ResearchProgressPayload.TYPE, ResearchProgressPayload.STREAM_CODEC,
                 (payload, context) -> ClientResearchBarState.onProgress(
                         payload.resultId(), payload.oldPoints(), payload.newPoints(), payload.threshold()));
+
+        // Quarry Knowledge progress HUD (Huntsman skill, 2026-10-16) -- same shape as the Research
+        // progress payload just above.
+        event.registrar("1").playToClient(QuarryKnowledgeProgressPayload.TYPE, QuarryKnowledgeProgressPayload.STREAM_CODEC,
+                (payload, context) -> ClientHuntsmanBarState.onProgress(
+                        payload.mobType(), payload.oldKills(), payload.newKills()));
 
         // Registered unconditionally, same reasoning as LocationPayload above -- MinimapTracker is
         // only ever constructed (and so only ever actually sends this) when Cartographyr is loaded,

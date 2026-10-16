@@ -335,4 +335,16 @@ public final class Lyfe {
     public static String resolveLocationText(ServerPlayer player, long placeId, String realName, net.minecraft.core.BlockPos targetPos) {
         return player.getData(ModAttachments.PLAYER_KNOWLEDGE).resolveDisplayText(placeId, realName, targetPos);
     }
+
+    /**
+     * Every player credited toward killing {@code deadMob} right now, via the General "assist
+     * marker" system (explicit user spec, 2026-10-16 -- see {@code combat.AssistTracker}'s own doc):
+     * every player who dealt real damage to this mob within the last 15 seconds, not just whoever
+     * landed the killing blow. Exposed here so Myssions' quest-kill tracking can give every assisting
+     * player equal credit toward a kill-type quest milestone instead of only the one player the
+     * {@code LivingDeathEvent}'s own damage source names.
+     */
+    public static Set<UUID> getAssistCredit(net.minecraft.world.entity.LivingEntity deadMob) {
+        return com.github.cerealklla.lyfe.combat.AssistTracker.creditedPlayers(deadMob);
+    }
 }
