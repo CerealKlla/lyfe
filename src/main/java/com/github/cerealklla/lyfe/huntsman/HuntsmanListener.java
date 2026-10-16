@@ -13,6 +13,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.npc.villager.Villager;
 import net.minecraft.world.entity.player.Player;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
@@ -44,13 +45,30 @@ public final class HuntsmanListener {
     private static final double DAMAGE_BONUS_PER_LEVEL = 0.5;
     private static final long HUNTSMAN_XP_PER_QUARRY_LEVEL = 1;
 
+    // Explicit user request, 2026-10-16: "Hunter should not track Settlement Guards or
+    // Villagers/Custom NPCs." Settlemynts' resident/worker NPCs (ResidentVillagerEntity,
+    // LumberjackWorkerEntity, FarmerWorkerEntity, MinerWorkerEntity) all extend vanilla Villager
+    // (confirmed against their source), so a plain `instanceof Villager` check -- which already
+    // has to cover natural-village villagers anyway -- covers all four for free. GuardEntity
+    // extends PathfinderMob directly, not Villager, so it needs its own check; matched by registry
+    // id rather than a compile dependency on Settlemynts, mirroring this mod's existing
+    // Identifier-based soft-reference to Settlemynts entities elsewhere (minimap.ClientGhostMarkerOutlines).
+    private static final Identifier SETTLEMYNTS_GUARD = Identifier.fromNamespaceAndPath("settlemynts", "guard");
+
+    private static boolean isExcludedFromHuntsman(LivingEntity victim) {
+        if (victim instanceof Villager) {
+            return true;
+        }
+        return SETTLEMYNTS_GUARD.equals(BuiltInRegistries.ENTITY_TYPE.getKey(victim.getType()));
+    }
+
     @SubscribeEvent
     public void onIncomingDamage(LivingIncomingDamageEvent event) {
         if (!(event.getSource().getEntity() instanceof ServerPlayer attacker) || event.getAmount() <= 0) {
             return;
         }
         LivingEntity victim = event.getEntity();
-        if (victim == attacker || victim instanceof Player) {
+        if (victim == attacker || victim instanceof Player || isExcludedFromHuntsman(victim)) {
             return;
         }
         Identifier mobType = BuiltInRegistries.ENTITY_TYPE.getKey(victim.getType());
@@ -66,6 +84,9 @@ public final class HuntsmanListener {
             return;
         }
         LivingEntity deadMob = event.getEntity();
+        if (isExcludedFromHuntsman(deadMob)) {
+            return;
+        }
         Identifier mobType = BuiltInRegistries.ENTITY_TYPE.getKey(deadMob.getType());
         Set<UUID> creditedPlayerIds = AssistTracker.creditedPlayers(deadMob);
         for (UUID playerId : creditedPlayerIds) {
