@@ -19,8 +19,15 @@ import net.minecraft.world.level.block.state.BlockState;
  */
 public final class WholeStructureClear {
 
-    // Bounds worst-case cost per trigger. Comfortably larger than any vanilla tree or ore vein.
-    private static final int MAX_BLOCKS = 64;
+    // Bounds worst-case cost per trigger. Real live report, 2026-10-16: "insta-chop for trees needs
+    // to clear even higher; i have some huge oaks and it's leaving the very tops" -- 64 was NOT
+    // comfortably larger than every vanilla tree after all; a large/fancy 2x2-trunk oak's own logs
+    // (trunk + branches) can genuinely exceed it, and since this is a breadth-first fill outward from
+    // wherever the player broke a log (usually near the base), hitting the cap leaves out whichever
+    // blocks are farthest from that origin first -- for a tall tree, that's the top. Raised well past
+    // any realistic vanilla tree/ore vein size; this only ever runs once per player break, not a hot
+    // loop, so a larger worst-case search is a non-issue.
+    private static final int MAX_BLOCKS = 256;
 
     // Every offset in the 3x3x3 cube around a block except the center -- 26 neighbors, not just
     // the 6 face-adjacent ones. Fixed 2026-09-25 (see decisions.md): face-only adjacency missed a
