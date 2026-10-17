@@ -263,3 +263,21 @@ live-tested or deployed.**
 actually does. `socket.RuneItem` never overrode `appendHoverText` at all (confirmed `socket.GemItem`
 has the identical gap, not yet fixed); now shows "Socket into an item with an open socket" plus the
 Rune's real fixed stat bonus from `socket.RuneCatalog`. `./gradlew build`/`test` green.
+
+**Menu consolidation: K now opens Nuclyus's shared tabbed menu, same day** -- the new foundation mod
+**Nuclyus** (see its own CLAUDE.md) owns the "K" keybind and the tab-bar host screen now; Lyfe's old
+standalone `OPEN_SKILLS`/`OPEN_MAP` ("K"/"M") are gone, and `skill.client.SkillsScreen`/
+`map.client.MapScreen` were deleted outright once ported. Lyfe contributes six tabs: **Character
+Info** (max health/absorption/swim speed all read live off vanilla `Attributes.*`; max hunger/max
+oxygen off the already-synced `PlayerHunger`/`PlayerAir`, zero new sync needed), **Skills** and
+**Map** (direct, mechanical ports of the old screens), **Hunter's Journal** (turned on sync for
+`PLAYER_HUNTSMAN`, previously server-only -- needed a real fix alongside it: mutating the object
+`getData()` returns never triggered a resync on its own, the same bug class `PLAYER_SKILLS`/
+`PLAYER_AIR` already had to fix once before), **Crafting Guide** (same `.sync()` fix for
+`PLAYER_RESEARCH`, across 7 real mutation call sites; needed no new network payload at all --
+`craft.EquipmentTierLadder`'s id/tier mappings are already pure, identical-both-sides static data),
+and **Rune Codex** (genuinely new tracking -- a new `socket.PlayerDiscoveredRunes` attachment, a new
+one-time login backfill scan, and a new one-shot payload for `ServerRunewordStore`'s rolled
+Runeword sequences; "discovered" itself is a pure client-side derivation, never stored). `./gradlew
+build`/`test` green, whole-suite (12 mods) rebuild green, `runServer` boot-smoke-tested clean.
+**Not yet live-tested in a real client.**
