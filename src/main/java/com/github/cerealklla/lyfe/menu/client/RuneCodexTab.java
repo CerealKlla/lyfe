@@ -11,6 +11,7 @@ import com.github.cerealklla.lyfe.socket.RunewordCatalog;
 import com.github.cerealklla.lyfe.socket.RunewordDefinition;
 import com.github.cerealklla.lyfe.socket.RunewordRollsPayload;
 import com.github.cerealklla.lyfe.socket.RequestRunewordRollsPayload;
+import com.github.cerealklla.nuclyus.client.TextWrap;
 import com.github.cerealklla.nuclyus.menu.client.NuclyusMenu;
 
 import net.minecraft.client.Minecraft;
@@ -196,7 +197,7 @@ public final class RuneCodexTab implements NuclyusMenu {
                 graphics.text(font, Component.literal("\"" + def.name() + "\" (" + runesLine + ")"), left, y, ITEM_COLOR, false);
             }
             y += ROW_HEIGHT;
-            for (String line : wrapText(font, def.description(), wrapWidth)) {
+            for (String line : TextWrap.wrap(font, def.description(), wrapWidth)) {
                 if (y + ROW_HEIGHT >= top && y <= bottom) {
                     graphics.text(font, Component.literal(line), left, y, DIM_COLOR, false);
                 }
@@ -214,21 +215,4 @@ public final class RuneCodexTab implements NuclyusMenu {
         return List.of();
     }
 
-    private static List<String> wrapText(Font font, String text, int maxWidth) {
-        List<String> lines = new ArrayList<>();
-        StringBuilder current = new StringBuilder();
-        for (String word : text.split(" ")) {
-            String candidate = current.isEmpty() ? word : current + " " + word;
-            if (font.width(candidate) > maxWidth && !current.isEmpty()) {
-                lines.add(current.toString());
-                current = new StringBuilder(word);
-            } else {
-                current = new StringBuilder(candidate);
-            }
-        }
-        if (!current.isEmpty()) {
-            lines.add(current.toString());
-        }
-        return lines.isEmpty() ? List.of("") : lines;
-    }
 }

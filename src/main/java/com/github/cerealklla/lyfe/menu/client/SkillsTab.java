@@ -7,6 +7,7 @@ import com.github.cerealklla.lyfe.api.Lyfe;
 import com.github.cerealklla.lyfe.skill.SkillBenefits;
 import com.github.cerealklla.lyfe.skill.SkillCopy;
 import com.github.cerealklla.lyfe.skill.SkillDefinition;
+import com.github.cerealklla.nuclyus.client.TextWrap;
 import com.github.cerealklla.nuclyus.menu.client.NuclyusMenu;
 
 import net.minecraft.client.Minecraft;
@@ -67,10 +68,10 @@ public final class SkillsTab implements NuclyusMenu {
             int level = player != null ? Lyfe.getLevel(player, def.id()) : 0;
             int maxLevel = def.xpCurve().maxLevel();
             List<String> benefits = SkillBenefits.describe(def.id(), player, level, maxLevel);
-            List<String> xpLines = wrapText(font, "XP: " + copy.xpSource(), wrapWidth);
-            List<String> summaryLines = wrapText(font, copy.summary(), wrapWidth);
+            List<String> xpLines = TextWrap.wrap(font, "XP: " + copy.xpSource(), wrapWidth);
+            List<String> summaryLines = TextWrap.wrap(font, copy.summary(), wrapWidth);
             List<List<String>> benefitLines = benefits.stream()
-                    .map(benefit -> wrapText(font, benefit, wrapWidth - BENEFIT_INDENT))
+                    .map(benefit -> TextWrap.wrap(font, benefit, wrapWidth - BENEFIT_INDENT))
                     .toList();
             int benefitLineCount = benefitLines.stream().mapToInt(List::size).sum();
             int height = HEADER_HEIGHT + LINE_HEIGHT * (xpLines.size() + summaryLines.size() + 1 + benefitLineCount) + ROW_GAP;
@@ -84,24 +85,6 @@ public final class SkillsTab implements NuclyusMenu {
 
     @Override
     public void onHidden() {
-    }
-
-    private static List<String> wrapText(Font font, String text, int maxWidth) {
-        List<String> lines = new ArrayList<>();
-        StringBuilder current = new StringBuilder();
-        for (String word : text.split(" ")) {
-            String candidate = current.isEmpty() ? word : current + " " + word;
-            if (font.width(candidate) > maxWidth && !current.isEmpty()) {
-                lines.add(current.toString());
-                current = new StringBuilder(word);
-            } else {
-                current = new StringBuilder(candidate);
-            }
-        }
-        if (!current.isEmpty()) {
-            lines.add(current.toString());
-        }
-        return lines.isEmpty() ? List.of("") : lines;
     }
 
     private int maxScrollOffset(Rect2i area) {

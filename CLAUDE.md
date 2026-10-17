@@ -281,3 +281,12 @@ one-time login backfill scan, and a new one-shot payload for `ServerRunewordStor
 Runeword sequences; "discovered" itself is a pure client-side derivation, never stored). `./gradlew
 build`/`test` green, whole-suite (12 mods) rebuild green, `runServer` boot-smoke-tested clean.
 **Not yet live-tested in a real client.**
+
+**Three shared utilities extracted into Nuclyus, same day** (see Nuclyus's own CLAUDE.md/decisions.md)
+-- pure behavior-preserving refactors, no public API changes here: `menu.client.SkillsTab`/
+`RuneCodexTab`'s hand-rolled `wrapText` now call `nuclyus.client.TextWrap#wrap`; `craft.ServerRecipeStore`/
+`cook.ServerFoodRecipeStore`/`socket.ServerRunewordStore` are now thin facades over
+`nuclyus.server.PersistedServerStore`; `knowledge.ClientWritingRequest` and
+`recallcinite.client.ClientRecallciniteState`'s bind-confirm flag now use
+`nuclyus.request.ClientRequestSlot`. `./gradlew build`/`test` green, whole-suite (12 mods) rebuild
+green, `runServer` boot-smoke-tested clean.

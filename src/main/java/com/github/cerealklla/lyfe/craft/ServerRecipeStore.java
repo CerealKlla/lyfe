@@ -1,66 +1,47 @@
 package com.github.cerealklla.lyfe.craft;
 
-import java.io.IOException;
-import java.io.Reader;
-import java.io.Writer;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
-import java.util.stream.Collectors;
 
 import com.github.cerealklla.lyfe.socket.SocketToolRegistry;
-
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonElement;
-import com.mojang.serialization.Codec;
-import com.mojang.serialization.DataResult;
-import com.mojang.serialization.JsonOps;
+import com.github.cerealklla.nuclyus.server.PersistedServerStore;
 
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 
 /**
- * The server-scoped (not world-scoped) generated recipe set (design doc Section 19.4). Stored at
- * {@code MinecraftServer#getFile(FILE_NAME)} -- confirmed against the decompiled source as the
- * process's own working directory, a sibling of {@code server.properties}, NOT any single world's
- * save path ({@code getWorldPath(LevelResource)} is the wrong, per-world accessor). This is what
- * makes a world/map wipe leave recipes untouched while a real "server wipe" (deleting everything
- * alongside the world folders) naturally takes this file with it too.
- *
- * <p>Generated once, on first boot if the file is absent; loaded as-is on every subsequent boot.
+ * The server-scoped (not world-scoped) generated recipe set (design doc Section 19.4) -- a thin
+ * static facade over a {@link PersistedServerStore}, which owns the actual "generate once on first
+ * boot, persist to the server's own working directory via Gson+Codec, reuse thereafter" mechanics
+ * (pulled out to Nuclyus 2026-10-17, shared with {@code cook.ServerFoodRecipeStore}/{@code
+ * socket.ServerRunewordStore}).
  */
 public final class ServerRecipeStore {
 
-    private static final String FILE_NAME = "lyfe_equipment_recipes.json";
-    private static final Codec<java.util.List<GeneratedRecipe>> LIST_CODEC = GeneratedRecipe.CODEC.listOf();
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
-
-    private static volatile Map<Identifier, GeneratedRecipe> recipes = Map.of();
+    private static final PersistedServerStore<Identifier, GeneratedRecipe> STORE =
+            new PersistedServerStore<>("lyfe_equipment_recipes.json", GeneratedRecipe.CODEC, GeneratedRecipe::resultId) {
+                @Override
+                protected Map<Identifier, GeneratedRecipe> generate() {
+                    return ServerRecipeStore.generate();
+                }
+            };
 
     private ServerRecipeStore() {
     }
 
     public static Optional<GeneratedRecipe> get(Identifier itemId) {
-        return Optional.ofNullable(recipes.get(itemId));
+        return STORE.get(itemId);
     }
 
     public static Map<Identifier, GeneratedRecipe> all() {
-        return Map.copyOf(recipes);
+        return STORE.all();
     }
 
     public static void loadOrGenerate(MinecraftServer server) {
-        Path file = server.getFile(FILE_NAME);
-        if (Files.exists(file)) {
-            recipes = load(file).orElseGet(() -> generateAndSave(file));
-        } else {
-            recipes = generateAndSave(file);
-        }
+        STORE.loadOrGenerate(server);
     }
 
     /**
@@ -70,14 +51,7 @@ public final class ServerRecipeStore {
      * rebooting between every change.
      */
     public static void reroll(MinecraftServer server) {
-        Path file = server.getFile(FILE_NAME);
-        recipes = generateAndSave(file);
-    }
-
-    private static Map<Identifier, GeneratedRecipe> generateAndSave(Path file) {
-        Map<Identifier, GeneratedRecipe> generated = generate();
-        save(file, generated);
-        return generated;
+        STORE.reroll(server);
     }
 
     static Map<Identifier, GeneratedRecipe> generate() {
@@ -116,30 +90,5 @@ public final class ServerRecipeStore {
             result.put(itemId, new GeneratedRecipe(itemId, SocketToolRegistry.RECIPE_TIER, components, rolled.genericComponents()));
         }
         return result;
-    }
-
-    private static Optional<Map<Identifier, GeneratedRecipe>> load(Path file) {
-        try (Reader reader = Files.newBufferedReader(file, StandardCharsets.UTF_8)) {
-            JsonElement json = GSON.fromJson(reader, JsonElement.class);
-            DataResult<java.util.List<GeneratedRecipe>> decoded = LIST_CODEC.parse(JsonOps.INSTANCE, json);
-            return decoded.result().map(list -> list.stream()
-                    .collect(Collectors.toMap(GeneratedRecipe::resultId, r -> r)));
-        } catch (IOException e) {
-            return Optional.empty();
-        }
-    }
-
-    private static void save(Path file, Map<Identifier, GeneratedRecipe> toSave) {
-        DataResult<JsonElement> encoded = LIST_CODEC.encodeStart(JsonOps.INSTANCE, java.util.List.copyOf(toSave.values()));
-        encoded.result().ifPresent(json -> {
-            try {
-                Files.createDirectories(file.toAbsolutePath().getParent());
-                try (Writer writer = Files.newBufferedWriter(file, StandardCharsets.UTF_8)) {
-                    GSON.toJson(json, writer);
-                }
-            } catch (IOException ignored) {
-                // Best-effort persistence -- a failed save just means regeneration next boot, not a crash.
-            }
-        });
     }
 }

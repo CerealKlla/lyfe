@@ -1,5 +1,7 @@
 package com.github.cerealklla.lyfe.recallcinite.client;
 
+import com.github.cerealklla.nuclyus.request.ClientRequestSlot;
+
 /**
  * Client-side bridge for the Recallcinite Totem's two transient client needs -- deliberately zero
  * client-only imports, same reasoning as {@code knowledge.ClientWritingRequest}: written from the
@@ -17,7 +19,7 @@ public final class ClientRecallciniteState {
 
     private static final int STALE_AFTER_TICKS = 4;
 
-    private static volatile boolean pendingOpenBindConfirm;
+    private static final ClientRequestSlot<Boolean> OPEN_BIND_CONFIRM = new ClientRequestSlot<>();
     private static volatile float channelFraction;
     private static volatile int ticksSinceProgressUpdate = Integer.MAX_VALUE;
 
@@ -25,13 +27,11 @@ public final class ClientRecallciniteState {
     }
 
     public static void requestOpenBindConfirm() {
-        pendingOpenBindConfirm = true;
+        OPEN_BIND_CONFIRM.request(true);
     }
 
     public static boolean takePendingOpenBindConfirm() {
-        boolean pending = pendingOpenBindConfirm;
-        pendingOpenBindConfirm = false;
-        return pending;
+        return OPEN_BIND_CONFIRM.takePending().orElse(false);
     }
 
     public static void onChannelProgress(float fraction) {
