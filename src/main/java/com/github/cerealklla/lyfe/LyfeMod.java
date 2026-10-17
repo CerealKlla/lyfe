@@ -44,6 +44,7 @@ import com.github.cerealklla.lyfe.socket.RuneDropListener;
 import com.github.cerealklla.lyfe.socket.RuneLootInjector;
 import com.github.cerealklla.lyfe.socket.RunewordBootstrap;
 import com.github.cerealklla.lyfe.socket.RunewordEffectListener;
+import com.github.cerealklla.lyfe.socket.SocketDiscoveryListener;
 import com.github.cerealklla.lyfe.knowledge.ClientWritingRequest;
 import com.github.cerealklla.lyfe.knowledge.KnowledgeProximityTicker;
 import com.github.cerealklla.lyfe.knowledge.OpenWritingScreenPayload;
@@ -138,6 +139,7 @@ public class LyfeMod {
         NeoForge.EVENT_BUS.register(new RunewordBootstrap());
         NeoForge.EVENT_BUS.register(new RunewordEffectListener());
         NeoForge.EVENT_BUS.register(new RuneDropListener());
+        NeoForge.EVENT_BUS.register(new SocketDiscoveryListener());
         NeoForge.EVENT_BUS.addListener((LootTableLoadEvent event) -> RuneLootInjector.onLootTableLoad(event));
         NeoForge.EVENT_BUS.addListener((LootTableLoadEvent event) -> PreSocketedGearInjector.onLootTableLoad(event));
         NeoForge.EVENT_BUS.addListener((RegisterCommandsEvent event) -> DebugCommands.register(event.getDispatcher()));
