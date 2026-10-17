@@ -100,10 +100,19 @@ public final class ShopSeedCatalogs {
     private static List<SeedListing> armorerListings(int maxTier) {
         List<SeedListing> listings = new ArrayList<>();
         List<ItemStack> notes = new ArrayList<>();
-        for (int tier = 1; tier <= maxTier; tier++) {
+        // Starts at Tier 0 (Leather) -- real report, 2026-10-16: "tier 1 armorer should also list
+        // leather armor alongside chain." The loop used to start at 1 (Chainmail), silently skipping
+        // Leather at every Plot Tier including 1, even though Tier 0 armor is a real, auto-known rung
+        // on EquipmentTierLadder's own ladder (same "known by default but still sellable" treatment
+        // Wood already gets on the tool side).
+        for (int tier = 0; tier <= maxTier; tier++) {
+            // Math.max(1, tier) -- ARMOR_PRICE_PER_TIER * tier would price Tier 0 (Leather) at 0
+            // (free). Priced the same as Tier 1 (Chainmail) rather than inventing a new, smaller
+            // fractional step -- every tier >= 1's own existing price is unchanged.
+            int price = ARMOR_PRICE_PER_TIER * Math.max(1, tier);
             for (ArmorType armorType : EquipmentTierLadder.ARMOR_TYPES) {
                 Identifier itemId = EquipmentTierLadder.armorItemId(armorType, tier);
-                listings.add(SeedListing.ofResource(ShopResource.ofItem(itemId), ARMOR_PRICE_PER_TIER * tier, EQUIPMENT_STOCK));
+                listings.add(SeedListing.ofResource(ShopResource.ofItem(itemId), price, EQUIPMENT_STOCK));
                 notes.add(ResearchNoteItem.createFor(itemId, tier));
             }
         }
