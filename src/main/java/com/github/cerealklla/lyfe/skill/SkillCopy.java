@@ -3,6 +3,7 @@ package com.github.cerealklla.lyfe.skill;
 import java.util.Map;
 
 import com.github.cerealklla.lyfe.registration.ModBlocks;
+import com.github.cerealklla.lyfe.registration.ModItems;
 
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
@@ -81,7 +82,10 @@ public record SkillCopy(Item icon, String xpSource, String summary) {
                     "Reduces the Totem's bind/recall cooldown, up to 20% at max level.")),
             Map.entry(Skills.HUNTSMAN_ID, new SkillCopy(Items.BOW,
                     "A Quarry Knowledge level increasing (fighting mobs, tracked per mob type)",
-                    "No bonuses of its own yet -- see your per-mob-type Quarry Knowledge for its real combat bonus."))
+                    "No bonuses of its own yet -- see your per-mob-type Quarry Knowledge for its real combat bonus.")),
+            Map.entry(Skills.SOCKETEER_ID, new SkillCopy(ModItems.DIAMOND_DIE_GRINDER.get(),
+                    "Spending Die Grinder/Pry Bar durability socketing or extracting",
+                    "Better Socketing/Extracting odds -- more full-progress results, fewer wasted attempts, higher extraction success."))
     );
 
     public static SkillCopy get(SkillId id) {

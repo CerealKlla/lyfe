@@ -2,6 +2,7 @@ package com.github.cerealklla.lyfe.repair;
 
 import java.util.List;
 
+import com.github.cerealklla.lyfe.registration.ModItems;
 import com.github.cerealklla.lyfe.structure.UpgradeCostEntry;
 
 import net.minecraft.resources.Identifier;
@@ -54,6 +55,11 @@ final class RepairMaterials {
     // whatever every other off-ladder item defaulted to.
     private static final UpgradeCostEntry FISHING_ROD = UpgradeCostEntry.ofItem(Identifier.withDefaultNamespace("stick"), FULL_REPAIR_AMOUNT);
 
+    // Die Grinder/Pry Bar (explicit user spec, 2026-10-17: "repair max is 9 diamonds") -- same
+    // FULL_REPAIR_AMOUNT (already 9) as every other tier, just with Diamond as the material instead
+    // of whatever the off-ladder GENERIC default would otherwise use.
+    private static final UpgradeCostEntry SOCKET_TOOL = UpgradeCostEntry.ofItem(Identifier.withDefaultNamespace("diamond"), FULL_REPAIR_AMOUNT);
+
     // Tiers 2-6, shared by tools and armor alike.
     private static final List<UpgradeCostEntry> SHARED_ENTRY_BY_TIER_FROM_2 = List.of(
             UpgradeCostEntry.ofItem(Identifier.withDefaultNamespace("copper_ingot"), FULL_REPAIR_AMOUNT),
@@ -75,7 +81,13 @@ final class RepairMaterials {
      */
     static UpgradeCostEntry fullEntryFor(int tier, boolean isArmor, Item item) {
         if (tier < 0) {
-            return item == Items.FISHING_ROD ? FISHING_ROD : GENERIC;
+            if (item == Items.FISHING_ROD) {
+                return FISHING_ROD;
+            }
+            if (item == ModItems.DIAMOND_DIE_GRINDER.get() || item == ModItems.DIAMOND_PRY_BAR.get()) {
+                return SOCKET_TOOL;
+            }
+            return GENERIC;
         }
         if (tier == 0) {
             return isArmor ? ARMOR_TIER_0 : TOOL_TIER_0;

@@ -18,6 +18,15 @@ import com.github.cerealklla.lyfe.knowledge.KnowledgeReference;
 import com.github.cerealklla.lyfe.recallcinite.RecallciniteTotemItem;
 import com.github.cerealklla.lyfe.research.ResearchNoteItem;
 import com.github.cerealklla.lyfe.research.ResearchNoteTarget;
+import com.github.cerealklla.lyfe.socket.DieGrinderItem;
+import com.github.cerealklla.lyfe.socket.GemItem;
+import com.github.cerealklla.lyfe.socket.GemQuality;
+import com.github.cerealklla.lyfe.socket.GemType;
+import com.github.cerealklla.lyfe.socket.PryBarItem;
+import com.github.cerealklla.lyfe.socket.RuneId;
+import com.github.cerealklla.lyfe.socket.RuneItem;
+import com.github.cerealklla.lyfe.socket.SocketData;
+import com.github.cerealklla.lyfe.socket.SocketToolRegistry;
 
 import com.mojang.serialization.Codec;
 
@@ -107,6 +116,23 @@ public final class ModItems {
                     .persistent(Codec.DOUBLE)
                     .networkSynchronized(ByteBufCodecs.DOUBLE));
 
+    // The Socketing/Extracting system (explicit user spec, 2026-10-17) -- see socket.SocketData's own
+    // doc. Attachable to any weapon/tool/armor item (vanilla or modded), not just the two new tools.
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<SocketData>> SOCKET_DATA =
+            DATA_COMPONENTS.registerComponentType("socket_data", builder -> builder
+                    .persistent(SocketData.CODEC)
+                    .networkSynchronized(SocketData.STREAM_CODEC));
+
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<GemQuality>> GEM_QUALITY =
+            DATA_COMPONENTS.registerComponentType("gem_quality", builder -> builder
+                    .persistent(GemQuality.CODEC)
+                    .networkSynchronized(GemQuality.STREAM_CODEC));
+
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<RuneId>> RUNE_ID =
+            DATA_COMPONENTS.registerComponentType("rune_id", builder -> builder
+                    .persistent(RuneId.CODEC)
+                    .networkSynchronized(RuneId.STREAM_CODEC));
+
     public static final DeferredRegister.Items ITEMS = DeferredRegister.createItems(LyfeMod.MODID);
 
     // Lyfe's first real custom Item -- every target/tier is baked into RESEARCH_NOTE_TARGET above,
@@ -176,5 +202,46 @@ public final class ModItems {
             "recallcinite_totem",
             id -> new RecallciniteTotemItem(new Item.Properties()
                     .stacksTo(1)
+                    .setId(ResourceKey.create(Registries.ITEM, id))));
+
+    // The Socketing/Extracting tools (explicit user spec, 2026-10-17) -- see socket.SocketToolRegistry's
+    // own doc for why these are Lyfe's first-ever brand-new custom tool Items (every other
+    // crafting-overhaul "tool" is a vanilla item id). Registered under the exact ids
+    // SocketToolRegistry#dieGrinderId/#pryBarId expect.
+    public static final DeferredItem<DieGrinderItem> DIAMOND_DIE_GRINDER = ITEMS.register(
+            "diamond_die_grinder",
+            id -> new DieGrinderItem(new Item.Properties()
+                    .stacksTo(1)
+                    .durability(SocketToolRegistry.BASE_DURABILITY)
+                    .setId(ResourceKey.create(Registries.ITEM, id))));
+
+    public static final DeferredItem<PryBarItem> DIAMOND_PRY_BAR = ITEMS.register(
+            "diamond_pry_bar",
+            id -> new PryBarItem(new Item.Properties()
+                    .stacksTo(1)
+                    .durability(SocketToolRegistry.BASE_DURABILITY)
+                    .setId(ResourceKey.create(Registries.ITEM, id))));
+
+    // 6 Gem items (one per GemType -- quality is a stored component, not a separate item, see
+    // socket.GemItem's own doc).
+    private static final Map<GemType, DeferredItem<GemItem>> GEMS = new HashMap<>();
+
+    static {
+        for (GemType type : GemType.values()) {
+            GEMS.put(type, ITEMS.register(
+                    "gem_" + type.name().toLowerCase(java.util.Locale.ROOT),
+                    id -> new GemItem(type, new Item.Properties()
+                            .setId(ResourceKey.create(Registries.ITEM, id)))));
+        }
+    }
+
+    public static DeferredItem<GemItem> gemFor(GemType type) {
+        return GEMS.get(type);
+    }
+
+    // One shared Rune item for all 30 RuneIds -- see socket.RuneItem's own doc.
+    public static final DeferredItem<RuneItem> RUNE = ITEMS.register(
+            "rune",
+            id -> new RuneItem(new Item.Properties()
                     .setId(ResourceKey.create(Registries.ITEM, id))));
 }

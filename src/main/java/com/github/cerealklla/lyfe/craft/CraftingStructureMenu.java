@@ -119,7 +119,8 @@ public class CraftingStructureMenu extends AbstractContainerMenu {
         return java.util.stream.Stream.of(
                         EquipmentTierLadder.allGeneratedItemIds().stream(),
                         EquipmentTierLadder.allGeneratedArmorItemIds().stream(),
-                        EquipmentTierLadder.allGeneratedRangedWeaponIds().stream())
+                        EquipmentTierLadder.allGeneratedRangedWeaponIds().stream(),
+                        com.github.cerealklla.lyfe.socket.SocketToolRegistry.allIds().stream())
                 .flatMap(s -> s)
                 .map(ServerRecipeStore::get)
                 .flatMap(java.util.Optional::stream)
@@ -276,9 +277,12 @@ public class CraftingStructureMenu extends AbstractContainerMenu {
                 + CrafterConstants.structureBonus(tier);
         ItemStack result = new ItemStack(BuiltInRegistries.ITEM.getValue(recipe.resultId()));
         var armorType = EquipmentTierLadder.armorTypeOf(recipe.resultId());
-        if (armorType == null) {
+        if (armorType == null && !com.github.cerealklla.lyfe.socket.SocketToolRegistry.isSocketTool(recipe.resultId())) {
             // Tool/weapon only -- custom base-durability override (2026-10-06), applied before
             // Quality's own % bonus so Quality boosts off the custom base, not vanilla's raw value.
+            // Excludes the Die Grinder/Pry Bar (see SocketToolRegistry's own doc) -- their "Tier 4"
+            // is a recipe-weighting number only, not a real ladder membership, so they must keep
+            // their own registered 1000 durability instead of Gold's rebalanced 900.
             int baseDurabilityOverride = EquipmentTierLadder.baseDurabilityOverride(recipe.tier());
             if (baseDurabilityOverride > 0) {
                 result.set(net.minecraft.core.component.DataComponents.MAX_DAMAGE, baseDurabilityOverride);

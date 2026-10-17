@@ -39,6 +39,8 @@ import com.github.cerealklla.lyfe.minimap.ClientMinimapState;
 import com.github.cerealklla.lyfe.minimap.MinimapEntitiesPayload;
 import com.github.cerealklla.lyfe.minimap.MinimapTracker;
 import com.github.cerealklla.lyfe.repair.RepairInteractionListener;
+import com.github.cerealklla.lyfe.socket.RunewordBootstrap;
+import com.github.cerealklla.lyfe.socket.RunewordEffectListener;
 import com.github.cerealklla.lyfe.knowledge.ClientWritingRequest;
 import com.github.cerealklla.lyfe.knowledge.KnowledgeProximityTicker;
 import com.github.cerealklla.lyfe.knowledge.OpenWritingScreenPayload;
@@ -130,6 +132,8 @@ public class LyfeMod {
         NeoForge.EVENT_BUS.register(new UnbreakableToolListener());
         NeoForge.EVENT_BUS.register(new UnbreakableArmorListener());
         NeoForge.EVENT_BUS.register(new RepairInteractionListener());
+        NeoForge.EVENT_BUS.register(new RunewordBootstrap());
+        NeoForge.EVENT_BUS.register(new RunewordEffectListener());
         NeoForge.EVENT_BUS.addListener((RegisterCommandsEvent event) -> DebugCommands.register(event.getDispatcher()));
         NeoForge.EVENT_BUS.addListener((LootTableLoadEvent event) -> ResearchNoteLootInjector.onLootTableLoad(event));
         NeoForge.EVENT_BUS.addListener((LootTableLoadEvent event) -> RecipeNoteLootInjector.onLootTableLoad(event));

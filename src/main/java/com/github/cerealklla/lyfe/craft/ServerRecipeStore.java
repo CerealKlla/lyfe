@@ -7,10 +7,13 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
 import java.util.stream.Collectors;
+
+import com.github.cerealklla.lyfe.socket.SocketToolRegistry;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -100,6 +103,17 @@ public final class ServerRecipeStore {
         for (Identifier itemId : EquipmentTierLadder.allGeneratedRangedWeaponIds()) {
             int tier = EquipmentTierLadder.rangedWeaponTier(itemId);
             result.put(itemId, RecipeGenerator.generate(itemId, tier, null, random));
+        }
+        // Socketing tools (Diamond Die Grinder/Pry Bar, added 2026-10-17) -- same fixed-tier, no-
+        // upgrade-chain shape as ranged weapons above, plus a guaranteed 3-Diamond base merged on top
+        // of the random roll (explicit user spec: "3 diamond base + random other components") -- see
+        // socket.SocketToolRegistry's own doc for why RECIPE_TIER (4) only governs the random roll's
+        // material weighting, independent of the guaranteed Diamond base.
+        for (Identifier itemId : SocketToolRegistry.allIds()) {
+            GeneratedRecipe rolled = RecipeGenerator.generate(itemId, SocketToolRegistry.RECIPE_TIER, null, random);
+            Map<Identifier, Integer> components = new LinkedHashMap<>(rolled.specificComponents());
+            components.merge(SocketToolRegistry.diamondItemId(), SocketToolRegistry.GUARANTEED_DIAMOND_COUNT, Integer::sum);
+            result.put(itemId, new GeneratedRecipe(itemId, SocketToolRegistry.RECIPE_TIER, components, rolled.genericComponents()));
         }
         return result;
     }

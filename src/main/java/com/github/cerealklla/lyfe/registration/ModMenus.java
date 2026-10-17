@@ -11,6 +11,8 @@ import com.github.cerealklla.lyfe.craft.GeneratedRecipe;
 import com.github.cerealklla.lyfe.fishing.FishCleaningMenu;
 import com.github.cerealklla.lyfe.repair.RepairStructureMenu;
 import com.github.cerealklla.lyfe.research.ResearchMenu;
+import com.github.cerealklla.lyfe.socket.ExtractingMenu;
+import com.github.cerealklla.lyfe.socket.SocketingMenu;
 
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.inventory.MenuType;
@@ -81,4 +83,15 @@ public final class ModMenus {
                 boolean canUpgrade = extraData.readBoolean();
                 return new CookingStructureMenu(null, windowId, inventory, tier, craftable, inventoryY, canUpgrade);
             }));
+
+    // Socketing/Extracting (explicit user spec, 2026-10-17) -- opened from the Die Grinder/Pry Bar's
+    // own held-item use(), not a block, so no block position/extra-data at all -- same null-backed
+    // shape RESEARCH_BENCH/FISH_CLEANING_STATION/REPAIR_STRUCTURE already use.
+    public static final DeferredHolder<MenuType<?>, MenuType<SocketingMenu>> SOCKETING = MENU_TYPES.register(
+            "socketing",
+            () -> IMenuTypeExtension.create((windowId, inventory, extraData) -> new SocketingMenu(null, windowId, inventory)));
+
+    public static final DeferredHolder<MenuType<?>, MenuType<ExtractingMenu>> EXTRACTING = MENU_TYPES.register(
+            "extracting",
+            () -> IMenuTypeExtension.create((windowId, inventory, extraData) -> new ExtractingMenu(null, windowId, inventory)));
 }

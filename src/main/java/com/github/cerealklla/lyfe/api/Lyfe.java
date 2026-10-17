@@ -196,6 +196,18 @@ public final class Lyfe {
     }
 
     /**
+     * The flat Shop-value bonus {@code stack} earns from its empty/filled sockets (explicit user
+     * spec, 2026-10-17: "the presence of empty sockets... increases the value baseline... 1 -> 5
+     * sockets, value should go from base + 20 -> base + 200") -- {@code 0} for an unsocketed item.
+     * For Settlemynts/Yconomics pricing to add on top of whatever base price it already derives.
+     */
+    public static int getSocketValueBonus(net.minecraft.world.item.ItemStack stack) {
+        com.github.cerealklla.lyfe.socket.SocketData data = stack.getOrDefault(
+                com.github.cerealklla.lyfe.registration.ModItems.SOCKET_DATA.get(), com.github.cerealklla.lyfe.socket.SocketData.EMPTY);
+        return com.github.cerealklla.lyfe.socket.SocketData.valueBonusForSocketCount(data.socketCount());
+    }
+
+    /**
      * Whether the player has already hit {@code skillId}'s max level -- every "+N XP (Level M)"
      * chat message caller should check this first and skip the message once true, since XP earned
      * past max level still gets added (see {@code PlayerSkills#addXp}, uncapped) but no longer

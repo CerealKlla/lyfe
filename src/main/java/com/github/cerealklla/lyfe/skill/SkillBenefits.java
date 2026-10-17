@@ -114,6 +114,9 @@ public final class SkillBenefits {
             // own placeholder line above.
             return List.of("No bonuses yet -- see your per-mob-type Quarry Knowledge for its own damage bonus");
         }
+        if (id.equals(Skills.SOCKETEER_ID)) {
+            return com.github.cerealklla.lyfe.socket.SocketeerConstants.benefitLines(level);
+        }
         return List.of();
     }
 }

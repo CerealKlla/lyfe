@@ -42,6 +42,7 @@ public final class Skills {
     public static final SkillId MAYOR_ID = new SkillId("mayor");
     public static final SkillId RECALLCRAFT_ID = new SkillId("recallcraft");
     public static final SkillId HUNTSMAN_ID = new SkillId("huntsman");
+    public static final SkillId SOCKETEER_ID = new SkillId("socketeer");
 
     // Shared by every curve below; also the level Survivalist's true-hunger-max scaling (see
     // .hunger.HungerListener) treats as "max level" when computing capacity growth.
@@ -73,6 +74,7 @@ public final class Skills {
         SkillRegistry.register(mayor());
         SkillRegistry.register(recallcraft());
         SkillRegistry.register(huntsman());
+        SkillRegistry.register(socketeer());
     }
 
     // Placeholder curve, deliberately easy to retune (mirrors the design doc's own framing of the
@@ -519,6 +521,22 @@ public final class Skills {
                 SkillCategory.COMBAT,
                 Optional.empty(),
                 huntsmanCurve(),
+                List.of()
+        );
+    }
+
+    // Socketeer (explicit user spec, 2026-10-17) -- "gains xp for durability loss on Die Grinder and
+    // Pry Bar," 1:1 XP per durability point spent (see socket.SocketingMenu/ExtractingMenu's own
+    // attempt handlers, which call Lyfe.addXp directly at the same point they call hurtAndBreak).
+    // fastCurve()'s shape fits this well -- it's a frequent, small-XP-per-action skill, same as
+    // Lumberjack/Miner.
+    private static SkillDefinition socketeer() {
+        return new SkillDefinition(
+                SOCKETEER_ID,
+                "Socketeer",
+                SkillCategory.SURVIVAL_CRAFT,
+                Optional.empty(),
+                fastCurve(),
                 List.of()
         );
     }
