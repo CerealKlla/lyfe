@@ -301,3 +301,11 @@ its own). Separately, a real gap found and fixed: extracting a Rune with the Dia
 -- fixed by calling its discovery-recording method directly from the extraction success path too.
 `./gradlew build` green, whole-suite (12 mods) rebuild green, `runServer` boot-smoke-tested clean.
 **Not yet re-confirmed live** for either fix.
+
+**Gems now drop from mob kills, same chance as Runes, 2026-10-17** (see
+[context/decisions.md](context/decisions.md)) -- new `socket.GemDropListener`, a direct copy of
+`RuneDropListener`'s 1%/5% (Pillager) drop chance; previously the only way to ever obtain a Gem at
+all was extracting one back out of gear it was already socketed into. Type rolls uniformly across
+all 6 (no Runeword-style rarity concept applies to Gems); Quality gets a real first-pass rarity
+curve (Chipped 50% down to Perfect 3%). `./gradlew build` green, whole-suite (12 mods) rebuild
+green, `runServer` boot-smoke-tested clean. **Not yet live-tested.**

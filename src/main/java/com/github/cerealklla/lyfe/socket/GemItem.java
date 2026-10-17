@@ -17,8 +17,8 @@ import net.minecraft.world.item.ItemStack;
  * {@code cook.CookingListener#bakeIcons}/Lyfe's own Quality system already use). {@code gemType} is
  * fixed per registered item (baked at construction, never stored as its own component); {@code
  * gemQuality} IS a real stored component, defaulting to {@link GemQuality#NORMAL} for a freshly
- * spawned stack with none set (shouldn't normally happen -- every real source, Extracting, always
- * sets it explicitly).
+ * spawned stack with none set (shouldn't normally happen -- every real source, Extracting and
+ * {@code GemDropListener}'s mob drops, always sets it explicitly).
  */
 public class GemItem extends Item {
 

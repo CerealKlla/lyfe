@@ -39,6 +39,7 @@ import com.github.cerealklla.lyfe.minimap.ClientMinimapState;
 import com.github.cerealklla.lyfe.minimap.MinimapEntitiesPayload;
 import com.github.cerealklla.lyfe.minimap.MinimapTracker;
 import com.github.cerealklla.lyfe.repair.RepairInteractionListener;
+import com.github.cerealklla.lyfe.socket.GemDropListener;
 import com.github.cerealklla.lyfe.socket.PreSocketedGearInjector;
 import com.github.cerealklla.lyfe.socket.RuneDropListener;
 import com.github.cerealklla.lyfe.socket.RuneLootInjector;
@@ -139,6 +140,7 @@ public class LyfeMod {
         NeoForge.EVENT_BUS.register(new RunewordBootstrap());
         NeoForge.EVENT_BUS.register(new RunewordEffectListener());
         NeoForge.EVENT_BUS.register(new RuneDropListener());
+        NeoForge.EVENT_BUS.register(new GemDropListener());
         NeoForge.EVENT_BUS.register(new SocketDiscoveryListener());
         NeoForge.EVENT_BUS.register(new com.github.cerealklla.lyfe.socket.RuneBackfillListener());
         NeoForge.EVENT_BUS.addListener((LootTableLoadEvent event) -> RuneLootInjector.onLootTableLoad(event));
