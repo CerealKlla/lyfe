@@ -125,9 +125,16 @@ public final class ShopSeedCatalogs {
     private static List<SeedListing> blacksmithListings(int maxTier) {
         List<SeedListing> listings = new ArrayList<>();
         List<ItemStack> notes = new ArrayList<>();
-        for (int tier = 1; tier <= maxTier; tier++) {
+        // Starts at Tier 0 (Wood) -- same real gap and fix as armorerListings' own Leather fix
+        // above, confirmed by the user ("I meant tier 0"): the loop used to start at 1 (Stone),
+        // silently skipping Wood at every Plot Tier including 1, even though it's a real, auto-known
+        // rung on the ladder.
+        for (int tier = 0; tier <= maxTier; tier++) {
+            // Math.max(1, tier) -- see armorerListings' own identical fix; avoids a free (price 0)
+            // Tier 0 listing without changing any existing tier >= 1's price.
+            int price = SWORD_PRICE_PER_TIER * Math.max(1, tier);
             Identifier itemId = EquipmentTierLadder.itemId(EquipmentTierLadder.ToolType.SWORD, tier);
-            listings.add(SeedListing.ofResource(ShopResource.ofItem(itemId), SWORD_PRICE_PER_TIER * tier, EQUIPMENT_STOCK));
+            listings.add(SeedListing.ofResource(ShopResource.ofItem(itemId), price, EQUIPMENT_STOCK));
             notes.add(ResearchNoteItem.createFor(itemId, tier));
         }
         if (!notes.isEmpty()) {
