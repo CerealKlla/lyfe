@@ -17,9 +17,8 @@ public class SocketingScreen extends AbstractContainerScreen<SocketingMenu> {
 
     private static final int BUTTON_WIDTH = 150;
     private static final int BUTTON_HEIGHT = 20;
-    private static final int BUTTON_GAP = 4;
-    private static final int BUTTONS_TOP_Y = 76;
-    private static final int STATUS_LABEL_Y = 66;
+    private static final int BUTTONS_TOP_Y = 54;
+    private static final int STATUS_LABEL_Y = 40;
 
     private static final int PANEL_BODY_COLOR = 0xFFC6C6C6;
     private static final int PANEL_OUTER_BORDER_COLOR = 0xFF373737;
@@ -43,10 +42,6 @@ public class SocketingScreen extends AbstractContainerScreen<SocketingMenu> {
         addRenderableWidget(Button.builder(Component.literal("Drill Socket"),
                         button -> minecraft.gameMode.handleInventoryButtonClick(menu.containerId, SocketingMenu.DRILL_BUTTON_ID))
                 .bounds(buttonX, y + BUTTONS_TOP_Y, BUTTON_WIDTH, BUTTON_HEIGHT)
-                .build());
-        addRenderableWidget(Button.builder(Component.literal("Insert"),
-                        button -> minecraft.gameMode.handleInventoryButtonClick(menu.containerId, SocketingMenu.INSERT_BUTTON_ID))
-                .bounds(buttonX, y + BUTTONS_TOP_Y + BUTTON_HEIGHT + BUTTON_GAP, BUTTON_WIDTH, BUTTON_HEIGHT)
                 .build());
     }
 

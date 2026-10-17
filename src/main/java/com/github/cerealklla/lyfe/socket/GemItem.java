@@ -3,6 +3,9 @@ package com.github.cerealklla.lyfe.socket;
 import com.github.cerealklla.lyfe.registration.ModItems;
 
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.inventory.ClickAction;
+import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 
@@ -50,5 +53,11 @@ public class GemItem extends Item {
     public Component getName(ItemStack stack) {
         GemQuality quality = gemQualityOf(stack);
         return Component.literal(quality.displayName() + " " + gemType.displayName());
+    }
+
+    /** "Pick up the gem... click on an item with an open socket" -- see {@link SocketScoopHandler}'s own doc. */
+    @Override
+    public boolean overrideStackedOnOther(ItemStack self, Slot slot, ClickAction clickAction, Player player) {
+        return SocketScoopHandler.tryScoopInto(self, slot, clickAction, player, SocketSlot.ofGem(gemType, gemQualityOf(self)));
     }
 }

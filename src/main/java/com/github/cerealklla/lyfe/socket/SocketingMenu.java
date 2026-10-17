@@ -18,34 +18,23 @@ import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 
 /**
- * The Die Grinder's GUI (explicit user spec) -- two input slots, mirroring {@code
- * repair.RepairStructureMenu}'s one-slot shape exactly, widened to two: slot 0 is the equipment
- * being worked on, slot 1 is a Gem or Rune to insert into an already-drilled empty socket. Two
- * independent actions, neither specified by the user as needing its own roll/chance beyond what was
- * explicitly described for drilling:
- *
- * <ul>
- *   <li>{@link #DRILL_BUTTON_ID} -- "add a socket" (the real described mechanic: progress/durability/
- *   A-D outcome roll against the Die Grinder currently in the player's hand).</li>
- *   <li>{@link #INSERT_BUTTON_ID} -- filling an already-empty socket with slot 1's Gem/Rune. The user
- *   never specified an insertion mechanic at all (only drilling and extracting had described rolls),
- *   so this is deliberately simple/deterministic: consume the Gem/Rune, fill the first empty socket,
- *   recompute the item's attribute bonuses. Flagged as a filled-in gap, not guessed at randomly.</li>
- * </ul>
+ * The Die Grinder's GUI (explicit user spec) -- one input slot, direct mirror of {@code
+ * repair.RepairStructureMenu}. {@link #DRILL_BUTTON_ID} is the only action here: "add a socket" (the
+ * real described mechanic -- progress/durability/A-D outcome roll against the Die Grinder currently
+ * in the player's hand). Inserting a Gem/Rune into an already-drilled socket is NOT done here at all
+ * -- see {@link SocketScoopHandler}'s own doc for the real mechanic (explicit user correction,
+ * 2026-10-18: pick up the Gem/Rune and click it directly onto the socketable item in any inventory
+ * screen, mirroring vanilla's own Bundle interaction -- no Die Grinder needed for that half at all).
  */
 public class SocketingMenu extends AbstractContainerMenu {
 
     public static final int DRILL_BUTTON_ID = 0;
-    public static final int INSERT_BUTTON_ID = 1;
 
-    private static final int TARGET_SLOT_X = 70;
+    private static final int TARGET_SLOT_X = 80;
     private static final int TARGET_SLOT_Y = 20;
-    private static final int INSERT_SLOT_X = 70;
-    private static final int INSERT_SLOT_Y = 50;
-
     public static final int PLAYER_INV_Y = 140;
 
-    private final Container container = new SimpleContainer(2);
+    private final Container container = new SimpleContainer(1);
     private final Random random = new Random();
 
     public SocketingMenu(MenuType<?> type, int containerId, Inventory inventory) {
@@ -58,12 +47,6 @@ public class SocketingMenu extends AbstractContainerMenu {
             @Override
             public boolean mayPlace(ItemStack stack) {
                 return EquipmentCategory.of(stack) != null;
-            }
-        });
-        addSlot(new Slot(container, 1, INSERT_SLOT_X, INSERT_SLOT_Y) {
-            @Override
-            public boolean mayPlace(ItemStack stack) {
-                return GemItem.gemTypeOf(stack) != null || stack.is(ModItems.RUNE.get());
             }
         });
         for (int row = 0; row < 3; row++) {
@@ -80,22 +63,12 @@ public class SocketingMenu extends AbstractContainerMenu {
         return container.getItem(0);
     }
 
-    public ItemStack insertItem() {
-        return container.getItem(1);
-    }
-
     @Override
     public boolean clickMenuButton(Player player, int id) {
-        if (!(player instanceof ServerPlayer serverPlayer)) {
+        if (id != DRILL_BUTTON_ID || !(player instanceof ServerPlayer serverPlayer)) {
             return false;
         }
-        if (id == DRILL_BUTTON_ID) {
-            return attemptDrill(serverPlayer);
-        }
-        if (id == INSERT_BUTTON_ID) {
-            return attemptInsert(serverPlayer);
-        }
-        return false;
+        return attemptDrill(serverPlayer);
     }
 
     private boolean attemptDrill(ServerPlayer player) {
@@ -148,44 +121,6 @@ public class SocketingMenu extends AbstractContainerMenu {
         return true;
     }
 
-    private boolean attemptInsert(ServerPlayer player) {
-        ItemStack target = container.getItem(0);
-        ItemStack toInsert = container.getItem(1);
-        if (EquipmentCategory.of(target) == null || toInsert.isEmpty()) {
-            player.sendSystemMessage(Component.literal("Place an item and a Gem or Rune to insert."));
-            return false;
-        }
-        SocketData data = target.getOrDefault(ModItems.SOCKET_DATA.get(), SocketData.EMPTY);
-        int emptyIndex = data.firstEmptyIndex();
-        if (emptyIndex < 0) {
-            player.sendSystemMessage(Component.literal("No empty socket to insert into."));
-            return false;
-        }
-
-        SocketSlot slot;
-        GemType gemType = GemItem.gemTypeOf(toInsert);
-        if (gemType != null) {
-            GemQuality quality = GemItem.gemQualityOf(toInsert);
-            slot = SocketSlot.ofGem(gemType, quality);
-        } else if (toInsert.is(ModItems.RUNE.get())) {
-            RuneId runeId = RuneItem.runeIdOf(toInsert);
-            if (runeId == null) {
-                return false;
-            }
-            slot = SocketSlot.ofRune(runeId);
-        } else {
-            player.sendSystemMessage(Component.literal("That isn't a Gem or Rune."));
-            return false;
-        }
-
-        target.set(ModItems.SOCKET_DATA.get(), data.withSlot(emptyIndex, slot));
-        SocketApplier.recompute(target);
-        toInsert.shrink(1);
-        container.setChanged();
-        player.sendSystemMessage(Component.literal("Inserted."));
-        return true;
-    }
-
     private static ItemStack findDieGrinder(ServerPlayer player) {
         if (SocketToolRegistry.isDieGrinder(player.getMainHandItem().getItem())) {
             return player.getMainHandItem();
@@ -203,16 +138,11 @@ public class SocketingMenu extends AbstractContainerMenu {
         if (slot != null && slot.hasItem()) {
             ItemStack stack = slot.getItem();
             clicked = stack.copy();
-            int containerSize = 2;
-            if (slotIndex < containerSize) {
-                if (!moveItemStackTo(stack, containerSize, slots.size(), true)) {
+            if (slotIndex == 0) {
+                if (!moveItemStackTo(stack, 1, slots.size(), true)) {
                     return ItemStack.EMPTY;
                 }
-            } else if (EquipmentCategory.of(stack) != null && !moveItemStackTo(stack, 0, 1, false)) {
-                if (!moveItemStackTo(stack, 1, 2, false)) {
-                    return ItemStack.EMPTY;
-                }
-            } else if (!moveItemStackTo(stack, 1, 2, false) && !moveItemStackTo(stack, 0, 1, false)) {
+            } else if (!moveItemStackTo(stack, 0, 1, false)) {
                 return ItemStack.EMPTY;
             }
             if (stack.isEmpty()) {
