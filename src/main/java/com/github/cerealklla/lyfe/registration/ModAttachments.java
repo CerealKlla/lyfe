@@ -158,4 +158,16 @@ public final class ModAttachments {
                     .sync(ByteBufCodecs.fromCodecWithRegistries(PlayerHuntsman.CODEC.codec()))
                     .build()
     );
+
+    // Synced from the start (2026-10-17, Rune Codex menu tab) -- unlike PLAYER_HUNTSMAN/
+    // PLAYER_RESEARCH above, this never had a server-only phase to retrofit. copyOnDeath() --
+    // discovering a Rune is knowledge, not an item, so it should obviously survive death.
+    public static final Supplier<AttachmentType<com.github.cerealklla.lyfe.socket.PlayerDiscoveredRunes>> PLAYER_DISCOVERED_RUNES = ATTACHMENT_TYPES.register(
+            "player_discovered_runes",
+            () -> AttachmentType.builder(com.github.cerealklla.lyfe.socket.PlayerDiscoveredRunes::new)
+                    .serialize(com.github.cerealklla.lyfe.socket.PlayerDiscoveredRunes.CODEC)
+                    .copyOnDeath()
+                    .sync(ByteBufCodecs.fromCodecWithRegistries(com.github.cerealklla.lyfe.socket.PlayerDiscoveredRunes.CODEC.codec()))
+                    .build()
+    );
 }

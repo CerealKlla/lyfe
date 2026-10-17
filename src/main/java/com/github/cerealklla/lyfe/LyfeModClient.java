@@ -170,7 +170,8 @@ public class LyfeModClient {
                         new com.github.cerealklla.lyfe.menu.client.MapTab(),
                         new com.github.cerealklla.lyfe.menu.client.SkillsTab(),
                         new com.github.cerealklla.lyfe.menu.client.HunterJournalTab(),
-                        new com.github.cerealklla.lyfe.menu.client.CraftingGuideTab()));
+                        new com.github.cerealklla.lyfe.menu.client.CraftingGuideTab(),
+                        new com.github.cerealklla.lyfe.menu.client.RuneCodexTab()));
     }
 
     @SubscribeEvent

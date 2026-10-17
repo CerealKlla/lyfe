@@ -140,6 +140,7 @@ public class LyfeMod {
         NeoForge.EVENT_BUS.register(new RunewordEffectListener());
         NeoForge.EVENT_BUS.register(new RuneDropListener());
         NeoForge.EVENT_BUS.register(new SocketDiscoveryListener());
+        NeoForge.EVENT_BUS.register(new com.github.cerealklla.lyfe.socket.RuneBackfillListener());
         NeoForge.EVENT_BUS.addListener((LootTableLoadEvent event) -> RuneLootInjector.onLootTableLoad(event));
         NeoForge.EVENT_BUS.addListener((LootTableLoadEvent event) -> PreSocketedGearInjector.onLootTableLoad(event));
         NeoForge.EVENT_BUS.addListener((RegisterCommandsEvent event) -> DebugCommands.register(event.getDispatcher()));
@@ -265,6 +266,25 @@ public class LyfeMod {
                 });
         event.registrar("1").playToClient(MapSettlementsPayload.TYPE, MapSettlementsPayload.STREAM_CODEC,
                 (payload, context) -> ClientMapState.setSettlements(payload.settlements()));
+
+        // Rune Codex's "Runewords Discovered" sub-tab (2026-10-17) -- the fixed RunewordCatalog
+        // definitions need no sync at all (identical static data both sides already); only each
+        // one's real server-rolled sequence is genuinely server-specific.
+        event.registrar("1").playToServer(com.github.cerealklla.lyfe.socket.RequestRunewordRollsPayload.TYPE,
+                com.github.cerealklla.lyfe.socket.RequestRunewordRollsPayload.STREAM_CODEC,
+                (payload, context) -> {
+                    if (context.player() instanceof ServerPlayer serverPlayer) {
+                        java.util.List<com.github.cerealklla.lyfe.socket.RunewordRollsPayload.Entry> entries =
+                                com.github.cerealklla.lyfe.socket.RunewordCatalog.all().stream()
+                                        .map(def -> new com.github.cerealklla.lyfe.socket.RunewordRollsPayload.Entry(
+                                                def.name(), com.github.cerealklla.lyfe.socket.ServerRunewordStore.sequenceFor(def.name())))
+                                        .toList();
+                        net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(serverPlayer, new com.github.cerealklla.lyfe.socket.RunewordRollsPayload(entries));
+                    }
+                });
+        event.registrar("1").playToClient(com.github.cerealklla.lyfe.socket.RunewordRollsPayload.TYPE,
+                com.github.cerealklla.lyfe.socket.RunewordRollsPayload.STREAM_CODEC,
+                (payload, context) -> com.github.cerealklla.lyfe.menu.client.RuneCodexTab.setRolls(payload.rolls()));
 
         // Quest-origin waypoint (2026-10-10, for Myssions' own design doc item 2) -- see
         // map.ClientQuestWaypointState's own doc.

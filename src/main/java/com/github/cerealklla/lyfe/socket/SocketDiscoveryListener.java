@@ -42,6 +42,31 @@ public final class SocketDiscoveryListener {
             player.syncData(ModAttachments.PLAYER_RESEARCH);
             player.sendSystemMessage(Component.literal("You've learned how to craft the Diamond Die Grinder and Diamond Pry Bar!"));
         }
+
+        // Rune Codex (2026-10-17) -- same trigger, records every distinct RuneId actually present
+        // (a bare Rune, or any RUNE-kind socket on a picked-up item), not just "a rune was involved."
+        if (recordDiscoveredRunes(player, event.getOriginalStack())) {
+            player.syncData(ModAttachments.PLAYER_DISCOVERED_RUNES);
+        }
+    }
+
+    /** @return true if at least one previously-undiscovered {@link RuneId} was just recorded. */
+    static boolean recordDiscoveredRunes(ServerPlayer player, ItemStack stack) {
+        var discovered = player.getData(ModAttachments.PLAYER_DISCOVERED_RUNES);
+        boolean any = false;
+        RuneId bareRuneId = RuneItem.runeIdOf(stack);
+        if (bareRuneId != null) {
+            any |= discovered.markDiscovered(bareRuneId);
+        }
+        SocketData data = stack.get(ModItems.SOCKET_DATA.get());
+        if (data != null) {
+            for (SocketSlot slot : data.sockets()) {
+                if (slot.kind() == SocketSlot.Kind.RUNE) {
+                    any |= discovered.markDiscovered(slot.runeId().orElseThrow());
+                }
+            }
+        }
+        return any;
     }
 
     private static boolean isRuneOrSocketedItem(ItemStack stack) {
