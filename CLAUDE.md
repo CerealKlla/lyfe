@@ -290,3 +290,14 @@ build`/`test` green, whole-suite (12 mods) rebuild green, `runServer` boot-smoke
 `recallcinite.client.ClientRecallciniteState`'s bind-confirm flag now use
 `nuclyus.request.ClientRequestSlot`. `./gradlew build`/`test` green, whole-suite (12 mods) rebuild
 green, `runServer` boot-smoke-tested clean.
+
+**Crafting Guide ingredient tooltip; Rune extraction now records Codex knowledge, 2026-10-17** (see
+[context/decisions.md](context/decisions.md)) -- two real live-test follow-ups. The Crafting Guide
+tab now shows a recipe's real ingredient cost as a hover tooltip (new `craft.RequestCraftingRecipesPayload`/
+`CraftingRecipesPayload` round trip, since `ServerRecipeStore` is server-only data never synced on
+its own). Separately, a real gap found and fixed: extracting a Rune with the Diamond Pry Bar
+(`socket.ExtractingMenu`) hands it straight into the inventory without ever spawning a real
+`ItemEntity`, so `socket.SocketDiscoveryListener`'s ground-pickup-only Rune Codex hook never saw it
+-- fixed by calling its discovery-recording method directly from the extraction success path too.
+`./gradlew build` green, whole-suite (12 mods) rebuild green, `runServer` boot-smoke-tested clean.
+**Not yet re-confirmed live** for either fix.

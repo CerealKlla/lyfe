@@ -3,6 +3,7 @@ package com.github.cerealklla.lyfe.socket;
 import java.util.Random;
 
 import com.github.cerealklla.lyfe.api.Lyfe;
+import com.github.cerealklla.lyfe.registration.ModAttachments;
 import com.github.cerealklla.lyfe.registration.ModItems;
 import com.github.cerealklla.lyfe.skill.Skills;
 
@@ -94,6 +95,13 @@ public class ExtractingMenu extends AbstractContainerMenu {
                         : GemItem.create(slot.gemType().orElseThrow(), slot.gemQuality().orElseThrow());
                 if (!player.getInventory().add(returned)) {
                     player.drop(returned, false);
+                }
+                // Real report, 2026-10-17: extracting a Rune never recorded it in the Rune Codex --
+                // this path hands the stack straight into the inventory, never spawning a real
+                // ItemEntity, so socket.SocketDiscoveryListener's ItemEntityPickupEvent hook (the
+                // only other place this is recorded) never sees it.
+                if (isRune && SocketDiscoveryListener.recordDiscoveredRunes(player, returned)) {
+                    player.syncData(ModAttachments.PLAYER_DISCOVERED_RUNES);
                 }
                 yield "Extraction successful!";
             }

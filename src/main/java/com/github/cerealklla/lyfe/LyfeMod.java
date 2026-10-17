@@ -286,6 +286,21 @@ public class LyfeMod {
                 com.github.cerealklla.lyfe.socket.RunewordRollsPayload.STREAM_CODEC,
                 (payload, context) -> com.github.cerealklla.lyfe.menu.client.RuneCodexTab.setRolls(payload.rolls()));
 
+        // Crafting Guide tab's ingredient-cost tooltip (2026-10-17) -- same request/response shape
+        // as the Rune Codex's roll request just above.
+        event.registrar("1").playToServer(com.github.cerealklla.lyfe.craft.RequestCraftingRecipesPayload.TYPE,
+                com.github.cerealklla.lyfe.craft.RequestCraftingRecipesPayload.STREAM_CODEC,
+                (payload, context) -> {
+                    if (context.player() instanceof ServerPlayer serverPlayer) {
+                        java.util.List<com.github.cerealklla.lyfe.craft.GeneratedRecipe> recipes =
+                                java.util.List.copyOf(com.github.cerealklla.lyfe.craft.ServerRecipeStore.all().values());
+                        net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(serverPlayer, new com.github.cerealklla.lyfe.craft.CraftingRecipesPayload(recipes));
+                    }
+                });
+        event.registrar("1").playToClient(com.github.cerealklla.lyfe.craft.CraftingRecipesPayload.TYPE,
+                com.github.cerealklla.lyfe.craft.CraftingRecipesPayload.STREAM_CODEC,
+                (payload, context) -> com.github.cerealklla.lyfe.menu.client.CraftingGuideTab.setRecipes(payload.recipes()));
+
         // Quest-origin waypoint (2026-10-10, for Myssions' own design doc item 2) -- see
         // map.ClientQuestWaypointState's own doc.
         event.registrar("1").playToClient(QuestWaypointPayload.TYPE, QuestWaypointPayload.STREAM_CODEC,
