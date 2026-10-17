@@ -129,13 +129,32 @@ public final class ShopSeedCatalogs {
         // above, confirmed by the user ("I meant tier 0"): the loop used to start at 1 (Stone),
         // silently skipping Wood at every Plot Tier including 1, even though it's a real, auto-known
         // rung on the ladder.
+        //
+        // Widened 2026-10-16 (explicit follow-up: "I'd like blacksmith to list weapons and tools
+        // too") from Sword-only to every EquipmentTierLadder.ToolType -- Pickaxe/Axe/Shovel/Hoe are
+        // real tools and Spear is a real weapon, none of which this catalog ever listed before,
+        // despite the Blacksmith Zone Type already being the sole target for both the "Toolsmith" and
+        // "Weaponsmith" natural-village professions (see zone.NaturalVillagePlotGenerator).
         for (int tier = 0; tier <= maxTier; tier++) {
             // Math.max(1, tier) -- see armorerListings' own identical fix; avoids a free (price 0)
             // Tier 0 listing without changing any existing tier >= 1's price.
             int price = SWORD_PRICE_PER_TIER * Math.max(1, tier);
-            Identifier itemId = EquipmentTierLadder.itemId(EquipmentTierLadder.ToolType.SWORD, tier);
-            listings.add(SeedListing.ofResource(ShopResource.ofItem(itemId), price, EQUIPMENT_STOCK));
-            notes.add(ResearchNoteItem.createFor(itemId, tier));
+            for (EquipmentTierLadder.ToolType toolType : EquipmentTierLadder.ToolType.values()) {
+                Identifier itemId = EquipmentTierLadder.itemId(toolType, tier);
+                listings.add(SeedListing.ofResource(ShopResource.ofItem(itemId), price, EQUIPMENT_STOCK));
+                notes.add(ResearchNoteItem.createFor(itemId, tier));
+            }
+        }
+        // Bow/Crossbow (added 2026-10-08, see EquipmentTierLadder's own doc) are real weapons but
+        // don't fit the tier-ladder loop above -- each is pinned to exactly one fixed tier, no
+        // Wood/Stone/... family. Listed once each, only once the plot's own Tier reaches theirs.
+        for (Identifier rangedWeaponId : EquipmentTierLadder.allGeneratedRangedWeaponIds()) {
+            int weaponTier = EquipmentTierLadder.rangedWeaponTier(rangedWeaponId);
+            if (weaponTier > maxTier) {
+                continue;
+            }
+            listings.add(SeedListing.ofResource(ShopResource.ofItem(rangedWeaponId),
+                    SWORD_PRICE_PER_TIER * Math.max(1, weaponTier), EQUIPMENT_STOCK));
         }
         if (!notes.isEmpty()) {
             listings.add(SeedListing.ofStacks(NOTE_PRICE, notes));
