@@ -64,12 +64,16 @@ public final class ServerRunewordStore {
         } else {
             sequenceByName = generateAndSave(file);
         }
+        // RuneWorth's own per-rune rarity is entirely derived from this mapping -- must be
+        // recomputed every time it changes, not just once at class-load (2026-10-18).
+        RuneWorth.recompute();
     }
 
     /** Forces a brand-new random generation, overwriting the cached file -- mirrors {@code ServerRecipeStore#reroll}, for a matching future {@code /lyfe rerollrunewords} debug command. */
     public static void reroll(MinecraftServer server) {
         Path file = server.getFile(FILE_NAME);
         sequenceByName = generateAndSave(file);
+        RuneWorth.recompute();
     }
 
     private static Map<String, List<RuneId>> generateAndSave(Path file) {

@@ -133,6 +133,18 @@ public final class ModItems {
                     .persistent(RuneId.CODEC)
                     .networkSynchronized(RuneId.STREAM_CODEC));
 
+    // Which Runeword (by name) is currently active on a socketed stack, if any -- set/cleared by
+    // socket.SocketApplier#recompute alongside the real attribute recompute. Needed purely so the
+    // CLIENT can show the Runeword's name/description in a tooltip (explicit user mockup,
+    // 2026-10-18): the real randomized rune-sequence-to-Runeword mapping
+    // (socket.ServerRunewordStore) only ever exists server-side, so the client can't re-derive
+    // "which Runeword is this" on its own -- it just reads this already-networked name and looks up
+    // the (server/client-identical, baked-in) RunewordCatalog entry by it.
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<String>> ACTIVE_RUNEWORD_NAME =
+            DATA_COMPONENTS.registerComponentType("active_runeword_name", builder -> builder
+                    .persistent(Codec.STRING)
+                    .networkSynchronized(ByteBufCodecs.STRING_UTF8));
+
     public static final DeferredRegister.Items ITEMS = DeferredRegister.createItems(LyfeMod.MODID);
 
     // Lyfe's first real custom Item -- every target/tier is baked into RESEARCH_NOTE_TARGET above,

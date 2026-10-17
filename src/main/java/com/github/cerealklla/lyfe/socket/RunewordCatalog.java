@@ -218,6 +218,16 @@ public final class RunewordCatalog {
         return all;
     }
 
+    /** {@code null} if no Runeword has this exact name -- identical, deterministic data on both client and server (unlike {@link ServerRunewordStore}'s own server-only randomized rune sequences), so a client can safely resolve a name synced via {@code ModItems#ACTIVE_RUNEWORD_NAME} back into the real definition. */
+    public static RunewordDefinition findByName(String name) {
+        for (RunewordDefinition def : all()) {
+            if (def.name().equals(name)) {
+                return def;
+            }
+        }
+        return null;
+    }
+
     private RunewordCatalog() {
     }
 }

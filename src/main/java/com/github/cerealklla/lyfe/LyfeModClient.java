@@ -1,6 +1,7 @@
 package com.github.cerealklla.lyfe;
 
 import java.lang.reflect.Field;
+import java.util.List;
 import java.util.Optional;
 
 import com.github.cerealklla.lyfe.api.Lyfe;
@@ -42,8 +43,13 @@ import com.github.cerealklla.lyfe.registration.ModEntities;
 import com.github.cerealklla.lyfe.registration.ModMenus;
 import com.github.cerealklla.lyfe.repair.client.RepairStructureScreen;
 import com.github.cerealklla.lyfe.research.client.ResearchScreen;
+import com.github.cerealklla.lyfe.socket.RunewordCatalog;
+import com.github.cerealklla.lyfe.socket.RunewordDefinition;
+import com.github.cerealklla.lyfe.socket.SocketTooltip;
+import com.github.cerealklla.lyfe.socket.client.ClientSocketTooltip;
 import com.github.cerealklla.lyfe.socket.client.ExtractingScreen;
 import com.github.cerealklla.lyfe.socket.client.SocketingScreen;
+import com.github.cerealklla.lyfe.registration.ModItems;
 import com.github.cerealklla.lyfe.rest.client.SeatEntityRenderer;
 import com.github.cerealklla.lyfe.skill.client.SkillsScreen;
 import com.github.cerealklla.lyfe.swim.SwimmerOverlay;
@@ -222,6 +228,52 @@ public class LyfeModClient {
     static void onRegisterTooltipComponents(RegisterClientTooltipComponentFactoriesEvent event) {
         event.register(CatchBagTooltip.class, ClientCatchBagTooltip::new);
         event.register(FixedLootTooltip.class, ClientFixedLootTooltip::new);
+        event.register(SocketTooltip.class, ClientSocketTooltip::new);
+    }
+
+    // Character-count word wrap, not a real pixel-width Font#split (explicit simplification -- this
+    // class could safely call Minecraft.getInstance().font here, but Font#split returns
+    // List<FormattedCharSequence>, not the List<Component> ItemTooltipEvent#getToolTip() wants, and
+    // converting between the two isn't worth it for one cosmetic wrap). Good enough to match the
+    // user's own mockup's general line-break feel, not pixel-perfect.
+    private static final int RUNEWORD_DESCRIPTION_WRAP_CHARS = 32;
+
+    /** An active Runeword's name (quoted, right under the item title) and its real effect description (wrapped, at the end) -- explicit user mockup, 2026-10-18. */
+    @SubscribeEvent
+    static void onSocketTooltip(ItemTooltipEvent event) {
+        String runewordName = event.getItemStack().get(ModItems.ACTIVE_RUNEWORD_NAME.get());
+        if (runewordName == null) {
+            return;
+        }
+        RunewordDefinition def = RunewordCatalog.findByName(runewordName);
+        if (def == null) {
+            return;
+        }
+        List<Component> tooltip = event.getToolTip();
+        int insertAt = Math.min(1, tooltip.size());
+        tooltip.add(insertAt, Component.literal("\"" + def.name() + "\"").withStyle(net.minecraft.ChatFormatting.GRAY));
+        for (String line : wordWrap(def.description(), RUNEWORD_DESCRIPTION_WRAP_CHARS)) {
+            tooltip.add(Component.literal(line).withStyle(net.minecraft.ChatFormatting.GREEN));
+        }
+    }
+
+    private static List<String> wordWrap(String text, int maxCharsPerLine) {
+        List<String> lines = new java.util.ArrayList<>();
+        StringBuilder current = new StringBuilder();
+        for (String word : text.split(" ")) {
+            if (current.length() > 0 && current.length() + 1 + word.length() > maxCharsPerLine) {
+                lines.add(current.toString());
+                current = new StringBuilder();
+            }
+            if (current.length() > 0) {
+                current.append(' ');
+            }
+            current.append(word);
+        }
+        if (current.length() > 0) {
+            lines.add(current.toString());
+        }
+        return lines;
     }
 
     // Weak (plain 60-minute base, or unbound) up to Supreme (bound at a Tier 5 Recallcinite Stone) --

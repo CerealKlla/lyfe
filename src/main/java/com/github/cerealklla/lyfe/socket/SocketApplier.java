@@ -36,7 +36,7 @@ public final class SocketApplier {
     private SocketApplier() {
     }
 
-    /** Re-derives and re-sets {@code stack}'s attribute modifiers from its current sockets. Call this any time {@code stack}'s {@code SocketData} changes. No-op if {@code stack} isn't a socketable item at all. */
+    /** Re-derives and re-sets {@code stack}'s attribute modifiers (and, if a Runeword is active, {@code ModItems#ACTIVE_RUNEWORD_NAME} for the client tooltip -- see that component's own doc) from its current sockets. Call this any time {@code stack}'s {@code SocketData} changes. No-op if {@code stack} isn't a socketable item at all. */
     public static void recompute(ItemStack stack) {
         EquipmentCategory category = EquipmentCategory.of(stack);
         if (category == null) {
@@ -45,10 +45,16 @@ public final class SocketApplier {
         SocketData data = stack.getOrDefault(ModItems.SOCKET_DATA.get(), SocketData.EMPTY);
         if (data.sockets().isEmpty()) {
             stack.remove(DataComponents.ATTRIBUTE_MODIFIERS);
+            stack.remove(ModItems.ACTIVE_RUNEWORD_NAME.get());
             return;
         }
 
         RunewordDefinition activeRuneword = ServerRunewordStore.match(category, data.sockets());
+        if (activeRuneword != null) {
+            stack.set(ModItems.ACTIVE_RUNEWORD_NAME.get(), activeRuneword.name());
+        } else {
+            stack.remove(ModItems.ACTIVE_RUNEWORD_NAME.get());
+        }
         ItemAttributeModifiers.Builder builder = ItemAttributeModifiers.builder();
         if (activeRuneword == null) {
             List<SocketSlot> sockets = data.sockets();

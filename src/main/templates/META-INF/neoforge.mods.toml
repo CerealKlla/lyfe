@@ -52,6 +52,12 @@ subjective knowledge of the world.
 [[mixins]]
 config="${mod_id}.mixins.json"
 
+# A second config, not more entries in the first -- Mixin only allows one "package" prefix per
+# config file, and this one's mixin classes live in their own socket.mixin package (2026-10-18,
+# Socketing tooltip feature) rather than durability.mixin.
+[[mixins]]
+config="${mod_id}_socket.mixins.json"
+
 # The [[accessTransformers]] block allows you to declare where your AT file is.
 # If this block is omitted, a fallback attempt will be made to load an AT from META-INF/accesstransformer.cfg
 #[[accessTransformers]]
