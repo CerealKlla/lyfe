@@ -42,7 +42,9 @@ import net.neoforged.neoforge.network.PacketDistributor;
  */
 public final class HuntsmanListener {
 
-    private static final double DAMAGE_BONUS_PER_LEVEL = 0.5;
+    // Public since 2026-10-17 so the Hunter's Journal tab can show the real per-level bonus
+    // instead of duplicating this magic number.
+    public static final double DAMAGE_BONUS_PER_LEVEL = 0.5;
     private static final long HUNTSMAN_XP_PER_QUARRY_LEVEL = 1;
 
     // Explicit user request, 2026-10-16: "Hunter should not track Settlement Guards or
@@ -101,6 +103,11 @@ public final class HuntsmanListener {
         var data = player.getData(ModAttachments.PLAYER_HUNTSMAN);
         int oldKills = data.kills(mobType);
         int newKills = data.recordKill(mobType);
+        // Mutating the object getData() returns does NOT trigger a client resync on its own (only
+        // setData/removeData do -- the same real bug class documented in PLAYER_SKILLS/PLAYER_AIR's
+        // own history) -- needed now that this attachment is actually synced (2026-10-17, for the
+        // Hunter's Journal tab), not just server-side.
+        player.syncData(ModAttachments.PLAYER_HUNTSMAN);
         PacketDistributor.sendToPlayer(player, new QuarryKnowledgeProgressPayload(mobType, oldKills, newKills));
 
         int oldLevel = QuarryKnowledgeCurve.levelForKills(mobType, oldKills);

@@ -124,6 +124,9 @@ public final class PassiveDurabilityResearchListener {
         if (!research.addResearchPoints(targetId, ResearcherConstants.PASSIVE_DURABILITY_RESEARCH_POINTS, threshold)) {
             return;
         }
+        // Mutating the object getData() returns does NOT trigger a client resync on its own --
+        // needed now that this attachment is synced (2026-10-17, for the Crafting Guide tab).
+        player.syncData(ModAttachments.PLAYER_RESEARCH);
         int newPoints = research.isLearned(targetId) ? threshold : research.researchPoints(targetId);
         PacketDistributor.sendToPlayer(player, new ResearchProgressPayload(targetId, oldPoints, newPoints, threshold));
     }

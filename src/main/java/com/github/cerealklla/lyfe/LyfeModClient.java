@@ -23,7 +23,6 @@ import com.github.cerealklla.lyfe.location.LocationOverlay;
 import com.github.cerealklla.lyfe.map.ClientWaypointState;
 import com.github.cerealklla.lyfe.map.cache.TerrainCache;
 import com.github.cerealklla.lyfe.map.cache.TerrainCachePassiveSampler;
-import com.github.cerealklla.lyfe.map.client.MapScreen;
 import com.github.cerealklla.lyfe.minimap.ClientMinimapState;
 import com.github.cerealklla.lyfe.minimap.MinimapOverlay;
 import com.github.cerealklla.lyfe.recallcinite.client.ClientRecallciniteState;
@@ -51,7 +50,6 @@ import com.github.cerealklla.lyfe.socket.client.ExtractingScreen;
 import com.github.cerealklla.lyfe.socket.client.SocketingScreen;
 import com.github.cerealklla.lyfe.registration.ModItems;
 import com.github.cerealklla.lyfe.rest.client.SeatEntityRenderer;
-import com.github.cerealklla.lyfe.skill.client.SkillsScreen;
 import com.github.cerealklla.lyfe.swim.SwimmerOverlay;
 import com.github.cerealklla.lyfe.huntsman.client.ClientHuntsmanBarState;
 import com.github.cerealklla.lyfe.huntsman.client.HuntsmanBarOverlay;
@@ -148,17 +146,6 @@ public class LyfeModClient {
     private static final KeyMapping MINIMAP_TOGGLE_ROTATION = new KeyMapping(
             "key.lyfe.minimap_toggle_rotation", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_O, KeyMapping.Category.MISC);
 
-    // Opens the Skills screen (design doc Section 13) -- "K" is free (zoom uses "["/"]", minimap
-    // rotation uses "O"), flagged as an easy-to-rebind placeholder like every other keybind here.
-    private static final KeyMapping OPEN_SKILLS = new KeyMapping(
-            "key.lyfe.open_skills", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_K, KeyMapping.Category.MISC);
-
-    // Opens the full-screen Map (Expeditionist level 15), 2026-10-07. "M" is the conventional map
-    // keybind and was still free in this mod. Public (not private) so MapScreen's own keyPressed
-    // override can check it directly -- see that class's own doc for why that's necessary at all.
-    public static final KeyMapping OPEN_MAP = new KeyMapping(
-            "key.lyfe.open_map", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_M, KeyMapping.Category.MISC);
-
     // Waypoint auto-removal distance (design spec: "within ~10 blocks").
     private static final double WAYPOINT_AUTO_REMOVE_DISTANCE = 10.0;
 
@@ -174,13 +161,21 @@ public class LyfeModClient {
     @SubscribeEvent
     static void onClientSetup(FMLClientSetupEvent event) {
         LyfeMod.LOGGER.info("Lyfe client setup");
+        // Menu consolidation (2026-10-17) -- K (formerly Lyfe's own Skills/Map keybinds, now
+        // Nuclyus') opens the shared menu; this is how Lyfe contributes its own tabs to it. See
+        // com.github.cerealklla.nuclyus.menu.client.MenuContributor's own doc.
+        com.github.cerealklla.nuclyus.menu.client.NuclyusMenuRegistry.registerContributor(
+                () -> List.of(
+                        new com.github.cerealklla.lyfe.menu.client.CharacterInfoTab(),
+                        new com.github.cerealklla.lyfe.menu.client.MapTab(),
+                        new com.github.cerealklla.lyfe.menu.client.SkillsTab(),
+                        new com.github.cerealklla.lyfe.menu.client.HunterJournalTab(),
+                        new com.github.cerealklla.lyfe.menu.client.CraftingGuideTab()));
     }
 
     @SubscribeEvent
     static void onRegisterKeyMappings(RegisterKeyMappingsEvent event) {
         event.register(MINIMAP_TOGGLE_ROTATION);
-        event.register(OPEN_SKILLS);
-        event.register(OPEN_MAP);
     }
 
     // Registered unconditionally, same reasoning as LyfeMod#registerPayloads -- harmless if
@@ -406,27 +401,6 @@ public class LyfeModClient {
                 ClientMinimapState.setAutoRotate(!ClientMinimapState.autoRotate());
             }
         }
-        while (OPEN_SKILLS.consumeClick()) {
-            if (Minecraft.getInstance().screen == null) {
-                Minecraft.getInstance().setScreen(new SkillsScreen());
-            }
-        }
-        boolean mapClicked = false;
-        while (OPEN_MAP.consumeClick()) {
-            mapClicked = true;
-        }
-        if (mapClicked) {
-            if (Minecraft.getInstance().screen instanceof MapScreen) {
-                Minecraft.getInstance().setScreen(null);
-            } else {
-                var player = Minecraft.getInstance().player;
-                if (Minecraft.getInstance().screen == null && player != null
-                        && Lyfe.getLevel(player, Skills.EXPEDITIONIST_ID) >= ExpeditionistConstants.MAP_UNLOCK_LEVEL) {
-                    Minecraft.getInstance().setScreen(new MapScreen());
-                }
-            }
-        }
-
         // Waypoint auto-removal (design spec: "within ~10 blocks ... automatically removed") -- see
         // ClientWaypointState's own doc. Also cleared outright on a dimension change, same
         // simplification that class's doc already flags.

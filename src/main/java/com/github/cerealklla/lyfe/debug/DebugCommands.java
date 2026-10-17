@@ -331,6 +331,9 @@ public final class DebugCommands {
                 count++;
             }
         }
+        // Mutating the object getData() returns does NOT trigger a client resync on its own --
+        // needed now that this attachment is synced (2026-10-17, for the Crafting Guide tab).
+        target.syncData(ModAttachments.PLAYER_RESEARCH);
         int finalCount = count;
         source.sendSuccess(() -> Component.literal(
                 target.getName().getString() + " has learned " + finalCount + " recipe(s)."), true);
@@ -361,6 +364,9 @@ public final class DebugCommands {
                 count++;
             }
         }
+        // Mutating the object getData() returns does NOT trigger a client resync on its own --
+        // needed now that this attachment is synced (2026-10-17, for the Crafting Guide tab).
+        target.syncData(ModAttachments.PLAYER_RESEARCH);
         int finalCount = count;
         source.sendSuccess(() -> Component.literal(
                 target.getName().getString() + " has learned " + finalCount + " cooking recipe(s)."), true);

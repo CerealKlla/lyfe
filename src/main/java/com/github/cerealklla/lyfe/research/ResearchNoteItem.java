@@ -108,6 +108,9 @@ public class ResearchNoteItem extends Item {
         int oldPoints = research.researchPoints(target.resultId());
         stack.shrink(1);
         research.addResearchPoints(target.resultId(), outcome.pointsGranted(), threshold);
+        // Mutating the object getData() returns does NOT trigger a client resync on its own --
+        // needed now that this attachment is synced (2026-10-17, for the Crafting Guide tab).
+        serverPlayer.syncData(ModAttachments.PLAYER_RESEARCH);
         int newPoints = research.isLearned(target.resultId()) ? threshold : research.researchPoints(target.resultId());
         PacketDistributor.sendToPlayer(serverPlayer, new ResearchProgressPayload(target.resultId(), oldPoints, newPoints, threshold));
 

@@ -37,6 +37,9 @@ public final class SocketDiscoveryListener {
         boolean learnedGrinder = research.learnDirectly(SocketToolRegistry.dieGrinderId(), SocketToolRegistry.RECIPE_TIER);
         boolean learnedPryBar = research.learnDirectly(SocketToolRegistry.pryBarId(), SocketToolRegistry.RECIPE_TIER);
         if (learnedGrinder || learnedPryBar) {
+            // Mutating the object getData() returns does NOT trigger a client resync on its own --
+            // needed now that this attachment is synced (2026-10-17, for the Crafting Guide tab).
+            player.syncData(ModAttachments.PLAYER_RESEARCH);
             player.sendSystemMessage(Component.literal("You've learned how to craft the Diamond Die Grinder and Diamond Pry Bar!"));
         }
     }

@@ -97,13 +97,17 @@ public final class ModAttachments {
                     .build()
     );
 
-    // Not synced -- server-only logic (design doc Section 19.5), same reasoning as PLAYER_KNOWLEDGE.
+    // Synced since 2026-10-17 for the Crafting Guide menu tab (previously server-only, design doc
+    // Section 19.5) -- every mutation call site now also calls player.syncData(PLAYER_RESEARCH)
+    // explicitly, same real sync-bug fix PLAYER_HUNTSMAN's own sync toggle needed (mutating the
+    // object getData() returns does not trigger a client resync on its own).
     // copyOnDeath() so research progress/learned recipes survive death like every other attachment.
     public static final Supplier<AttachmentType<PlayerResearch>> PLAYER_RESEARCH = ATTACHMENT_TYPES.register(
             "player_research",
             () -> AttachmentType.builder(PlayerResearch::new)
                     .serialize(PlayerResearch.CODEC)
                     .copyOnDeath()
+                    .sync(ByteBufCodecs.fromCodecWithRegistries(PlayerResearch.CODEC.codec()))
                     .build()
     );
 
@@ -142,14 +146,16 @@ public final class ModAttachments {
             () -> AttachmentType.builder(holder -> new AssistMarkers()).build()
     );
 
-    // Not synced -- server-only logic (Huntsman skill, 2026-10-16), same reasoning as
-    // PLAYER_RESEARCH above (the transient progress bar is pushed via its own explicit payload
-    // instead). copyOnDeath() so per-mob-type kill counts survive death like every other attachment.
+    // Synced since 2026-10-17 for the Hunter's Journal menu tab (previously server-only, same
+    // reasoning as PLAYER_RESEARCH below -- the transient progress bar used to be the only
+    // client-facing view of this data, pushed via its own explicit payload instead of a sync).
+    // copyOnDeath() so per-mob-type kill counts survive death like every other attachment.
     public static final Supplier<AttachmentType<PlayerHuntsman>> PLAYER_HUNTSMAN = ATTACHMENT_TYPES.register(
             "player_huntsman",
             () -> AttachmentType.builder(PlayerHuntsman::new)
                     .serialize(PlayerHuntsman.CODEC)
                     .copyOnDeath()
+                    .sync(ByteBufCodecs.fromCodecWithRegistries(PlayerHuntsman.CODEC.codec()))
                     .build()
     );
 }

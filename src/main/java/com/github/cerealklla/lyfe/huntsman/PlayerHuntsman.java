@@ -41,6 +41,11 @@ public final class PlayerHuntsman {
         return kills.getOrDefault(mobType, 0);
     }
 
+    /** Every mob type with at least one recorded kill, read-only -- added 2026-10-17 for the Hunter's Journal tab. */
+    public Map<Identifier, Integer> allKills() {
+        return java.util.Collections.unmodifiableMap(kills);
+    }
+
     /** Records one more kill of {@code mobType} and returns the new cumulative total. */
     public int recordKill(Identifier mobType) {
         int updated = kills(mobType) + 1;
