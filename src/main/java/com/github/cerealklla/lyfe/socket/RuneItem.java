@@ -1,13 +1,18 @@
 package com.github.cerealklla.lyfe.socket;
 
+import java.util.function.Consumer;
+
 import com.github.cerealklla.lyfe.registration.ModItems;
 
+import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.ClickAction;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.TooltipFlag;
+import net.minecraft.world.item.component.TooltipDisplay;
 
 /**
  * A single registered Item for all 30 {@link RuneId}s -- "no quality or variability" (explicit user
@@ -45,5 +50,20 @@ public class RuneItem extends Item {
             return false;
         }
         return SocketScoopHandler.tryScoopInto(self, slot, clickAction, player, SocketSlot.ofRune(id));
+    }
+
+    /** Real report, 2026-10-17: the tooltip never said what socketing a Rune actually does. */
+    @Override
+    public void appendHoverText(ItemStack stack, TooltipContext context, TooltipDisplay display, Consumer<Component> builder, TooltipFlag tooltipFlag) {
+        RuneId id = runeIdOf(stack);
+        if (id == null) {
+            return;
+        }
+        builder.accept(Component.literal("Socket into an item with an open socket.").withStyle(ChatFormatting.GRAY));
+        RuneCatalog.RuneStat stat = RuneCatalog.of(id);
+        if (stat != null) {
+            String sign = stat.amount() >= 0 ? "+" : "";
+            builder.accept(Component.literal(sign + stat.amount() + " " + stat.shortLabel()).withStyle(ChatFormatting.BLUE));
+        }
     }
 }

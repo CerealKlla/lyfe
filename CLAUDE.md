@@ -258,3 +258,8 @@ XP every time any Quarry Knowledge level increases. The progress HUD
 Researcher's own transient knowledge-bar visual style, per explicit request. `./gradlew build`/`test`
 green, whole-suite (11 mods) boot-smoke-tested clean via `runServer` from Cartographyr. **Not yet
 live-tested or deployed.**
+
+**Rune tooltip fixed, 2026-10-17** -- real report: a found Rune's tooltip never said what it
+actually does. `socket.RuneItem` never overrode `appendHoverText` at all (confirmed `socket.GemItem`
+has the identical gap, not yet fixed); now shows "Socket into an item with an open socket" plus the
+Rune's real fixed stat bonus from `socket.RuneCatalog`. `./gradlew build`/`test` green.
