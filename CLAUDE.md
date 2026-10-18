@@ -310,6 +310,12 @@ all 6 (no Runeword-style rarity concept applies to Gems); Quality gets a real fi
 curve (Chipped 50% down to Perfect 3%). `./gradlew build` green, whole-suite (12 mods) rebuild
 green, `runServer` boot-smoke-tested clean. **Not yet live-tested.**
 
+**50% chance of a Rune in the Sunken Treasure Bag/Locked Chest, 2026-10-17** (see
+[context/decisions.md](context/decisions.md)) -- new `fishing.FixedLootContents#addRune`, called
+from both `rollSunkenTreasure` and `rollLockedChest`, same worth-weighted rune pick every other
+source already uses. `./gradlew build` green, whole-suite (12 mods) rebuild green, `runServer`
+boot-smoke-tested clean. **Not yet live-tested.**
+
 **Skill-granted max Health/Food/Air lowered from 3x to 2x vanilla base, 2026-10-17** (see
 [context/decisions.md](context/decisions.md)) -- explicit user spec, "reduce the max health, food,
 and air gained by skills from 30 -> 20." One consistent multiplier change across Heartiness/

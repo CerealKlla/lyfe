@@ -6,6 +6,8 @@ import java.util.List;
 import com.github.cerealklla.lyfe.craft.EquipmentTierLadder;
 import com.github.cerealklla.lyfe.research.ResearchNoteConstants;
 import com.github.cerealklla.lyfe.research.ResearchNoteItem;
+import com.github.cerealklla.lyfe.socket.RuneItem;
+import com.github.cerealklla.lyfe.socket.RuneWorth;
 
 import com.mojang.serialization.Codec;
 
@@ -65,6 +67,7 @@ public record FixedLootContents(List<ItemStack> stacks) {
         addResearchNotes(stacks, random, noteStacks, FishingConstants.SUNKEN_TREASURE_MIN_NOTE_COUNT, FishingConstants.SUNKEN_TREASURE_MAX_NOTE_COUNT);
         int highEnd = randomBetween(random, FishingConstants.SUNKEN_TREASURE_MIN_HIGH_END, FishingConstants.SUNKEN_TREASURE_MAX_HIGH_END);
         addHighEndLoot(stacks, random, highEnd);
+        addRune(stacks, random);
         return new FixedLootContents(stacks);
     }
 
@@ -75,6 +78,7 @@ public record FixedLootContents(List<ItemStack> stacks) {
         addResearchNotes(stacks, random, FishingConstants.LOCKED_CHEST_NOTE_STACKS, FishingConstants.LOCKED_CHEST_MIN_NOTE_COUNT, FishingConstants.LOCKED_CHEST_MAX_NOTE_COUNT);
         int highEnd = randomBetween(random, FishingConstants.LOCKED_CHEST_MIN_HIGH_END, FishingConstants.LOCKED_CHEST_MAX_HIGH_END);
         addHighEndLoot(stacks, random, highEnd);
+        addRune(stacks, random);
         return new FixedLootContents(stacks);
     }
 
@@ -102,6 +106,13 @@ public record FixedLootContents(List<ItemStack> stacks) {
         List<net.minecraft.world.item.Item> pool = FishLootPools.HIGH_END_LOOT;
         for (int i = 0; i < count; i++) {
             stacks.add(new ItemStack(pool.get(random.nextInt(pool.size()))));
+        }
+    }
+
+    /** "50% chance to find at least 1 rune" (explicit user request, 2026-10-17) -- a flat per-roll chance of exactly one worth-weighted rune, same {@link RuneWorth#rollRandomRune} pick {@code socket.RuneDropListener}/{@code RuneLootInjector} already use. */
+    private static void addRune(List<ItemStack> stacks, RandomSource random) {
+        if (random.nextDouble() < FishingConstants.RUNE_CHANCE) {
+            stacks.add(RuneItem.create(RuneWorth.rollRandomRune(random)));
         }
     }
 

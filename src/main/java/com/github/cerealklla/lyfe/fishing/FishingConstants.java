@@ -71,6 +71,9 @@ public final class FishingConstants {
 
     public static final String[] CHEST_VARIANTS = {"granite", "basalt", "slate", "quartzite", "obsidian"};
 
+    /** "50% chance to find at least 1 rune in any of the fishing bag/chests" (explicit user request, 2026-10-17) -- flat per-roll chance, shared by both Sunken Treasure Bag and Locked Chest. */
+    public static final double RUNE_CHANCE = 0.50;
+
     // Catch Bag (H): total weight cap, not an item/slot count.
     public static final double CATCH_BAG_MAX_POUNDS = 1000.0;
 
