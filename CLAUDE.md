@@ -323,3 +323,24 @@ Survivalist/Swimmer (all three already shared the identical "grows to Nx vanilla
 Health 30 -> 20 hearts, max Food 30 -> 20 icons, max Air 45 -> 30 seconds (same 2x reduction, just a
 different base unit). `./gradlew build` green, whole-suite (12 mods) rebuild green, `runServer`
 boot-smoke-tested clean. **Not yet live-tested.**
+
+**Each of the 30 Runes now has its own distinct icon, 2026-10-17** (see
+[context/decisions.md](context/decisions.md)) -- same `CustomModelData`-select-model technique
+`research.ResearchNoteItem` already uses; 30 generated textures (a shared stem plus a bit-selected
+subset of 5 branch strokes per RuneId, guaranteed unique since 30 ordinals fit in 5 bits). Also
+fixed a real gap: `RuneLootInjector`'s dynamic function bypassed `RuneItem#create` entirely, so a
+chest-found Rune would have kept the old plain icon forever -- now routes through the same path
+every other Rune source uses. `./gradlew build` green, whole-suite (12 mods) rebuild green,
+`runServer` boot-smoke-tested clean. **Not yet live-tested** -- worth a real in-game check, since
+`runServer` doesn't load client assets at all.
+
+**Locked Chest unlock no longer silently reverts itself, 2026-10-17** (see
+[context/decisions.md](context/decisions.md)) -- real report: "every time I unlock a fishing chest
+it locks itself again immediately." `LockedChestUnlockListener` mutated the stacked-on `ItemStack`
+in place but never explicitly wrote it back to its real `Slot`, unlike the carried Key (which was
+already written back via `SlotAccess#set`) -- without that, vanilla's own click-handling could
+finish the interaction by re-committing whatever stack it already had, silently discarding the
+unlock. Now explicitly commits via `event.getSlot().set(stackedOn)`, same idiom
+`LockedChestItem#overrideStackedOnOther`'s own `slot.set(...)` already uses. `./gradlew build`
+green, whole-suite (12 mods) rebuild green, `runServer` boot-smoke-tested clean. **Not yet
+live-tested.**

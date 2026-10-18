@@ -1,6 +1,222 @@
 {
   "model": {
-    "type": "minecraft:model",
-    "model": "lyfe:item/rune"
+    "type": "minecraft:select",
+    "property": "minecraft:custom_model_data",
+    "cases": [
+      {
+        "when": "zar",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/rune_zar"
+        }
+      },
+      {
+        "when": "ith",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/rune_ith"
+        }
+      },
+      {
+        "when": "vex",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/rune_vex"
+        }
+      },
+      {
+        "when": "lorn",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/rune_lorn"
+        }
+      },
+      {
+        "when": "kel",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/rune_kel"
+        }
+      },
+      {
+        "when": "thal",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/rune_thal"
+        }
+      },
+      {
+        "when": "orin",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/rune_orin"
+        }
+      },
+      {
+        "when": "myr",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/rune_myr"
+        }
+      },
+      {
+        "when": "fen",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/rune_fen"
+        }
+      },
+      {
+        "when": "dask",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/rune_dask"
+        }
+      },
+      {
+        "when": "wyn",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/rune_wyn"
+        }
+      },
+      {
+        "when": "hale",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/rune_hale"
+        }
+      },
+      {
+        "when": "brom",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/rune_brom"
+        }
+      },
+      {
+        "when": "glen",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/rune_glen"
+        }
+      },
+      {
+        "when": "korr",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/rune_korr"
+        }
+      },
+      {
+        "when": "sael",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/rune_sael"
+        }
+      },
+      {
+        "when": "nym",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/rune_nym"
+        }
+      },
+      {
+        "when": "pyre",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/rune_pyre"
+        }
+      },
+      {
+        "when": "doth",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/rune_doth"
+        }
+      },
+      {
+        "when": "quin",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/rune_quin"
+        }
+      },
+      {
+        "when": "rask",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/rune_rask"
+        }
+      },
+      {
+        "when": "esh",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/rune_esh"
+        }
+      },
+      {
+        "when": "vorn",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/rune_vorn"
+        }
+      },
+      {
+        "when": "tiln",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/rune_tiln"
+        }
+      },
+      {
+        "when": "ashk",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/rune_ashk"
+        }
+      },
+      {
+        "when": "olm",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/rune_olm"
+        }
+      },
+      {
+        "when": "drev",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/rune_drev"
+        }
+      },
+      {
+        "when": "sorn",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/rune_sorn"
+        }
+      },
+      {
+        "when": "kael",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/rune_kael"
+        }
+      },
+      {
+        "when": "ryth",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/rune_ryth"
+        }
+      }
+    ],
+    "fallback": {
+      "type": "minecraft:model",
+      "model": "lyfe:item/rune"
+    }
   }
 }

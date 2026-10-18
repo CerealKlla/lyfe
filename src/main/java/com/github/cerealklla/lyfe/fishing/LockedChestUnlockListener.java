@@ -45,6 +45,14 @@ public final class LockedChestUnlockListener {
         boolean unlocked = random.nextDouble() < FishingConstants.KEY_UNLOCK_CHANCE;
         if (unlocked) {
             stackedOn.set(ModItems.LOCKED_CHEST_LOCKED, Boolean.FALSE);
+            // Real report, 2026-10-17: "every time I unlock a fishing chest it locks itself again
+            // immediately" -- mutating `stackedOn` in place isn't guaranteed to stick on its own
+            // (unlike the carried item below, which is explicitly written back via SlotAccess#set);
+            // without an explicit write-back, vanilla's own click-handling can finish the interaction
+            // by re-committing whatever ItemStack it already had for this slot, silently discarding
+            // the mutation the instant it happened. Explicit write-back via the real Slot, same idiom
+            // LockedChestItem#overrideStackedOnOther's own `slot.set(...)` already uses.
+            event.getSlot().set(stackedOn);
         }
         event.getCarriedSlotAccess().set(carried.copyWithCount(carried.getCount() - 1));
 

@@ -69,9 +69,10 @@ public final class RuneLootInjector {
     private record RandomRuneFunction() implements LootItemFunction {
         @Override
         public ItemStack apply(ItemStack stack, LootContext context) {
-            ItemStack result = stack.copy();
-            result.set(ModItems.RUNE_ID.get(), RuneWorth.rollRandomRune(context.getRandom()));
-            return result;
+            // This is the one Rune source that doesn't go through RuneItem#create (the loot table
+            // itself generates the base stack) -- also stamp the same per-RuneId CustomModelData here
+            // so a chest-found Rune gets its own distinct icon too, 2026-10-17.
+            return RuneItem.create(RuneWorth.rollRandomRune(context.getRandom()));
         }
 
         @Override
