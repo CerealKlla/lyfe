@@ -309,3 +309,11 @@ all was extracting one back out of gear it was already socketed into. Type rolls
 all 6 (no Runeword-style rarity concept applies to Gems); Quality gets a real first-pass rarity
 curve (Chipped 50% down to Perfect 3%). `./gradlew build` green, whole-suite (12 mods) rebuild
 green, `runServer` boot-smoke-tested clean. **Not yet live-tested.**
+
+**Skill-granted max Health/Food/Air lowered from 3x to 2x vanilla base, 2026-10-17** (see
+[context/decisions.md](context/decisions.md)) -- explicit user spec, "reduce the max health, food,
+and air gained by skills from 30 -> 20." One consistent multiplier change across Heartiness/
+Survivalist/Swimmer (all three already shared the identical "grows to Nx vanilla base" shape): max
+Health 30 -> 20 hearts, max Food 30 -> 20 icons, max Air 45 -> 30 seconds (same 2x reduction, just a
+different base unit). `./gradlew build` green, whole-suite (12 mods) rebuild green, `runServer`
+boot-smoke-tested clean. **Not yet live-tested.**

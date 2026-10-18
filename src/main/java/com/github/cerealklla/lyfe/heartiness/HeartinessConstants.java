@@ -3,7 +3,7 @@ package com.github.cerealklla.lyfe.heartiness;
 /**
  * All placeholder/tunable magnitudes for the Heartiness skill (design doc, 2026-10-03 user
  * request), flagged as such per this mod's standing convention -- none of these were specified to
- * the exact number, only the three shapes they follow: bonus max health growing linearly to 3x
+ * the exact number, only the three shapes they follow: bonus max health growing linearly to 2x
  * vanilla's base by max level, a rapid-heal proc chance that only exists past level 25 and grows
  * from there, and that proc's own fixed heal-over-time shape.
  */
@@ -15,8 +15,8 @@ public final class HeartinessConstants {
     /** Vanilla's own base max health (10 hearts) -- the 1x point of the growth curve. */
     public static final float BASE_MAX_HEALTH = 20.0F;
 
-    /** "up to tripple vanilla max" -- 3x base, reached at max level. */
-    public static final float MAX_HEALTH_MULTIPLIER = 3.0F;
+    /** 2x base (20 hearts), reached at max level -- lowered from 3x (30 hearts), 2026-10-17 user request. */
+    public static final float MAX_HEALTH_MULTIPLIER = 2.0F;
 
     /** Rapid Recovery only has a chance to proc starting at this level. */
     public static final int RAPID_HEAL_MIN_LEVEL = 25;

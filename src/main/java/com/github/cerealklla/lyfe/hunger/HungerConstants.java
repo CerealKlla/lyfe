@@ -10,7 +10,7 @@ package com.github.cerealklla.lyfe.hunger;
 final class HungerConstants {
 
     static final int BASE_MAX_HUNGER = 20; // vanilla FoodConstants.MAX_FOOD
-    static final int MAX_HUNGER_AT_MAX_LEVEL = 60; // design doc: "up to 30 icons"
+    static final int MAX_HUNGER_AT_MAX_LEVEL = 40; // up to 20 icons -- lowered from 30 icons, 2026-10-17 user request
     static final float START_SATURATION = 5.0F; // vanilla FoodConstants.START_SATURATION
 
     // The value vanilla's real FoodData#foodLevel is pinned to every tick, so its own sprint/regen/

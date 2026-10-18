@@ -11,7 +11,7 @@ package com.github.cerealklla.lyfe.swim;
 final class AirConstants {
 
     static final int BASE_MAX_AIR = 300; // vanilla Entity#getMaxAirSupply()
-    static final int MAX_AIR_AT_MAX_LEVEL = 900; // design doc: "two full bars beyond vanilla's default" -- 3x total, same ratio HungerConstants uses
+    static final int MAX_AIR_AT_MAX_LEVEL = 600; // 2x total (30 seconds) -- lowered from 3x (45 seconds), 2026-10-17 user request, same ratio HungerConstants/HeartinessConstants use
 
     // The value the real air supply gets pinned to at the end of every tick, so vanilla's own
     // "<=-20" drowning check never fires against it (vanilla only ever decrements by 1/tick, so

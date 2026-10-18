@@ -209,7 +209,7 @@ public final class HungerListener {
         Lyfe.addXp(player, Skills.SURVIVALIST_ID, actualGain * SURVIVALIST_XP_PER_POINT);
     }
 
-    /** Section 10.1: grows linearly from vanilla's baseline to the design doc's 30-icon/60-point cap as Survivalist levels. */
+    /** Section 10.1: grows linearly from vanilla's baseline to the 20-icon/40-point cap as Survivalist levels (lowered from 30/60, 2026-10-17 user request). */
     public static int currentMaxHunger(ServerPlayer player) {
         return currentMaxHunger(Lyfe.getLevel(player, Skills.SURVIVALIST_ID));
     }
