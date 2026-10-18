@@ -89,6 +89,9 @@ public final class ServerRecipeStore {
             components.merge(SocketToolRegistry.diamondItemId(), SocketToolRegistry.GUARANTEED_DIAMOND_COUNT, Integer::sum);
             result.put(itemId, new GeneratedRecipe(itemId, SocketToolRegistry.RECIPE_TIER, components, rolled.genericComponents()));
         }
+        // Fixed, hand-authored, non-equipment conversions (Leaf Litter -> Charcoal, added
+        // 2026-10-18) -- see MiscRecipes' own doc for why these live outside the equipment ladder.
+        result.putAll(MiscRecipes.generate());
         return result;
     }
 }

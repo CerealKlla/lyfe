@@ -120,7 +120,8 @@ public class CraftingStructureMenu extends AbstractContainerMenu {
                         EquipmentTierLadder.allGeneratedItemIds().stream(),
                         EquipmentTierLadder.allGeneratedArmorItemIds().stream(),
                         EquipmentTierLadder.allGeneratedRangedWeaponIds().stream(),
-                        com.github.cerealklla.lyfe.socket.SocketToolRegistry.allIds().stream())
+                        com.github.cerealklla.lyfe.socket.SocketToolRegistry.allIds().stream(),
+                        MiscRecipes.allIds().stream())
                 .flatMap(s -> s)
                 .map(ServerRecipeStore::get)
                 .flatMap(java.util.Optional::stream)
@@ -275,7 +276,11 @@ public class CraftingStructureMenu extends AbstractContainerMenu {
 
         double quality = CrafterConstants.qualityFromLevel(crafterLevel, Skills.MAX_LEVEL)
                 + CrafterConstants.structureBonus(tier);
-        ItemStack result = new ItemStack(BuiltInRegistries.ITEM.getValue(recipe.resultId()));
+        // outputCount is 1 for every real equipment recipe (unchanged); only MiscRecipes' fixed,
+        // non-equipment conversions (e.g. Leaf Litter -> Charcoal) ever set it higher -- see that
+        // class's own doc for why QualityApplier/the durability-override/armor-rebalance blocks
+        // below don't need any extra gating to stay correct for one of those.
+        ItemStack result = new ItemStack(BuiltInRegistries.ITEM.getValue(recipe.resultId()), recipe.outputCount());
         var armorType = EquipmentTierLadder.armorTypeOf(recipe.resultId());
         if (armorType == null && !com.github.cerealklla.lyfe.socket.SocketToolRegistry.isSocketTool(recipe.resultId())) {
             // Tool/weapon only -- custom base-durability override (2026-10-06), applied before

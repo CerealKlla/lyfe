@@ -25,13 +25,25 @@ public record GeneratedRecipe(
         Identifier resultId,
         int tier,
         Map<Identifier, Integer> specificComponents,
-        Map<String, Integer> genericComponents) {
+        Map<String, Integer> genericComponents,
+        int outputCount) {
+
+    // Convenience constructor for every existing equipment recipe (tool/armor/ranged weapon/socket
+    // tool), all of which produce exactly 1 of resultId -- keeps every call site in RecipeGenerator
+    // unchanged instead of threading a literal "1" through each one.
+    public GeneratedRecipe(Identifier resultId, int tier, Map<Identifier, Integer> specificComponents, Map<String, Integer> genericComponents) {
+        this(resultId, tier, specificComponents, genericComponents, 1);
+    }
 
     public static final Codec<GeneratedRecipe> CODEC = RecordCodecBuilder.create(i -> i.group(
             Identifier.CODEC.fieldOf("result_id").forGetter(GeneratedRecipe::resultId),
             Codec.INT.fieldOf("tier").forGetter(GeneratedRecipe::tier),
             Codec.unboundedMap(Identifier.CODEC, Codec.INT).fieldOf("specific_components").forGetter(GeneratedRecipe::specificComponents),
-            Codec.unboundedMap(Codec.STRING, Codec.INT).fieldOf("generic_components").forGetter(GeneratedRecipe::genericComponents)
+            Codec.unboundedMap(Codec.STRING, Codec.INT).fieldOf("generic_components").forGetter(GeneratedRecipe::genericComponents),
+            // Added 2026-10-18 for MiscRecipes' fixed, non-equipment conversions (e.g. Leaf Litter ->
+            // Charcoal) -- optionalFieldOf defaults to 1 so every already-persisted equipment recipe
+            // (which never set this field at all) decodes unchanged.
+            Codec.INT.optionalFieldOf("output_count", 1).forGetter(GeneratedRecipe::outputCount)
     ).apply(i, GeneratedRecipe::new));
 
     /** Total ingredient-slot count this recipe actually uses -- sum of every component's quantity count (one count per distinct ingredient, not per unit). */
@@ -53,6 +65,7 @@ public record GeneratedRecipe(
             buffer.writeUtf(entry.getKey());
             buffer.writeVarInt(entry.getValue());
         }
+        buffer.writeVarInt(recipe.outputCount());
     }
 
     public static GeneratedRecipe readFrom(RegistryFriendlyByteBuf buffer) {
@@ -72,6 +85,7 @@ public record GeneratedRecipe(
             int qty = buffer.readVarInt();
             genericComponents.put(groupName, qty);
         }
-        return new GeneratedRecipe(resultId, tier, specificComponents, genericComponents);
+        int outputCount = buffer.readVarInt();
+        return new GeneratedRecipe(resultId, tier, specificComponents, genericComponents, outputCount);
     }
 }
