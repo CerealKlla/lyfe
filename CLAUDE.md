@@ -344,3 +344,10 @@ unlock. Now explicitly commits via `event.getSlot().set(stackedOn)`, same idiom
 `LockedChestItem#overrideStackedOnOther`'s own `slot.set(...)` already uses. `./gradlew build`
 green, whole-suite (12 mods) rebuild green, `runServer` boot-smoke-tested clean. **Not yet
 live-tested.**
+
+**Researching Bow/Crossbow said "nothing to learn," 2026-10-17** -- real root cause lived in
+Nuclyus, not here: `craft.ServerRecipeStore`'s persisted file predated Bow/Crossbow being added to
+its own `generate()` method, and `PersistedServerStore#loadOrGenerate` only ever regenerated on a
+genuinely absent file, so an already-existing file just stayed missing those two entries forever.
+See Nuclyus's own CLAUDE.md/decisions.md for the real (generic, all-stores) fix. `./gradlew build`
+green here and in Nuclyus. **Not yet live-tested** -- only takes effect on a real server restart.
