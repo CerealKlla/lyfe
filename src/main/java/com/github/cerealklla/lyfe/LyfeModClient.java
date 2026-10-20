@@ -373,6 +373,7 @@ public class LyfeModClient {
         ClientHuntsmanBarState.tick();
         ClientLuckySpotState.tick();
         ClientRecallciniteState.tick();
+        com.github.cerealklla.lyfe.hunger.ClientSprintLock.tick();
 
         ClientWritingRequest.takePending().ifPresent(request -> {
             if (Minecraft.getInstance().screen == null) {
