@@ -29,6 +29,12 @@ import net.minecraft.world.phys.HitResult;
  * spinning, full-bright Glowstone Dust) -- "a small ball of light" with no new client rendering
  * code needed, same discipline as {@code npc.NpcHealthBar}'s nameplate reuse.
  *
+ * <p>Grants Spell Proficiency progress on either outcome -- healing an ally or damaging an enemy,
+ * each only when the action actually had a real effect (explicit user spec, 2026-10-20: "change
+ * Magician to gain XP when a spell heals an ally or damages an enemy. We'll use 'Survived Combat'
+ * for something later" -- the {@code combat.CombatState}/{@code CombatStateTracker} infrastructure
+ * stays, just no longer wired to Magician).
+ *
  * <p><b>Ally/enemy resolution is alignment-symmetric</b> (explicit user answer, 2026-10-20: "for
  * now, non-hostile. Will expand in future with player party system... I could see Pillagers
  * spawning with these and wanting to heal their fellow pillagers") -- a target is an ally of the
@@ -81,7 +87,15 @@ public final class SparkOfLifeProjectile extends ThrowableItemProjectile {
             double velocity = getDeltaMovement().length();
             int damage = (int) Math.ceil(velocity * BASE_DAMAGE);
             DamageSource damageSource = damageSources().indirectMagic(this, owner);
-            target.hurtOrSimulate(damageSource, damage);
+            // Proficiency gain moved here from "Surviving Combat" (explicit user spec, 2026-10-20:
+            // "change Magician to gain XP when a spell heals an ally or damages an enemy. We'll use
+            // 'Survived Combat' for something later") -- gated on hurtOrSimulate's own return value
+            // (an actually-effective hit, not blocked/invulnerable/already dead), same "did this
+            // really do anything" discipline the heal branch above already uses.
+            boolean hitLanded = target.hurtOrSimulate(damageSource, damage);
+            if (hitLanded && owner instanceof ServerPlayer player) {
+                MagicianListener.grantProgress(player, SpellIds.SPARK_OF_LIFE, SpellProficiencyCurve.PROGRESS_PER_LEVEL);
+            }
         }
         discard();
     }

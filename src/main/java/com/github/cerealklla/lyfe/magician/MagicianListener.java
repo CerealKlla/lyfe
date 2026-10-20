@@ -18,10 +18,13 @@ import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 /**
  * Magician (design doc Section 24): applies the skill's own per-level Max Mana/Mana Regen bonus
  * (+10/+1 per level, exactly mirroring {@code heartiness.HeartinessListener#applyMaxHealthBonus}'s
- * per-tick transient-modifier pattern), and grants Spell Proficiency progress on "Surviving Combat"
- * (the other trigger -- a successful heal/overheal -- is granted directly from {@code
- * SparkOfLifeProjectile#onHitEntity}, the only place that actually knows whether a heal had any
- * real effect).
+ * per-tick transient-modifier pattern). Spell Proficiency progress is granted entirely from {@code
+ * SparkOfLifeProjectile#onHitEntity} -- healing an ally or damaging an enemy, whichever actually
+ * had a real effect (explicit user spec, 2026-10-20: "change Magician to gain XP when a spell heals
+ * an ally or damages an enemy. We'll use 'Survived Combat' for something later" -- replacing an
+ * earlier version of this class that granted progress on Surviving Combat instead, which turned out
+ * to be a real bug on top of being the wrong trigger: it fired for any player who survived combat
+ * at all, with no check for whether they even owned a Nature Staff).
  */
 public final class MagicianListener {
 
@@ -41,11 +44,6 @@ public final class MagicianListener {
             return;
         }
         applyManaBonus(player);
-
-        long now = player.level().getGameTime();
-        if (player.getData(ModAttachments.COMBAT_STATE).tryConsumeSurvivedCombat(now)) {
-            grantProgress(player, SpellIds.SPARK_OF_LIFE, SpellProficiencyCurve.PROGRESS_PER_LEVEL);
-        }
     }
 
     private void applyManaBonus(ServerPlayer player) {
