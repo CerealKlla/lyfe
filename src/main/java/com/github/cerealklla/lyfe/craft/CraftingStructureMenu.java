@@ -244,8 +244,17 @@ public class CraftingStructureMenu extends AbstractContainerMenu {
             }
         }
 
+        // Real report, 2026-10-20: "the charcoal recipe is only using 63/64 of the leaves." The
+        // Crafter skill's material-save chance below is an equipment-crafting mechanic (save 1 unit
+        // of a tunable ingredient cost occasionally) -- MiscRecipes' fixed, hand-authored conversions
+        // (e.g. 64 Leaf Litter -> 10 Charcoal) are a different kind of thing entirely (see that
+        // class's own doc: "NOT tied to EquipmentTierLadder... at all") and were never excluded from
+        // this roll, silently breaking their exact fixed ratio. QualityApplier/durability-override/
+        // armor-rebalance below already no-op correctly for a MiscRecipe output on their own terms;
+        // this is the one place that needed an explicit exclusion.
+        boolean isMiscRecipe = MiscRecipes.allIds().contains(recipe.resultId());
         int crafterLevel = Lyfe.getLevel(player, Skills.CRAFTER_ID);
-        double saveChance = CrafterConstants.componentSaveChance(crafterLevel, Skills.MAX_LEVEL);
+        double saveChance = isMiscRecipe ? 0.0 : CrafterConstants.componentSaveChance(crafterLevel, Skills.MAX_LEVEL);
         int saved = 0;
         for (var entry : recipe.specificComponents().entrySet()) {
             int toConsume = entry.getValue();
