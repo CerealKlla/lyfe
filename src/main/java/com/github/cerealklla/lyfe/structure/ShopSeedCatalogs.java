@@ -6,6 +6,7 @@ import java.util.List;
 import com.github.cerealklla.lyfe.cook.FoodTierLadder;
 import com.github.cerealklla.lyfe.cook.RecipeNoteItem;
 import com.github.cerealklla.lyfe.craft.EquipmentTierLadder;
+import com.github.cerealklla.lyfe.craft.NatureStaffLadder;
 import com.github.cerealklla.lyfe.research.ResearchNoteItem;
 import com.github.cerealklla.settlemynts.api.Settlemynts;
 import com.github.cerealklla.settlemynts.zone.SeedListing;
@@ -155,6 +156,17 @@ public final class ShopSeedCatalogs {
             }
             listings.add(SeedListing.ofResource(ShopResource.ofItem(rangedWeaponId),
                     SWORD_PRICE_PER_TIER * Math.max(1, weaponTier), EQUIPMENT_STOCK));
+        }
+        // Nature Staff (added 2026-10-21, real report: "not seeing my blacksmith listing nature
+        // staff after upgrading the plot and crafting station") -- root cause confirmed by direct
+        // investigation: this method never referenced NatureStaffLadder at all, so no Blacksmith
+        // plot of any age was ever going to list/auto-craft it, same shape as the ranged-weapon loop
+        // above (its own small ladder, not an EquipmentTierLadder.ToolType, so it can't fall out of
+        // that loop automatically). Priced the same as a sword at the matching tier.
+        for (int tier = NatureStaffLadder.MIN_TIER; tier <= Math.min(maxTier, NatureStaffLadder.MAX_TIER); tier++) {
+            Identifier itemId = NatureStaffLadder.itemId(tier);
+            listings.add(SeedListing.ofResource(ShopResource.ofItem(itemId), SWORD_PRICE_PER_TIER * Math.max(1, tier), EQUIPMENT_STOCK));
+            notes.add(ResearchNoteItem.createFor(itemId, tier));
         }
         if (!notes.isEmpty()) {
             listings.add(SeedListing.ofStacks(NOTE_PRICE, notes));
