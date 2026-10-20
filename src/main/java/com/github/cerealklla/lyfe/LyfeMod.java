@@ -65,6 +65,7 @@ import com.github.cerealklla.lyfe.research.ResearchProgressPayload;
 import com.github.cerealklla.lyfe.research.client.ClientResearchBarState;
 import com.github.cerealklla.lyfe.reincarnation.ReincarnationListener;
 import com.github.cerealklla.lyfe.registration.ModAttachments;
+import com.github.cerealklla.lyfe.registration.ModAttributes;
 import com.github.cerealklla.lyfe.registration.ModBlockEntities;
 import com.github.cerealklla.lyfe.registration.ModBlocks;
 import com.github.cerealklla.lyfe.registration.ModEntities;
@@ -107,11 +108,13 @@ public class LyfeMod {
         ModMenus.MENU_TYPES.register(modEventBus);
         ModMobEffects.MOB_EFFECTS.register(modEventBus);
         ModEntities.ENTITIES.register(modEventBus);
+        ModAttributes.ATTRIBUTES.register(modEventBus);
         Skills.bootstrap();
 
         modEventBus.addListener(this::commonSetup);
         modEventBus.addListener(this::registerPayloads);
         modEventBus.addListener(EquipmentDefaultComponents::onModifyDefaultComponents);
+        modEventBus.addListener(ModAttributes::onEntityAttributeModification);
 
         NeoForge.EVENT_BUS.register(new GatheringListener());
         NeoForge.EVENT_BUS.register(new LeafDecayAccelerator());
@@ -143,6 +146,8 @@ public class LyfeMod {
         NeoForge.EVENT_BUS.register(new GemDropListener());
         NeoForge.EVENT_BUS.register(new SocketDiscoveryListener());
         NeoForge.EVENT_BUS.register(new com.github.cerealklla.lyfe.socket.RuneBackfillListener());
+        NeoForge.EVENT_BUS.register(new com.github.cerealklla.lyfe.combat.CombatStateTracker());
+        NeoForge.EVENT_BUS.register(new com.github.cerealklla.lyfe.mana.ManaListener());
         NeoForge.EVENT_BUS.addListener((LootTableLoadEvent event) -> RuneLootInjector.onLootTableLoad(event));
         NeoForge.EVENT_BUS.addListener((LootTableLoadEvent event) -> PreSocketedGearInjector.onLootTableLoad(event));
         NeoForge.EVENT_BUS.addListener((RegisterCommandsEvent event) -> DebugCommands.register(event.getDispatcher()));

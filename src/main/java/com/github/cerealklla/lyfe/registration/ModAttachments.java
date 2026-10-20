@@ -12,6 +12,7 @@ import com.github.cerealklla.lyfe.hunger.PlayerHunger;
 import com.github.cerealklla.lyfe.huntsman.PlayerHuntsman;
 import com.github.cerealklla.lyfe.knowledge.KnowledgeReference;
 import com.github.cerealklla.lyfe.knowledge.PlayerKnowledge;
+import com.github.cerealklla.lyfe.mana.EntityMana;
 import com.github.cerealklla.lyfe.recallcinite.RecallciniteData;
 import com.github.cerealklla.lyfe.research.PlayerResearch;
 import com.github.cerealklla.lyfe.swim.PlayerAir;
@@ -146,6 +147,14 @@ public final class ModAttachments {
             () -> AttachmentType.builder(holder -> new AssistMarkers()).build()
     );
 
+    // In-memory only, same reasoning as MOB_ASSIST_MARKERS above -- "Surviving Combat" (design doc,
+    // 2026-10-20) never needs to survive a save/reload or be visible client-side. Attached to any
+    // LivingEntity, not just Player -- see combat.CombatStateTracker.
+    public static final Supplier<AttachmentType<com.github.cerealklla.lyfe.combat.CombatState>> COMBAT_STATE = ATTACHMENT_TYPES.register(
+            "combat_state",
+            () -> AttachmentType.builder(holder -> new com.github.cerealklla.lyfe.combat.CombatState()).build()
+    );
+
     // Synced since 2026-10-17 for the Hunter's Journal menu tab (previously server-only, same
     // reasoning as PLAYER_RESEARCH below -- the transient progress bar used to be the only
     // client-facing view of this data, pushed via its own explicit payload instead of a sync).
@@ -168,6 +177,20 @@ public final class ModAttachments {
                     .serialize(com.github.cerealklla.lyfe.socket.PlayerDiscoveredRunes.CODEC)
                     .copyOnDeath()
                     .sync(ByteBufCodecs.fromCodecWithRegistries(com.github.cerealklla.lyfe.socket.PlayerDiscoveredRunes.CODEC.codec()))
+                    .build()
+    );
+
+    // Mana (design doc, 2026-10-20) -- attached to any LivingEntity, not just Player (same scoping
+    // as MOB_ASSIST_MARKERS above), since Settlemynts' NPCs need to spend/regen Mana to cast a spell
+    // too. Synced (a player's own Mana HUD needs their own live value) and copyOnDeath() (this
+    // codebase's established fix for attachments silently resetting on respawn, see PLAYER_SKILLS'
+    // own doc above for the original incident this pattern comes from).
+    public static final Supplier<AttachmentType<EntityMana>> ENTITY_MANA = ATTACHMENT_TYPES.register(
+            "entity_mana",
+            () -> AttachmentType.builder(holder -> new EntityMana())
+                    .serialize(EntityMana.CODEC)
+                    .copyOnDeath()
+                    .sync(ByteBufCodecs.fromCodecWithRegistries(EntityMana.CODEC.codec()))
                     .build()
     );
 }

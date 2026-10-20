@@ -351,3 +351,24 @@ its own `generate()` method, and `PersistedServerStore#loadOrGenerate` only ever
 genuinely absent file, so an already-existing file just stayed missing those two entries forever.
 See Nuclyus's own CLAUDE.md/decisions.md for the real (generic, all-stores) fix. `./gradlew build`
 green here and in Nuclyus. **Not yet live-tested** -- only takes effect on a real server restart.
+
+**Mana/Magician/Bo/Nature Staff/Spark of Life: large new feature planned and Slice 1 built,
+2026-10-20** (see [context/design-document.md](context/design-document.md)'s new Section 24,
+[context/decisions.md](context/decisions.md)) -- a full user-authored spec (Mana/ManaRegen stats
+on every Player/NPC, Magic Find/Gold Find, a Magician skill mirroring Huntsman's per-sub-proficiency
+meta-leveling, a Bo combat skill, a Spark of Life heal/damage spell cast from a new 5-tier Nature
+Staff, 4 new Runes, a "Surviving Combat" trigger) was planned into 5 slices via a real research pass
+(Huntsman's pattern, the Rune/Gem Attribute-based system's constraints, the crafting-tier
+registration shapes, where gold/rune drops actually live) before any code was written -- see the
+approved plan at `C:\Users\benja\.claude\plans\idempotent-floating-flamingo.md` for the full
+remaining Slices 2-5. **Slice 1 (foundation) implemented and boot-tested the same day**: 4 new
+custom Attributes (`registration.ModAttributes`) attached to every entity type with an
+`AttributeSupplier` at all (no new cross-mod dependency needed); new `mana` package (`EntityMana`
+attachment, `ManaListener` regen tick, `ManaNameplate`); new `combat.CombatState`/
+`CombatStateTracker` for "Surviving Combat," generic to any `LivingEntity`; new player HUD
+`mana.client.ManaOverlay` (a brand-new `GuiLayer`, drawn with plain filled squares -- no "blue
+droplet" art exists yet, shipped functional-first per this project's own established precedent);
+Settlemynts' `npc.NpcHealthBar` edited to append a Mana segment onto the same nameplate line (not a
+second stacked line -- vanilla's nametag rendering has no real multi-line support, confirmed before
+writing this). `./gradlew build`/`test` green in both repos, whole-suite (13 mods) rebuild +
+`runServer` boot-smoke-test clean. **Not yet live-tested.**

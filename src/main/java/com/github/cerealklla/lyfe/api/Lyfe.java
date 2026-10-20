@@ -10,8 +10,10 @@ import com.mojang.authlib.GameProfile;
 import com.github.cerealklla.lyfe.LyfeMod;
 import com.github.cerealklla.lyfe.knowledge.KnowledgeFactor;
 import com.github.cerealklla.lyfe.map.QuestWaypointPayload;
+import com.github.cerealklla.lyfe.mana.ManaNameplate;
 import com.github.cerealklla.lyfe.merchant.MerchantListener;
 import com.github.cerealklla.lyfe.registration.ModAttachments;
+import com.github.cerealklla.lyfe.registration.ModAttributes;
 import com.github.cerealklla.lyfe.registration.ModMobEffects;
 import com.github.cerealklla.lyfe.rest.RestConstants;
 import com.github.cerealklla.lyfe.skill.SkillDefinition;
@@ -358,5 +360,41 @@ public final class Lyfe {
      */
     public static Set<UUID> getAssistCredit(net.minecraft.world.entity.LivingEntity deadMob) {
         return com.github.cerealklla.lyfe.combat.AssistTracker.creditedPlayers(deadMob);
+    }
+
+    /** {@code entity}'s live current Mana (design doc, 2026-10-20) -- any {@code LivingEntity}, not just a player. */
+    public static double getCurrentMana(net.minecraft.world.entity.LivingEntity entity) {
+        return entity.getData(ModAttachments.ENTITY_MANA).getCurrentMana();
+    }
+
+    /** {@code entity}'s live max Mana -- the real {@link ModAttributes#MAX_MANA} Attribute value, grown by Magician level/Nature Staff tier/Crafting Quality/Runes. 0 if this entity type was never given the Attribute at all. */
+    public static double getMaxMana(net.minecraft.world.entity.LivingEntity entity) {
+        net.minecraft.world.entity.ai.attributes.AttributeInstance instance = entity.getAttribute(ModAttributes.MAX_MANA);
+        return instance == null ? 0.0 : instance.getValue();
+    }
+
+    /**
+     * Spends {@code amount} Mana from {@code entity} if (and only if) that much is currently
+     * available, returning whether the spend succeeded -- the gate a spell-casting item should check
+     * before actually casting. Handles the mandatory {@code syncData} call itself (see {@link
+     * #addXp}'s own comment for why mutating the attachment object in place never auto-syncs).
+     */
+    public static boolean spendMana(net.minecraft.world.entity.LivingEntity entity, double amount) {
+        boolean spent = entity.getData(ModAttachments.ENTITY_MANA).spend(amount);
+        if (spent) {
+            entity.syncData(ModAttachments.ENTITY_MANA);
+        }
+        return spent;
+    }
+
+    /**
+     * A short nameplate-ready Mana indicator line for {@code entity} (design doc, 2026-10-20: "...
+     * above NPC heads when not at 100%") -- empty whenever this entity type has no Mana Attribute at
+     * all, or is already at full Mana. See {@code mana.ManaNameplate}'s own doc for why this is a
+     * plain colored-text bar (mirroring Settlemynts' existing health-bar nameplate technique) rather
+     * than a new icon renderer.
+     */
+    public static Optional<net.minecraft.network.chat.Component> manaNameplateLine(net.minecraft.world.entity.LivingEntity entity) {
+        return ManaNameplate.lineFor(entity);
     }
 }

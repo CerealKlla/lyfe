@@ -203,6 +203,9 @@ public class LyfeModClient {
         // something has gone critically low now that Unbreakable Equipment stops items from
         // actually breaking outright.
         event.registerAboveAll(Identifier.fromNamespaceAndPath(LyfeMod.MODID, "equipment_status_overlay"), new EquipmentStatusOverlay());
+        // Mana HUD, design doc 2026-10-20 -- a brand-new layer (no vanilla bar to replace), mirrored
+        // onto the left side of the Health bar, see ManaOverlay's own doc.
+        event.registerAboveAll(Identifier.fromNamespaceAndPath(LyfeMod.MODID, "mana_overlay"), new com.github.cerealklla.lyfe.mana.client.ManaOverlay());
         // Design doc Section 10.0: replaces vanilla's hunger bar outright rather than supplementing
         // it, so there's one consistent bar showing the true (up to 30-icon) value, not two.
         event.replaceLayer(VanillaGuiLayers.FOOD_LEVEL, new HungerOverlay());
