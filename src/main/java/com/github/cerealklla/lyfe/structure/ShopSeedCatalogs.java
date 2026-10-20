@@ -50,6 +50,18 @@ import net.minecraft.world.item.equipment.ArmorType;
  * different listed prices under the current Shop model). Unlike the physical-good listings above,
  * these DO get deposited (and re-topped-up nightly, see {@code zone.ShopSeeding#restockAtMidnight})
  * -- a Note has no other possible source, nothing else in the game can ever produce one.
+ *
+ * <p><b>Checklist for every new weapon/tool/armor family (added 2026-10-21, real bug: Nature Staff
+ * shipped fully craftable/researchable but was never added here, so no Blacksmith plot of any age
+ * could ever list or auto-craft it)</b>: a plain new {@code EquipmentTierLadder.ToolType}/{@code
+ * ArmorType} enum member needs nothing extra -- {@link #blacksmithListings}/{@link
+ * #armorerListings} already loop those generically. A wholly new family outside those enums (its
+ * own small ladder class, like {@code craft.NatureStaffLadder} or the Bow/Crossbow fixed-tier
+ * entries) must be added here by hand, in whichever of these functions matches it -- this is NOT
+ * optional, unlike the Research Note/passive-research/skill-gate integrations those classes'
+ * own docs separately flag as deferrable: {@code zone.ShopSeeding}'s Planned Inventory targets are
+ * entirely catalog-sourced, so skipping this step means an NPC-owned plot can never buy/sell/
+ * auto-craft the item at all, no matter how complete its recipe/crafting-structure support is.
  */
 public final class ShopSeedCatalogs {
 

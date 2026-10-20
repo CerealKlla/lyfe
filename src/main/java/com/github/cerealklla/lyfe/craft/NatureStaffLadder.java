@@ -44,6 +44,20 @@ import net.minecraft.world.item.ToolMaterial;
  * follow-ups, not required for the feature to function -- crafting, researching (via the Research
  * Bench's own generic "destroy an item to learn it" flow, which needs no per-type wiring at all),
  * and casting all work without them.
+ *
+ * <p><b>{@code structure.ShopSeedCatalogs} was initially missed here too, and that one actually was
+ * a real bug</b> (fixed 2026-10-21, real report: a Blacksmith plot never listed/auto-crafted Nature
+ * Staff at any tier, regardless of plot age or crafting-station tier) -- unlike the three
+ * deliberate cuts above, a shop's recommended-listing catalog is NOT optional for a new equipment
+ * family: {@code zone.ShopSeeding}'s Planned Inventory targets are entirely catalog-sourced, with
+ * no fallback that derives a target from "every recipe a sufficiently-tiered structure could make"
+ * -- skip the catalog and an NPC-owned plot can never buy/sell/auto-craft the item at all, no
+ * matter how real its recipe/structure-tier support already is. See {@code ShopSeedCatalogs
+ * #blacksmithListings}'s own Nature Staff loop, added alongside its Bow/Crossbow one. **Whenever a
+ * new weapon/tool/armor family is added outside the {@code ToolType}/{@code ArmorType} enums,
+ * check every relevant {@code ShopSeedCatalogs} function in the same pass** -- a plain new
+ * {@code ToolType}/{@code ArmorType} enum member needs no such check, since those catalogs already
+ * loop `ToolType.values()`/`ARMOR_TYPES` generically.
  */
 public final class NatureStaffLadder {
 
