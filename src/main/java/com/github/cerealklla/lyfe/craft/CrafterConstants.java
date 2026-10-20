@@ -13,6 +13,18 @@ public final class CrafterConstants {
     static final double COMPONENT_SAVE_CHANCE_MAX = 0.30;
     static final int MAX_COMPONENTS_SAVED_PER_CRAFT = 2;
 
+    /**
+     * How much a single save actually removes -- real question, 2026-10-20: "1/64 seems pointless to
+     * me," after a Leaf Litter -> Charcoal craft (specific_components cost 64) only ever saved a flat
+     * 1 unit, same as a normal equipment recipe's typical 1-4 cost. Changed from a flat -1 to a
+     * percentage of the component's own required amount, floored at 1 -- a small equipment recipe
+     * still saves exactly 1 (5% of 2 or 4 rounds up to 1, unchanged from the old behavior), while a
+     * bulk MiscRecipes-style conversion saves a proportionally meaningful amount (5% of 64 rounds up
+     * to 4). Explicit user choices: percentage over flat or leave-alone, then "rounded up of course"
+     * over nearest/down.
+     */
+    static final double COMPONENT_SAVE_FRACTION = 0.05;
+
     static final double QUALITY_LEVEL_MIN = 10.0;
     static final double QUALITY_LEVEL_MAX = 100.0;
 
@@ -25,6 +37,15 @@ public final class CrafterConstants {
     static double componentSaveChance(int level, int maxLevel) {
         double t = maxLevel <= 0 ? 0.0 : Math.max(0.0, Math.min(1.0, (double) level / maxLevel));
         return COMPONENT_SAVE_CHANCE_MIN + (COMPONENT_SAVE_CHANCE_MAX - COMPONENT_SAVE_CHANCE_MIN) * t;
+    }
+
+    /**
+     * See {@link #COMPONENT_SAVE_FRACTION}'s own doc -- rounded up (explicit user correction, "rounded
+     * up of course": a save should never feel like it rounded itself away), never more than what's
+     * actually required.
+     */
+    static int amountSaved(int requiredAmount) {
+        return Math.min(requiredAmount, Math.max(1, (int) Math.ceil(requiredAmount * COMPONENT_SAVE_FRACTION)));
     }
 
     static double qualityFromLevel(int level, int maxLevel) {

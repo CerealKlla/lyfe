@@ -244,32 +244,62 @@ public class CraftingStructureMenu extends AbstractContainerMenu {
             }
         }
 
-        // Real report, 2026-10-20: "the charcoal recipe is only using 63/64 of the leaves." The
-        // Crafter skill's material-save chance below is an equipment-crafting mechanic (save 1 unit
-        // of a tunable ingredient cost occasionally) -- MiscRecipes' fixed, hand-authored conversions
-        // (e.g. 64 Leaf Litter -> 10 Charcoal) are a different kind of thing entirely (see that
-        // class's own doc: "NOT tied to EquipmentTierLadder... at all") and were never excluded from
-        // this roll, silently breaking their exact fixed ratio. QualityApplier/durability-override/
-        // armor-rebalance below already no-op correctly for a MiscRecipe output on their own terms;
-        // this is the one place that needed an explicit exclusion.
-        boolean isMiscRecipe = MiscRecipes.allIds().contains(recipe.resultId());
+        // Real report, 2026-10-20: "the charcoal recipe is only using 63/64 of the leaves." Turned
+        // out to be the Crafter skill's material-save chance working exactly as designed -- real
+        // confirmation from the user: "that is valid and what it was designed for." The actual gap
+        // was visibility, not behavior -- a save happening with zero feedback reads as a bug. Fixed
+        // by announcing it (see savedMessages below) instead of excluding anything from the roll.
+        //
+        // Selection fairness, same day ("on a recipe that requires multiple different items, how are
+        // you choosing which item is saved?") -- the original version rolled each component
+        // independently in whatever order the recipe's component map happened to iterate, stopping
+        // once MAX_COMPONENTS_SAVED_PER_CRAFT succeeded; a component later in that (arbitrary, not
+        // insertion-order) iteration never even got its own roll once the cap was already hit by
+        // earlier ones. Fixed by collecting every component (specific + generic) into one list,
+        // shuffling it fresh each craft, THEN rolling in that randomized order -- every component has
+        // an equal chance of being tried first, not a structural bias from map iteration order.
+        record SaveCandidate(boolean specific, Identifier itemId, String groupName, int required) {
+        }
         int crafterLevel = Lyfe.getLevel(player, Skills.CRAFTER_ID);
-        double saveChance = isMiscRecipe ? 0.0 : CrafterConstants.componentSaveChance(crafterLevel, Skills.MAX_LEVEL);
-        int saved = 0;
+        double saveChance = CrafterConstants.componentSaveChance(crafterLevel, Skills.MAX_LEVEL);
+
+        List<SaveCandidate> candidates = new java.util.ArrayList<>();
         for (var entry : recipe.specificComponents().entrySet()) {
-            int toConsume = entry.getValue();
-            if (saved < CrafterConstants.MAX_COMPONENTS_SAVED_PER_CRAFT && random.nextDouble() < saveChance) {
-                toConsume = Math.max(0, toConsume - 1);
-                saved++;
+            candidates.add(new SaveCandidate(true, entry.getKey(), null, entry.getValue()));
+        }
+        for (var entry : recipe.genericComponents().entrySet()) {
+            candidates.add(new SaveCandidate(false, null, entry.getKey(), entry.getValue()));
+        }
+        java.util.Collections.shuffle(candidates, random);
+
+        Map<Identifier, Integer> specificSaved = new HashMap<>();
+        Map<String, Integer> genericSaved = new HashMap<>();
+        List<String> savedMessages = new java.util.ArrayList<>();
+        int saved = 0;
+        for (SaveCandidate candidate : candidates) {
+            if (saved >= CrafterConstants.MAX_COMPONENTS_SAVED_PER_CRAFT) {
+                break;
             }
+            if (random.nextDouble() >= saveChance) {
+                continue;
+            }
+            int amountSaved = CrafterConstants.amountSaved(candidate.required());
+            saved++;
+            if (candidate.specific()) {
+                specificSaved.put(candidate.itemId(), amountSaved);
+                savedMessages.add(amountSaved + " " + itemDisplayName(candidate.itemId()));
+            } else {
+                genericSaved.put(candidate.groupName(), amountSaved);
+                savedMessages.add(amountSaved + " " + candidate.groupName());
+            }
+        }
+
+        for (var entry : recipe.specificComponents().entrySet()) {
+            int toConsume = Math.max(0, entry.getValue() - specificSaved.getOrDefault(entry.getKey(), 0));
             consumeFromInventory(player, entry.getKey(), toConsume);
         }
         for (var entry : recipe.genericComponents().entrySet()) {
-            int toConsume = entry.getValue();
-            if (saved < CrafterConstants.MAX_COMPONENTS_SAVED_PER_CRAFT && random.nextDouble() < saveChance) {
-                toConsume = Math.max(0, toConsume - 1);
-                saved++;
-            }
+            int toConsume = Math.max(0, entry.getValue() - genericSaved.getOrDefault(entry.getKey(), 0));
             for (Identifier memberId : ComponentGroups.membersOf(entry.getKey())) {
                 if (toConsume <= 0) {
                     break;
@@ -281,6 +311,10 @@ public class CraftingStructureMenu extends AbstractContainerMenu {
                     toConsume -= take;
                 }
             }
+        }
+        if (!savedMessages.isEmpty()) {
+            player.sendSystemMessage(Component.literal(
+                    "Efficient Crafting -- saved " + String.join(", ", savedMessages) + "."));
         }
 
         double quality = CrafterConstants.qualityFromLevel(crafterLevel, Skills.MAX_LEVEL)
@@ -313,6 +347,13 @@ public class CraftingStructureMenu extends AbstractContainerMenu {
 
         Lyfe.addXp(player, Skills.CRAFTER_ID, CrafterConstants.CRAFTER_XP_PER_CRAFT);
         return true;
+    }
+
+    /** Plain display name for the "Efficient Crafting" save-chance message above. */
+    private static String itemDisplayName(Identifier itemId) {
+        return BuiltInRegistries.ITEM.getOptional(itemId)
+                .map(item -> new ItemStack(item).getHoverName().getString())
+                .orElse(itemId.toString());
     }
 
     private void consumeFromInventory(ServerPlayer player, Identifier itemId, int amount) {
