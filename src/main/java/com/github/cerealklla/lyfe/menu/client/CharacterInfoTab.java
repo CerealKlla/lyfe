@@ -6,6 +6,7 @@ import java.util.Locale;
 
 import com.github.cerealklla.lyfe.api.Lyfe;
 import com.github.cerealklla.lyfe.hunger.HungerListener;
+import com.github.cerealklla.lyfe.registration.ModAttributes;
 import com.github.cerealklla.lyfe.skill.Skills;
 import com.github.cerealklla.lyfe.swim.SwimmerListener;
 import com.github.cerealklla.nuclyus.menu.client.NuclyusMenu;
@@ -94,7 +95,24 @@ public final class CharacterInfoTab implements NuclyusMenu {
                 new Stat("Swim Speed", String.format(Locale.ROOT, "+%.2f", swimSpeedBonus),
                         Component.literal("How much faster you move while swimming, on top of the vanilla base speed. Grows with your Swimmer skill."))));
 
-        return List.of(vitality, survival, aquatic);
+        // Real gap found live, 2026-10-20: this section was never added when Mana shipped at all --
+        // every one of these four stats is already a real synced Attribute (registration.ModAttributes),
+        // same read-only "live attribute value" pattern every other section on this tab already uses.
+        double maxMana = attributeValue(player, ModAttributes.MAX_MANA);
+        double manaRegen = attributeValue(player, ModAttributes.MANA_REGEN);
+        double magicFind = attributeValue(player, ModAttributes.MAGIC_FIND);
+        double goldFind = attributeValue(player, ModAttributes.GOLD_FIND);
+        Section magic = new Section("Magic", List.of(
+                new Stat("Max Mana", String.format(Locale.ROOT, "%.0f", maxMana),
+                        Component.literal("The most Mana you can have. Grows with your Magician skill, your Nature Staff's tier/Quality, and any equipped Rune bonuses.")),
+                new Stat("Mana Regen", String.format(Locale.ROOT, "+%.0f per second", manaRegen),
+                        Component.literal("How quickly Mana replenishes. Grows with your Magician skill, your Nature Staff's tier/Quality, and any equipped Rune bonuses.")),
+                new Stat("Magic Find", String.format(Locale.ROOT, "+%.0f%%", magicFind),
+                        Component.literal("Increases your odds of finding Runes and Gems.")),
+                new Stat("Gold Find", String.format(Locale.ROOT, "+%.0f%%", goldFind),
+                        Component.literal("Increases the gold dropped by mobs you kill."))));
+
+        return List.of(vitality, survival, aquatic, magic);
     }
 
     private static double attributeValue(LocalPlayer player, net.minecraft.core.Holder<net.minecraft.world.entity.ai.attributes.Attribute> attribute) {
