@@ -74,6 +74,11 @@ public final class HungerListener {
             initialized.add(playerId);
             player.syncData(ModAttachments.PLAYER_HUNGER); // First sync so the client sees the true starting value at all.
         } else {
+            // Real report, 2026-10-19: true hunger stopped moving entirely once sprint-lock removed
+            // the player's only exhaustion source (see HungerConstants#PASSIVE_EXHAUSTION_PER_TICK's
+            // own doc) -- this small flat addition guarantees a real exhaustion crossing eventually
+            // happens even while just standing/walking, on top of whatever real activity adds.
+            player.causeFoodExhaustion(HungerConstants.PASSIVE_EXHAUSTION_PER_TICK);
             int drop = HungerConstants.REAL_FOOD_PIN - realFood.getFoodLevel();
             if (drop > 0) {
                 hunger.applyRealHungerDrop(drop);

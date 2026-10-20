@@ -26,6 +26,21 @@ final class HungerConstants {
     static final int HEALTH_TICK_COUNT_SATURATED = 10; // vanilla FoodConstants.HEALTH_TICK_COUNT_SATURATED
     static final float EXHAUSTION_HEAL = 6.0F; // vanilla FoodConstants.EXHAUSTION_HEAL
 
+    // Real report, 2026-10-19 (reported twice): "food drops at normal pace until 3 icons, then sits
+    // there forever... I could sprint for hours and never die." Root cause confirmed, not a bug in
+    // the pin/mirror mechanism itself -- SPRINT_LEVEL=6 (3 icons) is exactly where enforceSprintLock
+    // forcibly cancels sprinting every tick, and vanilla's own exhaustion model generates ZERO
+    // exhaustion from plain walking (only sprinting/jumping/combat do, confirmed vanilla behavior --
+    // a real vanilla player who only walks never starves either). Once sprint is locked out, a player
+    // who isn't jumping or fighting has no remaining exhaustion source at all, so true hunger
+    // legitimately stops moving -- faithful to vanilla, but not what's wanted here: hunger should
+    // still be a real, eventual threat just from existing. This adds a small flat exhaustion trickle
+    // every tick regardless of activity, added on top of (not replacing) vanilla's own real sources --
+    // deliberately slow: 0.004/tick = 0.08/sec, crossing vanilla's 4.0 threshold roughly every 50s, so
+    // draining a full 40-point (20-icon) max from standing completely still takes over half an hour.
+    // Placeholder magnitude, flagged tunable like every other number in this class.
+    static final float PASSIVE_EXHAUSTION_PER_TICK = 0.004F;
+
     private HungerConstants() {
     }
 }
