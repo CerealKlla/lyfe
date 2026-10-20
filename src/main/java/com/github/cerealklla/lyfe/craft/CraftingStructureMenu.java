@@ -120,6 +120,7 @@ public class CraftingStructureMenu extends AbstractContainerMenu {
                         EquipmentTierLadder.allGeneratedItemIds().stream(),
                         EquipmentTierLadder.allGeneratedArmorItemIds().stream(),
                         EquipmentTierLadder.allGeneratedRangedWeaponIds().stream(),
+                        NatureStaffLadder.allIds().stream(),
                         com.github.cerealklla.lyfe.socket.SocketToolRegistry.allIds().stream(),
                         MiscRecipes.allIds().stream())
                 .flatMap(s -> s)
@@ -340,6 +341,14 @@ public class CraftingStructureMenu extends AbstractContainerMenu {
         if (armorType != null) {
             result.set(net.minecraft.core.component.DataComponents.ATTRIBUTE_MODIFIERS,
                     ArmorRebalance.attributesFor(armorType, recipe.tier()));
+        }
+        int natureStaffTier = NatureStaffLadder.tierOfItem(recipe.resultId());
+        if (natureStaffTier > 0) {
+            // Quality further buffs the Mana/ManaRegen bonus (design doc Section 24: "similar to how
+            // Durability is buffed") -- rebuilds the item's default modifiers with the same quality
+            // score Durability was just scaled by above.
+            result.set(net.minecraft.core.component.DataComponents.ATTRIBUTE_MODIFIERS,
+                    com.github.cerealklla.lyfe.magician.NatureStaffItem.attributesFor(natureStaffTier, quality));
         }
         if (!player.getInventory().add(result)) {
             player.drop(result, false);

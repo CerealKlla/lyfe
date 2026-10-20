@@ -78,6 +78,12 @@ public final class ServerRecipeStore {
             int tier = EquipmentTierLadder.rangedWeaponTier(itemId);
             result.put(itemId, RecipeGenerator.generate(itemId, tier, null, random));
         }
+        // Nature Staff (5 tiers, added 2026-10-20, design doc Section 24) -- a real tier-chained
+        // family like ToolType above, just its own 5-entry ladder (see NatureStaffLadder's own doc).
+        for (int tier = NatureStaffLadder.MIN_TIER; tier <= NatureStaffLadder.MAX_TIER; tier++) {
+            Identifier itemId = NatureStaffLadder.itemId(tier);
+            result.put(itemId, RecipeGenerator.generate(itemId, tier, NatureStaffLadder.previousTierItem(tier), random));
+        }
         // Socketing tools (Diamond Die Grinder/Pry Bar, added 2026-10-17) -- same fixed-tier, no-
         // upgrade-chain shape as ranged weapons above, plus a guaranteed 3-Diamond base merged on top
         // of the random roll (explicit user spec: "3 diamond base + random other components") -- see

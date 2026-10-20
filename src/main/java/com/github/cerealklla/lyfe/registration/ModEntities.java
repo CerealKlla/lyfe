@@ -1,6 +1,7 @@
 package com.github.cerealklla.lyfe.registration;
 
 import com.github.cerealklla.lyfe.LyfeMod;
+import com.github.cerealklla.lyfe.magician.SparkOfLifeProjectile;
 import com.github.cerealklla.lyfe.rest.SeatEntity;
 
 import net.minecraft.world.entity.EntityType;
@@ -28,4 +29,12 @@ public final class ModEntities {
             SeatEntity::new,
             MobCategory.MISC,
             builder -> builder.sized(0.2f, 0.2f).noSummon());
+
+    // Spark of Life's spell projectile (design doc Section 24) -- small hitbox, same category as
+    // vanilla's own thrown-item projectiles.
+    public static final DeferredHolder<EntityType<?>, EntityType<SparkOfLifeProjectile>> SPARK_OF_LIFE_PROJECTILE = ENTITIES.registerEntityType(
+            "spark_of_life_projectile",
+            SparkOfLifeProjectile::new,
+            MobCategory.MISC,
+            builder -> builder.sized(0.25f, 0.25f));
 }

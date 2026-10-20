@@ -85,7 +85,13 @@ public record SkillCopy(Item icon, String xpSource, String summary) {
                     "No bonuses of its own yet -- see your per-mob-type Quarry Knowledge for its real combat bonus.")),
             Map.entry(Skills.SOCKETEER_ID, new SkillCopy(ModItems.DIAMOND_DIE_GRINDER.get(),
                     "Spending Die Grinder/Pry Bar durability socketing or extracting",
-                    "Better Socketing/Extracting odds -- more full-progress results, fewer wasted attempts, higher extraction success."))
+                    "Better Socketing/Extracting odds -- more full-progress results, fewer wasted attempts, higher extraction success.")),
+            Map.entry(Skills.MAGICIAN_ID, new SkillCopy(ModItems.NATURE_STAFF_T3.get(),
+                    "Spark of Life proficiency rising (Surviving Combat, or successfully healing/overhealing)",
+                    "Raises your Max Mana (+10/level) and Mana Regen (+1 per second/level).")),
+            Map.entry(Skills.BO_ID, new SkillCopy(ModItems.NATURE_STAFF_T3.get(),
+                    "Hitting a living entity with a Nature Staff, losing durability",
+                    "No bonuses of its own yet -- a pure progress counter, same as Huntsman."))
     );
 
     public static SkillCopy get(SkillId id) {

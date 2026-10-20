@@ -12,6 +12,8 @@ import com.github.cerealklla.lyfe.hunger.PlayerHunger;
 import com.github.cerealklla.lyfe.huntsman.PlayerHuntsman;
 import com.github.cerealklla.lyfe.knowledge.KnowledgeReference;
 import com.github.cerealklla.lyfe.knowledge.PlayerKnowledge;
+import com.github.cerealklla.lyfe.magician.PlayerSpellProficiency;
+import com.github.cerealklla.lyfe.magician.SpellCooldowns;
 import com.github.cerealklla.lyfe.mana.EntityMana;
 import com.github.cerealklla.lyfe.recallcinite.RecallciniteData;
 import com.github.cerealklla.lyfe.research.PlayerResearch;
@@ -192,5 +194,23 @@ public final class ModAttachments {
                     .copyOnDeath()
                     .sync(ByteBufCodecs.fromCodecWithRegistries(EntityMana.CODEC.codec()))
                     .build()
+    );
+
+    // Magician's Spell Proficiency (design doc Section 24) -- mirrors PLAYER_HUNTSMAN's shape
+    // exactly (synced for a future proficiency-bar HUD, copyOnDeath so progress survives death).
+    public static final Supplier<AttachmentType<PlayerSpellProficiency>> PLAYER_SPELL_PROFICIENCY = ATTACHMENT_TYPES.register(
+            "player_spell_proficiency",
+            () -> AttachmentType.builder(holder -> new PlayerSpellProficiency())
+                    .serialize(PlayerSpellProficiency.CODEC)
+                    .copyOnDeath()
+                    .sync(ByteBufCodecs.fromCodecWithRegistries(PlayerSpellProficiency.CODEC.codec()))
+                    .build()
+    );
+
+    // In-memory only, same reasoning as MOB_ASSIST_MARKERS/COMBAT_STATE above. Attached to any
+    // LivingEntity, not just Player -- see magician.SpellCooldowns.
+    public static final Supplier<AttachmentType<SpellCooldowns>> SPELL_COOLDOWNS = ATTACHMENT_TYPES.register(
+            "spell_cooldowns",
+            () -> AttachmentType.builder(holder -> new SpellCooldowns()).build()
     );
 }

@@ -13,6 +13,7 @@ import com.github.cerealklla.lyfe.heartiness.HeartinessListener;
 import com.github.cerealklla.lyfe.gathering.GatheringSkill;
 import com.github.cerealklla.lyfe.hunger.HungerListener;
 import com.github.cerealklla.lyfe.knowledge.SignListener;
+import com.github.cerealklla.lyfe.magician.MagicianListener;
 import com.github.cerealklla.lyfe.merchant.MerchantListener;
 import com.github.cerealklla.lyfe.reincarnation.ReincarnationSlots;
 import com.github.cerealklla.lyfe.research.ResearcherConstants;
@@ -116,6 +117,12 @@ public final class SkillBenefits {
         }
         if (id.equals(Skills.SOCKETEER_ID)) {
             return com.github.cerealklla.lyfe.socket.SocketeerConstants.benefitLines(level);
+        }
+        if (id.equals(Skills.MAGICIAN_ID)) {
+            return MagicianListener.benefitLines(level);
+        }
+        if (id.equals(Skills.BO_ID)) {
+            return List.of("No bonuses of its own yet -- a pure progress counter, same as Huntsman.");
         }
         return List.of();
     }

@@ -372,3 +372,25 @@ Settlemynts' `npc.NpcHealthBar` edited to append a Mana segment onto the same na
 second stacked line -- vanilla's nametag rendering has no real multi-line support, confirmed before
 writing this). `./gradlew build`/`test` green in both repos, whole-suite (13 mods) rebuild +
 `runServer` boot-smoke-test clean. **Not yet live-tested.**
+
+**Nature Staff, Spark of Life, Magician, Bo, Guard spell-casting AI all built, same day** (see
+[context/design-document.md](context/design-document.md)'s Section 24 for the full writeup,
+[context/decisions.md](context/decisions.md)) -- Slices 2-4 of the approved plan, explicit
+follow-up request ("do all the rest of the unfinished things for nature staff"). 5-tier Nature
+Staff (new `craft.NatureStaffLadder`, its own small ladder -- no vanilla staff item exists at any
+tier, so it can't reuse `EquipmentTierLadder.ToolType`'s id-resolution scheme), right-click-cast
+Spark of Life (new `magician` package: `NatureStaffItem`/`SparkOfLifeProjectile`/
+`SparkOfLifeCasting`/`PlayerSpellProficiency`/`SpellProficiencyCurve`/`SpellCooldowns`/
+`MagicianListener`/`BoSkillListener`), two new skills (`MAGICIAN_ID`/`BO_ID`), and Guard NPC
+spell-casting AI (Settlemynts' new `guardhouse.GuardSpellCastGoal`, reusing vanilla's own
+`GoalSelector` priority-fallback instead of hand-written melee-fallback logic). **A real bug caught
+before shipping**: the earlier Slice 1 edit to Settlemynts' `NpcHealthBar` referenced
+`com.github.cerealklla.lyfe.api.Lyfe` directly behind only a runtime `ModList.isLoaded` check --
+the exact "client-only type referenced from a common class" incident the root project's own
+CLAUDE.md documents (a `NoClassDefFoundError` risk regardless of the guard). Fixed via a new
+`bridge.LyfeManaBridge` on the Settlemynts side, matching every other Lyfe integration point's
+established convention; the new NPC-casting work (`bridge.LyfeMagicianBridge`) was built with that
+isolation from the start. `./gradlew build`/`test` green in both repos, whole-suite (13 mods)
+rebuild + `runServer` boot-smoke-test clean. **Not yet live-tested.** Slice 5 (new Runes for the
+4 new stats, Rune/Gem/Gold-drop-rate attacker-aware scaling) remains, deliberately deferred -- a
+separate thread from Nature Staff itself, not requested this pass.

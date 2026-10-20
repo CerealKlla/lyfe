@@ -43,6 +43,8 @@ public final class Skills {
     public static final SkillId RECALLCRAFT_ID = new SkillId("recallcraft");
     public static final SkillId HUNTSMAN_ID = new SkillId("huntsman");
     public static final SkillId SOCKETEER_ID = new SkillId("socketeer");
+    public static final SkillId MAGICIAN_ID = new SkillId("magician");
+    public static final SkillId BO_ID = new SkillId("bo");
 
     // Shared by every curve below; also the level Survivalist's true-hunger-max scaling (see
     // .hunger.HungerListener) treats as "max level" when computing capacity growth.
@@ -75,6 +77,8 @@ public final class Skills {
         SkillRegistry.register(recallcraft());
         SkillRegistry.register(huntsman());
         SkillRegistry.register(socketeer());
+        SkillRegistry.register(magician());
+        SkillRegistry.register(bo());
     }
 
     // Placeholder curve, deliberately easy to retune (mirrors the design doc's own framing of the
@@ -521,6 +525,39 @@ public final class Skills {
                 SkillCategory.COMBAT,
                 Optional.empty(),
                 huntsmanCurve(),
+                List.of()
+        );
+    }
+
+    // Magician (design doc Section 24, explicit user spec) -- "Similar to Huntsman, tracks
+    // proficiency by spell, gains levels as spell proficiency increases." Reuses huntsmanCurve()
+    // directly (same flat, small-XP-per-sub-level-up shape -- magician.MagicianListener grants it
+    // the same way huntsman.HuntsmanListener grants Huntsman's own XP). Effects list empty, same
+    // reason as Huntsman's own -- the real per-level bonus (+10 Max Mana/+1 Mana Regen) is computed
+    // directly by MagicianListener reading this skill's own level, not driven by SkillEffect data.
+    private static SkillDefinition magician() {
+        return new SkillDefinition(
+                MAGICIAN_ID,
+                "Magician",
+                SkillCategory.COMBAT,
+                Optional.empty(),
+                huntsmanCurve(),
+                List.of()
+        );
+    }
+
+    // Bo (design doc Section 24, explicit user spec: "Same as swordsman or axeman, when using a
+    // staff weapon for melee combat. Grants XP upon durability loss.") Reuses meleeCombatCurve() to
+    // match its stated siblings exactly; the durability-loss XP trigger itself lives in
+    // magician.BoSkillListener (a genuinely different trigger shape than Swordsman/Axeman/Pikeman's
+    // own per-hit CombatSkillListener, see that class's own doc for why).
+    private static SkillDefinition bo() {
+        return new SkillDefinition(
+                BO_ID,
+                "Bo",
+                SkillCategory.COMBAT,
+                Optional.empty(),
+                meleeCombatCurve(),
                 List.of()
         );
     }

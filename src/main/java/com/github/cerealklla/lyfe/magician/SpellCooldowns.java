@@ -1,0 +1,28 @@
+package com.github.cerealklla.lyfe.magician;
+
+import java.util.HashMap;
+import java.util.Map;
+
+import net.minecraft.resources.Identifier;
+
+/**
+ * In-memory-only per-entity spell cooldown tracking, keyed by spell id -- attached to any {@code
+ * LivingEntity} (player or NPC), same scoping as {@code combat.CombatState}. Deliberately NOT
+ * vanilla's own {@code Player#getCooldowns()}: that's Player-only (no equivalent exists for an NPC
+ * caster, see {@code guardhouse}'s future Nature-Staff-wielding Guard), and this one mechanism is
+ * reused by both {@code SparkOfLifeCasting} (the actual gate) and {@code magician.NatureStaffItem}
+ * (which separately also sets vanilla's own cooldown purely for its free cosmetic hotbar swipe --
+ * harmless, since nothing here depends on vanilla's cooldown to function).
+ */
+public final class SpellCooldowns {
+
+    private final Map<Identifier, Long> readyAtGameTime = new HashMap<>();
+
+    public boolean isOnCooldown(Identifier spellId, long now) {
+        return now < readyAtGameTime.getOrDefault(spellId, 0L);
+    }
+
+    public void startCooldown(Identifier spellId, long now, int durationTicks) {
+        readyAtGameTime.put(spellId, now + durationTicks);
+    }
+}

@@ -15,6 +15,8 @@ import com.github.cerealklla.lyfe.fishing.SunkenTreasureItem;
 import com.github.cerealklla.lyfe.cook.RecipeNoteItem;
 import com.github.cerealklla.lyfe.cook.RecipeNoteTarget;
 import com.github.cerealklla.lyfe.knowledge.KnowledgeReference;
+import com.github.cerealklla.lyfe.craft.NatureStaffLadder;
+import com.github.cerealklla.lyfe.magician.NatureStaffItem;
 import com.github.cerealklla.lyfe.recallcinite.RecallciniteTotemItem;
 import com.github.cerealklla.lyfe.research.ResearchNoteItem;
 import com.github.cerealklla.lyfe.research.ResearchNoteTarget;
@@ -225,6 +227,34 @@ public final class ModItems {
             id -> new DieGrinderItem(new Item.Properties()
                     .stacksTo(1)
                     .durability(SocketToolRegistry.BASE_DURABILITY)
+                    .setId(ResourceKey.create(Registries.ITEM, id))));
+
+    // Nature Staff, 5 tiers (design doc Section 24) -- see NatureStaffLadder's own doc for why this
+    // is a brand-new item family rather than a ToolType/EquipmentTierLadder entry.
+    public static final DeferredItem<NatureStaffItem> NATURE_STAFF_T1 = ITEMS.register(
+            "nature_staff_t1",
+            id -> new NatureStaffItem(1, new Item.Properties()
+                    .durability(NatureStaffLadder.material(1).durability())
+                    .setId(ResourceKey.create(Registries.ITEM, id))));
+    public static final DeferredItem<NatureStaffItem> NATURE_STAFF_T2 = ITEMS.register(
+            "nature_staff_t2",
+            id -> new NatureStaffItem(2, new Item.Properties()
+                    .durability(NatureStaffLadder.material(2).durability())
+                    .setId(ResourceKey.create(Registries.ITEM, id))));
+    public static final DeferredItem<NatureStaffItem> NATURE_STAFF_T3 = ITEMS.register(
+            "nature_staff_t3",
+            id -> new NatureStaffItem(3, new Item.Properties()
+                    .durability(NatureStaffLadder.material(3).durability())
+                    .setId(ResourceKey.create(Registries.ITEM, id))));
+    public static final DeferredItem<NatureStaffItem> NATURE_STAFF_T4 = ITEMS.register(
+            "nature_staff_t4",
+            id -> new NatureStaffItem(4, new Item.Properties()
+                    .durability(NatureStaffLadder.material(4).durability())
+                    .setId(ResourceKey.create(Registries.ITEM, id))));
+    public static final DeferredItem<NatureStaffItem> NATURE_STAFF_T5 = ITEMS.register(
+            "nature_staff_t5",
+            id -> new NatureStaffItem(5, new Item.Properties()
+                    .durability(NatureStaffLadder.material(5).durability())
                     .setId(ResourceKey.create(Registries.ITEM, id))));
 
     public static final DeferredItem<PryBarItem> DIAMOND_PRY_BAR = ITEMS.register(

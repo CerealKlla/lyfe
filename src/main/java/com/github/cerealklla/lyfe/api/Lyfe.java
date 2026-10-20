@@ -397,4 +397,41 @@ public final class Lyfe {
     public static Optional<net.minecraft.network.chat.Component> manaNameplateLine(net.minecraft.world.entity.LivingEntity entity) {
         return ManaNameplate.lineFor(entity);
     }
+
+    /**
+     * Is {@code stack} a Nature Staff, any tier (design doc Section 24) -- a read-only predicate so
+     * Settlemynts' Guard AI (an NPC spell caster, "very important" per explicit user spec) can decide
+     * whether to swap in spell-casting behavior without referencing Lyfe's concrete {@code
+     * magician.NatureStaffItem} class directly, same facade discipline as every other cross-mod call
+     * site in this suite.
+     */
+    public static boolean isNatureStaff(net.minecraft.world.item.ItemStack stack) {
+        return stack.getItem() instanceof com.github.cerealklla.lyfe.magician.NatureStaffItem;
+    }
+
+    /**
+     * Attempts to cast Spark of Life from {@code caster} (any {@code LivingEntity} -- a player or,
+     * per the explicit "very important" NPC-casting requirement, an AI-controlled mob). Returns
+     * whether it actually fired (false on insufficient mana or still on cooldown) -- the caller
+     * (an NPC AI goal) falls back to melee either way, so it doesn't need the finer-grained reason a
+     * player's own chat feedback does.
+     */
+    public static boolean attemptCastSparkOfLife(net.minecraft.world.entity.LivingEntity caster) {
+        return com.github.cerealklla.lyfe.magician.SparkOfLifeCasting.attemptCast(caster)
+                == com.github.cerealklla.lyfe.magician.SparkOfLifeCasting.CastResult.SUCCESS;
+    }
+
+    /** Whether {@code caster} could cast Spark of Life right now without actually casting it -- lets an NPC AI goal decide "heal/ranged vs. melee fallback" without a wasted cast attempt. */
+    public static boolean canCastSparkOfLife(net.minecraft.world.entity.LivingEntity caster) {
+        if (!(caster.level() instanceof net.minecraft.world.level.Level level)) {
+            return false;
+        }
+        long now = level.getGameTime();
+        if (caster.getData(ModAttachments.SPELL_COOLDOWNS).isOnCooldown(com.github.cerealklla.lyfe.magician.SpellIds.SPARK_OF_LIFE, now)) {
+            return false;
+        }
+        int proficiencyLevel = com.github.cerealklla.lyfe.magician.SparkOfLifeCasting.proficiencyLevel(caster);
+        int manaCost = com.github.cerealklla.lyfe.magician.SpellProficiencyCurve.manaCost(proficiencyLevel);
+        return getCurrentMana(caster) >= manaCost;
+    }
 }

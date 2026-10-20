@@ -320,6 +320,10 @@ public class LyfeModClient {
     @SubscribeEvent
     static void onRegisterRenderers(EntityRenderersEvent.RegisterRenderers event) {
         event.registerEntityRenderer(ModEntities.SEAT.get(), SeatEntityRenderer::new);
+        // Spark of Life -- "a small ball of light," rendered as a spinning full-bright Glowstone
+        // Dust via vanilla's own ThrownItemRenderer, no new client rendering code needed.
+        event.registerEntityRenderer(ModEntities.SPARK_OF_LIFE_PROJECTILE.get(),
+                context -> new net.minecraft.client.renderer.entity.ThrownItemRenderer<>(context, 0.5F, true));
 
         // Floating structure icons (2026-10-05 user request, extended same day to every custom
         // crafting/cooking/research/fish-cleaning structure, not just the crafting ladder) -- one
