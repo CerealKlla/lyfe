@@ -8,7 +8,11 @@ import net.minecraft.resources.Identifier;
 /**
  * Fixed, hand-authored (never randomly generated) Crafting Structure recipes for plain,
  * non-equipment conversions -- the first of these is Leaf Litter -> Charcoal (explicit user
- * request, 2026-10-18, Tier 1). A real vanilla (or vanilla-{@code CraftingRecipe}-shaped) recipe
+ * request, 2026-10-18, Tier 0 -- always known, no Research Bench unlock, matching the "known,
+ * vanilla recipe" intent behind the original ask; also fixes a real latent impossibility, since
+ * Charcoal has no durability for {@code PassiveDurabilityResearchListener}'s damage-to-learn
+ * mechanic to ever work against in the first place). A real vanilla (or vanilla-{@code
+ * CraftingRecipe}-shaped) recipe
  * was tried and ruled out first: decompiling {@code ResultSlot#onTake} confirmed vanilla's own
  * crafting grid hard-codes removing exactly 1 item per occupied slot on every craft, completely
  * independent of a recipe's {@code getRemainingItems} override (that method only ever supplies an
@@ -43,7 +47,7 @@ public final class MiscRecipes {
     static Map<Identifier, GeneratedRecipe> generate() {
         return Map.of(LEAF_LITTER_TO_CHARCOAL, new GeneratedRecipe(
                 LEAF_LITTER_TO_CHARCOAL,
-                1,
+                0,
                 Map.of(Identifier.withDefaultNamespace("leaf_litter"), 64),
                 Map.of(),
                 10));
