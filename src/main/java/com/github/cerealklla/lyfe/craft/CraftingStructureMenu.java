@@ -287,7 +287,7 @@ public class CraftingStructureMenu extends AbstractContainerMenu {
             saved++;
             if (candidate.specific()) {
                 specificSaved.put(candidate.itemId(), amountSaved);
-                savedMessages.add(amountSaved + " " + itemDisplayName(candidate.itemId()));
+                savedMessages.add(amountSaved + " " + com.github.cerealklla.nuclyus.ItemDisplayNames.of(candidate.itemId()));
             } else {
                 genericSaved.put(candidate.groupName(), amountSaved);
                 savedMessages.add(amountSaved + " " + candidate.groupName());
@@ -347,13 +347,6 @@ public class CraftingStructureMenu extends AbstractContainerMenu {
 
         Lyfe.addXp(player, Skills.CRAFTER_ID, CrafterConstants.CRAFTER_XP_PER_CRAFT);
         return true;
-    }
-
-    /** Plain display name for the "Efficient Crafting" save-chance message above. */
-    private static String itemDisplayName(Identifier itemId) {
-        return BuiltInRegistries.ITEM.getOptional(itemId)
-                .map(item -> new ItemStack(item).getHoverName().getString())
-                .orElse(itemId.toString());
     }
 
     private void consumeFromInventory(ServerPlayer player, Identifier itemId, int amount) {
