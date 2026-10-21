@@ -154,7 +154,7 @@ public final class ModItems {
     public static final DeferredItem<ResearchNoteItem> RESEARCH_NOTES = ITEMS.register(
             "research_notes",
             id -> new ResearchNoteItem(new Item.Properties()
-                    .stacksTo(16)
+                    .stacksTo(500)
                     .setId(ResourceKey.create(Registries.ITEM, id))));
 
     public static final DeferredItem<RecipeNoteItem> RECIPE_NOTES = ITEMS.register(
