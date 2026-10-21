@@ -21,7 +21,12 @@ public final class SpellProficiencyBarOverlay implements GuiLayer {
     private static final int BAR_WIDTH = 180;
     private static final int BAR_HEIGHT = 5;
     private static final int GAP = 3;
-    private static final int BOTTOM_MARGIN = 120; // clears HuntsmanBarOverlay's own stack (95) plus its block height
+    // Real report, 2026-10-21 (screenshot): overlapped the Location overlay sitting above it.
+    // Lowered as far as it can go without colliding with HuntsmanBarOverlay's own block right below
+    // it (95 + its ~18px block height leaves only ~7px of real slack before touching) -- if this
+    // still isn't enough clearance from Location, the whole bar stack's spacing needs widening, not
+    // just this one bar's margin.
+    private static final int BOTTOM_MARGIN = 114;
     private static final int RIGHT_MARGIN = 10;
 
     private static final int ACCENT_RGB = 0x55AAFF;
