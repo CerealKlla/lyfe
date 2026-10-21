@@ -28,15 +28,15 @@ public final class FocusStatRoller {
         return (int) Math.round(1 + 2 * fraction);
     }
 
-    /** {@code statCountForTier(tier)} distinct stats, each rolled within its own tier-interpolated range. */
-    public static List<FocusData.RolledStat> rollStats(int tier, Random random) {
+    /** {@code statCountForTier(tier)} distinct stats, each rolled within its own tier-interpolated range, nudged toward the max by {@code qualityScore} (see {@code FocusStatType#roll}'s own doc). */
+    public static List<FocusData.RolledStat> rollStats(int tier, double qualityScore, Random random) {
         List<FocusStatType> pool = new ArrayList<>(List.of(FocusStatType.values()));
         java.util.Collections.shuffle(pool, random);
         int count = Math.min(statCountForTier(tier), pool.size());
         List<FocusData.RolledStat> result = new ArrayList<>(count);
         for (int i = 0; i < count; i++) {
             FocusStatType type = pool.get(i);
-            result.add(new FocusData.RolledStat(type, type.roll(tier, random)));
+            result.add(new FocusData.RolledStat(type, type.roll(tier, qualityScore, random)));
         }
         return result;
     }
@@ -55,7 +55,7 @@ public final class FocusStatRoller {
         return variants[random.nextInt(variants.length)];
     }
 
-    public static FocusData roll(int tier, Random random) {
-        return new FocusData(rollVariant(random), rollStats(tier, random), rollSpell(tier, random));
+    public static FocusData roll(int tier, double qualityScore, Random random) {
+        return new FocusData(rollVariant(random), rollStats(tier, qualityScore, random), rollSpell(tier, random));
     }
 }

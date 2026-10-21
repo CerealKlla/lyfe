@@ -1,5 +1,6 @@
 package com.github.cerealklla.lyfe.magician;
 
+import com.github.cerealklla.lyfe.craft.CrafterConstants;
 import com.github.cerealklla.lyfe.craft.FocusLadder;
 import com.mojang.serialization.Codec;
 
@@ -52,11 +53,27 @@ public enum FocusStatType {
         return maxAtT2 + (maxAtT5 - maxAtT2) * fractionFor(tier);
     }
 
-    /** Rolls a whole-number value in this stat's tier-interpolated range (every stat's own unit is naturally whole -- mana points, mana/second, whole-percent, whole hearts). */
-    public int roll(int tier, java.util.Random random) {
+    /**
+     * Max chance of a roll landing exactly on this stat's own max, reached at
+     * {@link CrafterConstants#MAX_ACHIEVABLE_QUALITY} (explicit user spec: "max quality should
+     * result in say, 70% chance to be max roll on a per-stat basis" -- never guaranteed, scaled
+     * linearly from 0% at Quality 0).
+     */
+    private static final double MAX_NUDGE_CHANCE_AT_MAX_QUALITY = 0.70;
+
+    /** Rolls a whole-number value in this stat's tier-interpolated range, nudged toward the max by {@code qualityScore} -- see {@link #MAX_NUDGE_CHANCE_AT_MAX_QUALITY}'s own doc. Every stat's own unit is naturally whole (mana points, mana/second, whole-percent, whole hearts). */
+    public int roll(int tier, double qualityScore, java.util.Random random) {
         int min = (int) Math.round(minAt(tier));
         int max = (int) Math.round(maxAt(tier));
-        return min >= max ? min : min + random.nextInt(max - min + 1);
+        if (min >= max) {
+            return min;
+        }
+        double nudgeChance = MAX_NUDGE_CHANCE_AT_MAX_QUALITY
+                * Math.max(0.0, Math.min(1.0, qualityScore / CrafterConstants.MAX_ACHIEVABLE_QUALITY));
+        if (random.nextDouble() < nudgeChance) {
+            return max;
+        }
+        return min + random.nextInt(max - min + 1);
     }
 
     /** "+15 Max Mana", "+9% Faster Casting Rate", "+2 Max Health" -- real rolled value, matching this mod's "never formulas" tooltip convention. */

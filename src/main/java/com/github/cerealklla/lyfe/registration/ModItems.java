@@ -41,6 +41,7 @@ import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.food.FoodProperties;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.component.ItemAttributeModifiers;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredItem;
 import net.neoforged.neoforge.registries.DeferredRegister;
@@ -156,6 +157,20 @@ public final class ModItems {
             DATA_COMPONENTS.registerComponentType("focus_data", builder -> builder
                     .persistent(FocusData.CODEC)
                     .networkSynchronized(FocusData.STREAM_CODEC));
+
+    // Real bug found 2026-10-21 while adding Focus socketing: socket.SocketApplier#recompute used to
+    // wholesale-replace DATA_COMPONENTS.ATTRIBUTE_MODIFIERS from socket contents alone, silently
+    // destroying a Nature Staff's/crafted armor's/Focus's own crafted-in stat bonuses the moment any
+    // socket changed -- confirmed-wrong by the user ("Socketing was always meant to be supplemental
+    // to the standard stats generated from crafting, why would it wipe them out?"). Every craft-time
+    // site that sets ATTRIBUTE_MODIFIERS for a custom-stat item now also stashes a copy here, server-
+    // only (no client ever needs to read this directly -- the real, merged ATTRIBUTE_MODIFIERS stays
+    // fully synced as before), so SocketApplier can always rebuild "base stats + socket stats" instead
+    // of "socket stats only." A plain, never-crafted-through-this-system item (a vanilla sword, say)
+    // has no stashed value here -- SocketApplier falls back to that item's own registered default.
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<ItemAttributeModifiers>> BASE_ATTRIBUTE_MODIFIERS =
+            DATA_COMPONENTS.registerComponentType("base_attribute_modifiers", builder -> builder
+                    .persistent(ItemAttributeModifiers.CODEC));
 
     public static final DeferredRegister.Items ITEMS = DeferredRegister.createItems(LyfeMod.MODID);
 

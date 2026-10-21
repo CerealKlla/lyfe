@@ -20,6 +20,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.component.ItemAttributeModifiers;
 import net.minecraft.world.item.component.TooltipDisplay;
+import net.minecraft.world.item.component.Weapon;
 import net.minecraft.world.level.Level;
 
 /**
@@ -30,16 +31,25 @@ import net.minecraft.world.level.Level;
  * {@code !isShiftKeyDown()} and returning {@code PASS} otherwise, which is what lets vanilla's own
  * interaction dispatch fall through to this item's {@link #use} at all when both are equipped.
  *
- * <p>Not damageable (no durability/repair) and not socketable -- neither was in the spec; see
- * {@code craft.CraftingStructureMenu#attemptCraft}'s own Focus branch for why the generic
+ * <p>Not damageable (no durability/repair) -- neither was in the spec; see {@code
+ * craft.CraftingStructureMenu#attemptCraft}'s own Focus branch for why the generic
  * base-durability-override step must skip it explicitly.
+ *
+ * <p><b>Socketable, and treated as a Weapon for Gem/Rune purposes</b> (explicit user request,
+ * 2026-10-21, reversing the original "not socketable" scope cut) -- {@code
+ * socket.EquipmentCategory#of} classifies purely off a real {@code DataComponents.WEAPON}/{@code
+ * EQUIPPABLE}/{@code TOOL} component, so a zero-value {@code Weapon} component here (this item has
+ * no real melee role; {@code itemDamagePerAttack=0} is purely a classification marker, never
+ * actually applied since Focus has no durability to lose) is enough to make every socketing/
+ * extracting/pre-socketed-loot code path recognize it with zero further changes -- none of that
+ * machinery is durability-gated.
  */
 public final class FocusItem extends Item {
 
     private final int tier;
 
     public FocusItem(int tier, Properties properties) {
-        super(properties);
+        super(properties.component(net.minecraft.core.component.DataComponents.WEAPON, new Weapon(0)));
         this.tier = tier;
     }
 
@@ -94,7 +104,10 @@ public final class FocusItem extends Item {
             builder.accept(Component.literal(stat.type().formatted(stat.value())).withStyle(ChatFormatting.BLUE));
         }
         if (data.grantedSpellId().isPresent()) {
+            // Same two-line style as NatureStaffItem's own tooltip (explicit user request, 2026-10-21:
+            // "Focus' description for the spell should be the same style as the Nature Staff's").
             builder.accept(Component.literal("Shift+Right-click: Cast Spark of Life").withStyle(ChatFormatting.AQUA));
+            builder.accept(Component.literal("Fires a bolt of light -- heals an ally or damages an enemy on hit.").withStyle(ChatFormatting.GRAY));
         }
     }
 

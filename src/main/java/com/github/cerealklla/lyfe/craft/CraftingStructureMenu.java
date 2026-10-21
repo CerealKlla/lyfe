@@ -346,25 +346,37 @@ public class CraftingStructureMenu extends AbstractContainerMenu {
         }
         QualityApplier.apply(result, quality);
         if (armorType != null) {
-            result.set(net.minecraft.core.component.DataComponents.ATTRIBUTE_MODIFIERS,
-                    ArmorRebalance.attributesFor(armorType, recipe.tier()));
+            net.minecraft.world.item.component.ItemAttributeModifiers armorModifiers =
+                    ArmorRebalance.attributesFor(armorType, recipe.tier());
+            result.set(net.minecraft.core.component.DataComponents.ATTRIBUTE_MODIFIERS, armorModifiers);
+            // Stashed so socket.SocketApplier can rebuild "base + socket stats" instead of silently
+            // replacing this with socket stats alone the first time this piece is socketed -- see
+            // that component's own doc.
+            result.set(com.github.cerealklla.lyfe.registration.ModItems.BASE_ATTRIBUTE_MODIFIERS.get(), armorModifiers);
         }
         int natureStaffTier = NatureStaffLadder.tierOfItem(recipe.resultId());
         if (natureStaffTier > 0) {
             // Quality further buffs the Mana/ManaRegen bonus (design doc Section 24: "similar to how
             // Durability is buffed") -- rebuilds the item's default modifiers with the same quality
             // score Durability was just scaled by above.
-            result.set(net.minecraft.core.component.DataComponents.ATTRIBUTE_MODIFIERS,
-                    com.github.cerealklla.lyfe.magician.NatureStaffItem.attributesFor(natureStaffTier, quality));
+            net.minecraft.world.item.component.ItemAttributeModifiers staffModifiers =
+                    com.github.cerealklla.lyfe.magician.NatureStaffItem.attributesFor(natureStaffTier, quality);
+            result.set(net.minecraft.core.component.DataComponents.ATTRIBUTE_MODIFIERS, staffModifiers);
+            result.set(com.github.cerealklla.lyfe.registration.ModItems.BASE_ATTRIBUTE_MODIFIERS.get(), staffModifiers);
         }
         if (focusTier > 0) {
             // Focus (design doc Section 25): "their stats will be randomized at time of crafting" --
-            // rolled once here, stored on the stack, and never touched again. Quality is deliberately
-            // NOT factored in (the spec names only Nature Staff's Mana/ManaRegen for that treatment).
-            com.github.cerealklla.lyfe.magician.FocusData data = com.github.cerealklla.lyfe.magician.FocusStatRoller.roll(focusTier, random);
+            // rolled once here, stored on the stack, and never touched again. Quality nudges each
+            // rolled stat toward its own max (explicit user spec, 2026-10-21: "max quality should
+            // result in say, 70% chance to be max roll on a per-stat basis," never guaranteed) -- see
+            // magician.FocusStatType#roll's own doc for the exact curve.
+            com.github.cerealklla.lyfe.magician.FocusData data =
+                    com.github.cerealklla.lyfe.magician.FocusStatRoller.roll(focusTier, quality, random);
             result.set(com.github.cerealklla.lyfe.registration.ModItems.FOCUS_DATA.get(), data);
-            result.set(net.minecraft.core.component.DataComponents.ATTRIBUTE_MODIFIERS,
-                    com.github.cerealklla.lyfe.magician.FocusItem.attributesFor(data));
+            net.minecraft.world.item.component.ItemAttributeModifiers focusModifiers =
+                    com.github.cerealklla.lyfe.magician.FocusItem.attributesFor(data);
+            result.set(net.minecraft.core.component.DataComponents.ATTRIBUTE_MODIFIERS, focusModifiers);
+            result.set(com.github.cerealklla.lyfe.registration.ModItems.BASE_ATTRIBUTE_MODIFIERS.get(), focusModifiers);
             result.set(net.minecraft.core.component.DataComponents.CUSTOM_MODEL_DATA,
                     new net.minecraft.world.item.component.CustomModelData(List.of(), List.of(),
                             List.of(data.variant().name().toLowerCase(java.util.Locale.ROOT)), List.of()));

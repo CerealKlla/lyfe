@@ -31,6 +31,9 @@ public final class CrafterConstants {
     static final double QUALITY_STRUCTURE_BONUS_MIN = 5.0; // Tier 1
     static final double QUALITY_STRUCTURE_BONUS_MAX = 30.0; // Tier 5
 
+    /** Max Crafter level + max structure tier, 100 + 30 -- the real ceiling {@code quality} can ever reach. Public so {@code magician.FocusStatRoller} can scale its own Quality-nudge chance against a real number instead of a duplicated magic constant. */
+    public static final double MAX_ACHIEVABLE_QUALITY = QUALITY_LEVEL_MAX + QUALITY_STRUCTURE_BONUS_MAX;
+
     private CrafterConstants() {
     }
 
