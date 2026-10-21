@@ -150,6 +150,8 @@ public class LyfeMod {
         NeoForge.EVENT_BUS.register(new com.github.cerealklla.lyfe.mana.ManaListener());
         NeoForge.EVENT_BUS.register(new com.github.cerealklla.lyfe.magician.MagicianListener());
         NeoForge.EVENT_BUS.register(new com.github.cerealklla.lyfe.magician.BoSkillListener());
+        NeoForge.EVENT_BUS.register(new com.github.cerealklla.lyfe.summoning.SummoningDistanceTicker());
+        NeoForge.EVENT_BUS.register(new com.github.cerealklla.lyfe.summoning.SummonedMountDeathListener());
         NeoForge.EVENT_BUS.addListener((LootTableLoadEvent event) -> RuneLootInjector.onLootTableLoad(event));
         NeoForge.EVENT_BUS.addListener((LootTableLoadEvent event) -> PreSocketedGearInjector.onLootTableLoad(event));
         NeoForge.EVENT_BUS.addListener((RegisterCommandsEvent event) -> DebugCommands.register(event.getDispatcher()));
@@ -238,6 +240,29 @@ public class LyfeMod {
                 com.github.cerealklla.lyfe.magician.SpellProficiencyProgressPayload.STREAM_CODEC,
                 (payload, context) -> com.github.cerealklla.lyfe.magician.client.ClientSpellProficiencyBarState.onProgress(
                         payload.spellId(), payload.oldProgress(), payload.newProgress()));
+
+        // Summoning Stone bind flow (design doc Section 26) -- mirrors Recallcinite's own
+        // validate -> open-confirm -> re-validate-and-finalize shape.
+        event.registrar("1").playToServer(com.github.cerealklla.lyfe.summoning.RequestMountBindPayload.TYPE,
+                com.github.cerealklla.lyfe.summoning.RequestMountBindPayload.STREAM_CODEC,
+                (payload, context) -> {
+                    if (context.player() instanceof ServerPlayer serverPlayer) {
+                        com.github.cerealklla.lyfe.summoning.MountBindListener.requestBind(serverPlayer, payload);
+                    }
+                });
+        // Server-to-client: written into the zero-client-ref ClientMountBindNameRequest bridge, same
+        // reasoning as OpenWritingScreenPayload's own handler -- this method must stay harmless to
+        // class-load on a dedicated server.
+        event.registrar("1").playToClient(com.github.cerealklla.lyfe.summoning.OpenMountBindNameScreenPayload.TYPE,
+                com.github.cerealklla.lyfe.summoning.OpenMountBindNameScreenPayload.STREAM_CODEC,
+                (payload, context) -> com.github.cerealklla.lyfe.summoning.ClientMountBindNameRequest.request(payload.mountEntityId()));
+        event.registrar("1").playToServer(com.github.cerealklla.lyfe.summoning.ConfirmMountBindPayload.TYPE,
+                com.github.cerealklla.lyfe.summoning.ConfirmMountBindPayload.STREAM_CODEC,
+                (payload, context) -> {
+                    if (context.player() instanceof ServerPlayer serverPlayer) {
+                        com.github.cerealklla.lyfe.summoning.MountBindListener.confirmBind(serverPlayer, payload);
+                    }
+                });
 
         // Registered unconditionally, same reasoning as LocationPayload above -- MinimapTracker is
         // only ever constructed (and so only ever actually sends this) when Cartographyr is loaded,

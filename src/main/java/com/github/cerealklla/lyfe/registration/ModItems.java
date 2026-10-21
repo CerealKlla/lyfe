@@ -158,6 +158,14 @@ public final class ModItems {
                     .persistent(FocusData.CODEC)
                     .networkSynchronized(FocusData.STREAM_CODEC));
 
+    // Summoning Stone (design doc Section 26) -- the bound mount's captured snapshot/cooldown/active-
+    // summon state, see summoning.SummoningStoneData's own doc. Persisted and synced (synced so the
+    // item's own tooltip/cooldown state renders correctly on the holder's client).
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<com.github.cerealklla.lyfe.summoning.SummoningStoneData>> SUMMONING_STONE_DATA =
+            DATA_COMPONENTS.registerComponentType("summoning_stone_data", builder -> builder
+                    .persistent(com.github.cerealklla.lyfe.summoning.SummoningStoneData.CODEC)
+                    .networkSynchronized(com.github.cerealklla.lyfe.summoning.SummoningStoneData.STREAM_CODEC));
+
     // Real bug found 2026-10-21 while adding Focus socketing: socket.SocketApplier#recompute used to
     // wholesale-replace DATA_COMPONENTS.ATTRIBUTE_MODIFIERS from socket contents alone, silently
     // destroying a Nature Staff's/crafted armor's/Focus's own crafted-in stat bonuses the moment any
@@ -303,6 +311,15 @@ public final class ModItems {
     public static final DeferredItem<FocusItem> FOCUS_T5 = ITEMS.register(
             "focus_t5",
             id -> new FocusItem(5, new Item.Properties()
+                    .stacksTo(1)
+                    .setId(ResourceKey.create(Registries.ITEM, id))));
+
+    // Summoning Stone (design doc Section 26) -- stacksTo(1), same reasoning as Research Notes/Focus:
+    // every stone carries genuinely unique per-instance data (a bound mount's own saved state), and
+    // two stones should never silently merge regardless of whether their NBT happens to coincide.
+    public static final DeferredItem<com.github.cerealklla.lyfe.summoning.SummoningStoneItem> SUMMONING_STONE = ITEMS.register(
+            "summoning_stone",
+            id -> new com.github.cerealklla.lyfe.summoning.SummoningStoneItem(new Item.Properties()
                     .stacksTo(1)
                     .setId(ResourceKey.create(Registries.ITEM, id))));
 

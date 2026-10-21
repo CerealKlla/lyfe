@@ -67,6 +67,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.inventory.AbstractSignEditScreen;
 import net.minecraft.client.gui.screens.inventory.SignEditScreen;
+import com.github.cerealklla.lyfe.summoning.RequestMountBindPayload;
 import net.minecraft.network.chat.Component;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.protocol.common.ServerboundCustomPayloadPacket;
@@ -142,6 +143,23 @@ public class LyfeModClient {
             field = null;
         }
         SIGN_FIELD = field;
+    }
+
+    // AbstractMountInventoryMenu#mount is protected with no public getter (confirmed against the
+    // real decompiled source before reaching for this) -- same reflective-read precedent as
+    // SIGN_FIELD above, for the Summoning Stone bind button (design doc Section 26).
+    private static final Field MOUNT_FIELD;
+
+    static {
+        Field field;
+        try {
+            field = net.minecraft.world.inventory.AbstractMountInventoryMenu.class.getDeclaredField("mount");
+            field.setAccessible(true);
+        } catch (ReflectiveOperationException e) {
+            LyfeMod.LOGGER.warn("Could not access AbstractMountInventoryMenu#mount -- the Summoning Stone bind button will not appear", e);
+            field = null;
+        }
+        MOUNT_FIELD = field;
     }
 
     // Auto-Rotate toggle, wired up 2026-09-29 for a live test -- see ClientMinimapState's own doc.
@@ -392,6 +410,8 @@ public class LyfeModClient {
                 Minecraft.getInstance().setScreen(new WritingScreen(request.target(), request.knownPlaces()));
             }
         });
+        com.github.cerealklla.lyfe.summoning.ClientMountBindNameRequest.takePending().ifPresent(mountEntityId ->
+                Minecraft.getInstance().setScreen(new com.github.cerealklla.lyfe.summoning.client.MountBindNameScreen(mountEntityId)));
         if (ClientRecallciniteState.takePendingOpenBindConfirm() && Minecraft.getInstance().screen == null) {
             Minecraft.getInstance().setScreen(new RecallciniteBindConfirmScreen());
         }
@@ -519,6 +539,46 @@ public class LyfeModClient {
             var connection = Minecraft.getInstance().getConnection();
             if (connection != null) {
                 connection.send(new ServerboundCustomPayloadPacket(new RequestWritingScreenPayload(WritingTarget.sign(pos))));
+            }
+        }).bounds(centerX - 100, buttonY, 200, 20).build());
+    }
+
+    /**
+     * Injects a "Bind to Summoning Stone" button into vanilla's own {@code HorseInventoryScreen}
+     * (design doc Section 26) -- the one single screen/menu pair every rideable mount with an
+     * inventory opens through (Horse, Donkey, Mule, Llama, Camel, Skeleton/Zombie Horse -- confirmed
+     * against the decompiled source: no per-species subclasses exist), so this needs no per-entity-
+     * type special-casing at all. Sends {@link RequestMountBindPayload} on click; the server does
+     * all real validation (never trusts this button was clicked honestly) -- see
+     * {@code MountBindListener}'s own doc.
+     */
+    @SubscribeEvent
+    static void onMountScreenInit(ScreenEvent.Init.Post event) {
+        if (MOUNT_FIELD == null) {
+            return;
+        }
+        if (!(event.getScreen() instanceof net.minecraft.client.gui.screens.inventory.HorseInventoryScreen screen)) {
+            return;
+        }
+        if (!(screen.getMenu() instanceof net.minecraft.world.inventory.AbstractMountInventoryMenu menu)) {
+            return;
+        }
+        net.minecraft.world.entity.LivingEntity mount;
+        try {
+            mount = (net.minecraft.world.entity.LivingEntity) MOUNT_FIELD.get(menu);
+        } catch (IllegalAccessException e) {
+            return;
+        }
+        if (mount == null) {
+            return;
+        }
+        int mountEntityId = mount.getId();
+        int centerX = screen.width / 2;
+        int buttonY = screen.height / 4 + 110;
+        event.addListener(Button.builder(Component.literal("Bind to Summoning Stone"), b -> {
+            var connection = Minecraft.getInstance().getConnection();
+            if (connection != null) {
+                connection.send(new ServerboundCustomPayloadPacket(new RequestMountBindPayload(mountEntityId)));
             }
         }).bounds(centerX - 100, buttonY, 200, 20).build());
     }

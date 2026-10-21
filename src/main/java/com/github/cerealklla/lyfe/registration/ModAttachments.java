@@ -213,4 +213,16 @@ public final class ModAttachments {
             "spell_cooldowns",
             () -> AttachmentType.builder(holder -> new SpellCooldowns()).build()
     );
+
+    // Summoning Stone (design doc Section 26) -- a back-reference on a summoned mount to the player
+    // who summoned it, see summoning.SummonedMountOwner's own doc. Persisted (a summon surviving a
+    // restart should still be attributable), not synced -- only server-side death handling reads
+    // this. No default/holder-based factory makes sense here (there's no meaningful "no owner" UUID),
+    // so every real caller uses setData explicitly and reads via getExistingData, never getData's
+    // own default.
+    public static final Supplier<AttachmentType<com.github.cerealklla.lyfe.summoning.SummonedMountOwner>> SUMMONED_MOUNT_OWNER =
+            ATTACHMENT_TYPES.register("summoned_mount_owner",
+                    () -> AttachmentType.builder(holder -> new com.github.cerealklla.lyfe.summoning.SummonedMountOwner(new UUID(0L, 0L)))
+                            .serialize(com.github.cerealklla.lyfe.summoning.SummonedMountOwner.CODEC)
+                            .build());
 }

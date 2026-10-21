@@ -1,0 +1,83 @@
+package com.github.cerealklla.lyfe.summoning;
+
+import java.util.Optional;
+
+import com.github.cerealklla.lyfe.LyfeMod;
+import com.github.cerealklla.lyfe.registration.ModItems;
+
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.util.ProblemReporter;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.storage.TagValueOutput;
+import net.neoforged.neoforge.network.PacketDistributor;
+
+/**
+ * The "Bind to Summoning Stone" server-side flow (design doc Section 26): a payload round trip
+ * mirroring {@code recallcinite.RecallciniteListener}'s own bind-confirm shape -- validate, open a
+ * confirm/naming screen, re-validate from scratch on the actual confirm, never trusting the client
+ * reached the screen honestly. The requesting player must still be *riding the exact same entity*
+ * at both steps, or the bind silently does nothing.
+ *
+ * <p>Discards the original ridden mount the instant a bind succeeds (explicit default -- otherwise
+ * binding the same mount repeatedly would duplicate it for free with no cost at all). {@code
+ * Entity#saveWithoutId} captures its complete state (type, equipment, a chested mount's own
+ * inventory, temper/tame/owner, everything each class's own save-data chain already writes) except
+ * its UUID -- exactly "type + equipment remembered" plus a genuinely fresh identity on every future
+ * summon.
+ */
+public final class MountBindListener {
+
+    private MountBindListener() {
+    }
+
+    private static Optional<LivingEntity> resolveRiddenMount(ServerPlayer player, int mountEntityId) {
+        if (!(player.getVehicle() instanceof LivingEntity mount) || mount.getId() != mountEntityId) {
+            return Optional.empty();
+        }
+        return Optional.of(mount);
+    }
+
+    public static void requestBind(ServerPlayer player, RequestMountBindPayload payload) {
+        if (resolveRiddenMount(player, payload.mountEntityId()).isEmpty()) {
+            return;
+        }
+        PacketDistributor.sendToPlayer(player, new OpenMountBindNameScreenPayload(payload.mountEntityId()));
+    }
+
+    public static void confirmBind(ServerPlayer player, ConfirmMountBindPayload payload) {
+        if (!(player.level() instanceof ServerLevel level)) {
+            return;
+        }
+        LivingEntity mount = resolveRiddenMount(player, payload.mountEntityId()).orElse(null);
+        if (mount == null) {
+            player.sendSystemMessage(Component.literal("You're no longer riding that mount."));
+            return;
+        }
+        String name = payload.name().isBlank() ? mount.getType().toShortString() : payload.name();
+        mount.setCustomName(Component.literal(name));
+
+        ProblemReporter.ScopedCollector reporter = new ProblemReporter.ScopedCollector(mount.problemPath(), LyfeMod.LOGGER);
+        CompoundTag savedState;
+        try {
+            TagValueOutput output = TagValueOutput.createWithContext(reporter, level.registryAccess());
+            mount.saveWithoutId(output);
+            savedState = output.buildResult();
+        } finally {
+            reporter.close();
+        }
+
+        mount.ejectPassengers();
+        mount.discard();
+
+        ItemStack stone = new ItemStack(ModItems.SUMMONING_STONE.get());
+        stone.set(ModItems.SUMMONING_STONE_DATA.get(), new SummoningStoneData(savedState, 0L, Optional.empty()));
+        if (!player.getInventory().add(stone)) {
+            player.drop(stone, false);
+        }
+        player.sendSystemMessage(Component.literal("Bound \"" + name + "\" to a Summoning Stone."));
+    }
+}
