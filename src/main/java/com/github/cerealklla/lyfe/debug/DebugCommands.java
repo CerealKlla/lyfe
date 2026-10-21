@@ -333,6 +333,9 @@ public final class DebugCommands {
         allIds.addAll(EquipmentTierLadder.allGeneratedArmorItemIds());
         allIds.addAll(EquipmentTierLadder.allGeneratedRangedWeaponIds());
         allIds.addAll(com.github.cerealklla.lyfe.craft.NatureStaffLadder.allIds());
+        // Same gap, same fix, 2026-10-21: Focus shipped without this command updated either --
+        // real report, "when I ran the learn all recipes command I didn't learn anything new."
+        allIds.addAll(com.github.cerealklla.lyfe.craft.FocusLadder.allIds());
         PlayerResearch research = target.getData(ModAttachments.PLAYER_RESEARCH);
         int count = 0;
         for (Identifier id : allIds) {
