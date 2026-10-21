@@ -2,6 +2,8 @@ package com.github.cerealklla.lyfe.magician;
 
 import com.github.cerealklla.lyfe.registration.ModEntities;
 
+import net.minecraft.core.particles.DustParticleOptions;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
@@ -26,8 +28,10 @@ import net.minecraft.world.phys.HitResult;
  * shared {@code Projectile} base class, confirmed against the decompiled source), but a much
  * simpler single {@link #onHitEntity} override point with no pickup/pierce/enchantment machinery
  * this spell has no use for. Visually rendered by vanilla's own {@code ThrownItemRenderer} (a
- * spinning, full-bright Glowstone Dust) -- "a small ball of light" with no new client rendering
- * code needed, same discipline as {@code npc.NpcHealthBar}'s nameplate reuse.
+ * spinning Glowstone Dust) plus a particle trail (see {@link #tick()}'s own doc -- the item alone
+ * reads as flat, lit by ordinary world light like anything else) -- "a small ball of light" with no
+ * new client rendering/model code needed, same discipline as {@code npc.NpcHealthBar}'s nameplate
+ * reuse.
  *
  * <p>Grants Spell Proficiency progress on either outcome -- healing an ally or damaging an enemy,
  * each only when the action actually had a real effect (explicit user spec, 2026-10-20: "change
@@ -62,6 +66,31 @@ public final class SparkOfLifeProjectile extends ThrowableItemProjectile {
     @Override
     protected Item getDefaultItem() {
         return Items.GLOWSTONE_DUST;
+    }
+
+    /**
+     * Real report, 2026-10-20: "isn't glowing at all." The class doc's original assumption -- that
+     * vanilla's generic {@code ThrownItemRenderer} would render a thrown Glowstone Dust "full-bright"
+     * on its own -- was wrong -- confirmed by the report: a thrown item is lit by ordinary world
+     * light like anything else, Glowstone Dust has no special glow-rendering treatment as a held/
+     * thrown item (only the real Glowstone *block* emits actual light). Writing a bespoke renderer
+     * to force full-bright shading is real client rendering work this spell doesn't need -- a
+     * particle trail reads as "a small ball of light" just as well, replicates to clients
+     * automatically with zero new renderer/model code (same "reuse vanilla pieces" discipline this
+     * class's doc already committed to), and is the standard vanilla idiom for this exact look (e.g.
+     * a thrown Ender Pearl's own purple trail).
+     */
+    // Real follow-up request, 2026-10-20: "can you color it green?" -- confirmed against the real
+    // decompiled DustParticleOptions class (not guessed) that its constructor is (packed RGB int,
+    // scale), not a Vector3f directly. A plain nature green.
+    private static final DustParticleOptions TRAIL_PARTICLE = new DustParticleOptions(0x00FF00, 1.0F);
+
+    @Override
+    public void tick() {
+        super.tick();
+        if (level() instanceof ServerLevel serverLevel && !isRemoved()) {
+            serverLevel.sendParticles(TRAIL_PARTICLE, getX(), getY(), getZ(), 1, 0.0, 0.0, 0.0, 0.0);
+        }
     }
 
     private static boolean hostile(Entity entity) {
