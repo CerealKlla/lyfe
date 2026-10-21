@@ -10,6 +10,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.neoforged.neoforge.client.gui.GuiLayer;
@@ -35,6 +36,18 @@ public final class ManaOverlay implements GuiLayer {
     // Real report, 2026-10-20 (screenshot): "it's directly in line with chat text right now." Was
     // 49 -- dropped it below chat's own default bottom-left text line.
     private static final int MARGIN_BOTTOM = 36;
+
+    // Real follow-up report, 2026-10-21 (screenshot): "This still covers the text log" -- the single-
+    // row position fix above only ever addressed the base row's own height; it never bounded how far
+    // the grid climbs as max Mana grows (each 10 Mana adds another icon, every 10 icons adds another
+    // row stacking upward via `yBase - row * ROW_SPACING`). Both this skill's own Magician XP (up to
+    // +250 Max Mana at level 25) and several other still-stacking sources (Nature Staff tier, Crafting
+    // Quality, future Runes) all grow the SAME pool, so any fixed row count eventually climbs back into
+    // chat's own territory again. Capped hard at MAX_ICON_ROWS -- height can never grow past this
+    // regardless of how high Max Mana eventually goes; anything beyond is shown as a compact "current/
+    // max" numeric readout instead of more icons.
+    private static final int MAX_ICON_ROWS = 1;
+    private static final int OVERFLOW_TEXT_COLOR = 0xFFAAAAFF;
 
     // Real request, 2026-10-20: "can't we do water droplets? ... there isn't a reason to do it on
     // the HUD too" (re: the placeholder filled-square icons, originally shipped square-only since no
@@ -81,7 +94,11 @@ public final class ManaOverlay implements GuiLayer {
         int xLeft = MARGIN_LEFT;
         int yBase = guiGraphics.guiHeight() - MARGIN_BOTTOM;
 
-        for (int i = 0; i < iconCount; i++) {
+        // See MAX_ICON_ROWS' own doc -- height is capped regardless of how large maxMana gets.
+        int maxVisibleIcons = MAX_ICON_ROWS * ICONS_PER_ROW;
+        int visibleIconCount = Math.min(iconCount, maxVisibleIcons);
+
+        for (int i = 0; i < visibleIconCount; i++) {
             int row = i / ICONS_PER_ROW;
             int col = i % ICONS_PER_ROW;
             int x = xLeft + col * ICON_SPACING;
@@ -97,6 +114,14 @@ public final class ManaOverlay implements GuiLayer {
             } else {
                 guiGraphics.blitSprite(RenderPipelines.GUI_TEXTURED, EMPTY_SPRITE, x, y, ICON_SIZE, ICON_SIZE);
             }
+        }
+
+        // Max Mana outgrew what the capped grid can show as icons -- fall back to a compact numeric
+        // readout instead of ever drawing another row (see MAX_ICON_ROWS' own doc).
+        if (iconCount > maxVisibleIcons) {
+            String readout = (int) currentMana + "/" + (int) maxMana;
+            int textY = yBase - (MAX_ICON_ROWS - 1) * ROW_SPACING - ICON_SIZE - 2;
+            guiGraphics.text(Minecraft.getInstance().font, Component.literal(readout), xLeft, textY, OVERFLOW_TEXT_COLOR, true);
         }
     }
 }
