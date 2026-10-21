@@ -323,9 +323,19 @@ public final class DebugCommands {
 
     /** Learns every generated equipment recipe outright for the target -- for testing crafting/gating without grinding research. */
     private static int learnAllRecipes(CommandSourceStack source, ServerPlayer target) {
+        // Real report, 2026-10-20: "/lyfe learnrecipes did not learn the nature staff." Confirmed by
+        // reading this method that it only ever iterated EquipmentTierLadder.allGeneratedItemIds()
+        // (the Sword/Pickaxe/Axe/Shovel/Hoe/Spear tool ladder) -- missing armor, Bow/Crossbow, and
+        // Nature Staff entirely, the same repeated "new equipment family needs explicit wiring into
+        // every consumer" gap this session already hit for Shop catalogs and Reincarnation's weapon
+        // classification. Now covers every known recipe source this mod's crafting system has.
+        List<Identifier> allIds = new ArrayList<>(EquipmentTierLadder.allGeneratedItemIds());
+        allIds.addAll(EquipmentTierLadder.allGeneratedArmorItemIds());
+        allIds.addAll(EquipmentTierLadder.allGeneratedRangedWeaponIds());
+        allIds.addAll(com.github.cerealklla.lyfe.craft.NatureStaffLadder.allIds());
         PlayerResearch research = target.getData(ModAttachments.PLAYER_RESEARCH);
         int count = 0;
-        for (Identifier id : EquipmentTierLadder.allGeneratedItemIds()) {
+        for (Identifier id : allIds) {
             Optional<GeneratedRecipe> recipe = ServerRecipeStore.get(id);
             if (recipe.isPresent() && research.learnDirectly(id, recipe.get().tier())) {
                 count++;

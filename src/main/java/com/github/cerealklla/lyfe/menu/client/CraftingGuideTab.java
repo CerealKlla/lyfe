@@ -87,7 +87,7 @@ public final class CraftingGuideTab implements NuclyusMenu {
             return;
         }
         PlayerResearch research = player.getData(ModAttachments.PLAYER_RESEARCH);
-        sections = List.of(buildToolSection(research), buildArmorSection(research), buildRangedSection(research));
+        sections = buildTierSections(research);
         scrollOffset = 0;
 
         if (!recipesRequested) {
@@ -99,40 +99,48 @@ public final class CraftingGuideTab implements NuclyusMenu {
         }
     }
 
-    private Section buildToolSection(PlayerResearch research) {
-        List<Entry> entries = new ArrayList<>();
-        for (EquipmentTierLadder.ToolType tool : EquipmentTierLadder.ToolType.values()) {
-            for (int tier = EquipmentTierLadder.MIN_TIER; tier <= EquipmentTierLadder.MAX_TIER; tier++) {
+    /**
+     * One section per Tier instead of one section per item category -- real request, 2026-10-20:
+     * "This should be broken up by tiers" (the old shape was one long flat list per category --
+     * e.g. every Sword tier back to back, then every Pickaxe tier -- making it hard to see "what can
+     * I make right now at my current Tier" at a glance). Folds every known category (tools/weapons,
+     * armor, ranged weapons, and Nature Staff -- the last one added here too while already touching
+     * this method, matching every other "new weapon family" wiring gap closed this same session)
+     * into one section per Tier, in Tier order.
+     */
+    private List<Section> buildTierSections(PlayerResearch research) {
+        List<Section> result = new ArrayList<>();
+        for (int tier = EquipmentTierLadder.MIN_TIER; tier <= EquipmentTierLadder.MAX_TIER; tier++) {
+            List<Entry> entries = new ArrayList<>();
+            for (EquipmentTierLadder.ToolType tool : EquipmentTierLadder.ToolType.values()) {
                 Identifier itemId = EquipmentTierLadder.itemId(tool, tier);
                 if (tier == 0 || research.isLearned(itemId)) {
-                    entries.add(new Entry(EquipmentTierLadder.tierDisplayName(tier) + " " + capitalize(tool.name()), itemId));
+                    entries.add(new Entry(capitalize(tool.name()), itemId));
                 }
             }
-        }
-        return new Section("Tools & Weapons", entries);
-    }
-
-    private Section buildArmorSection(PlayerResearch research) {
-        List<Entry> entries = new ArrayList<>();
-        for (ArmorType armorType : EquipmentTierLadder.ARMOR_TYPES) {
-            for (int tier = EquipmentTierLadder.MIN_TIER; tier <= EquipmentTierLadder.MAX_TIER; tier++) {
+            for (ArmorType armorType : EquipmentTierLadder.ARMOR_TYPES) {
                 Identifier itemId = EquipmentTierLadder.armorItemId(armorType, tier);
                 if (tier == 0 || research.isLearned(itemId)) {
-                    entries.add(new Entry(EquipmentTierLadder.tierDisplayName(tier) + " " + capitalize(armorType.getName()), itemId));
+                    entries.add(new Entry(capitalize(armorType.getName()), itemId));
                 }
             }
-        }
-        return new Section("Armor", entries);
-    }
-
-    private Section buildRangedSection(PlayerResearch research) {
-        List<Entry> entries = new ArrayList<>();
-        for (Identifier itemId : EquipmentTierLadder.allGeneratedRangedWeaponIds()) {
-            if (research.isLearned(itemId)) {
-                entries.add(new Entry(capitalize(itemId.getPath()) + " (Tier " + EquipmentTierLadder.rangedWeaponTier(itemId) + ")", itemId));
+            for (Identifier itemId : EquipmentTierLadder.allGeneratedRangedWeaponIds()) {
+                if (EquipmentTierLadder.rangedWeaponTier(itemId) == tier && research.isLearned(itemId)) {
+                    entries.add(new Entry(capitalize(itemId.getPath()), itemId));
+                }
+            }
+            if (tier >= com.github.cerealklla.lyfe.craft.NatureStaffLadder.MIN_TIER
+                    && tier <= com.github.cerealklla.lyfe.craft.NatureStaffLadder.MAX_TIER) {
+                Identifier itemId = com.github.cerealklla.lyfe.craft.NatureStaffLadder.itemId(tier);
+                if (research.isLearned(itemId)) {
+                    entries.add(new Entry("Nature Staff", itemId));
+                }
+            }
+            if (!entries.isEmpty()) {
+                result.add(new Section("Tier " + tier + " (" + EquipmentTierLadder.tierDisplayName(tier) + ")", entries));
             }
         }
-        return new Section("Ranged Weapons", entries);
+        return result;
     }
 
     private static String capitalize(String text) {
