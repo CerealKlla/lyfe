@@ -324,7 +324,10 @@ public class CraftingStructureMenu extends AbstractContainerMenu {
         // non-equipment conversions (e.g. Leaf Litter -> Charcoal) ever set it higher -- see that
         // class's own doc for why QualityApplier/the durability-override/armor-rebalance blocks
         // below don't need any extra gating to stay correct for one of those.
-        ItemStack result = new ItemStack(BuiltInRegistries.ITEM.getValue(recipe.resultId()), recipe.outputCount());
+        int rolledOutputCount = recipe.outputCountMax() > recipe.outputCount()
+                ? recipe.outputCount() + random.nextInt(recipe.outputCountMax() - recipe.outputCount() + 1)
+                : recipe.outputCount();
+        ItemStack result = new ItemStack(BuiltInRegistries.ITEM.getValue(recipe.resultId()), rolledOutputCount);
         var armorType = EquipmentTierLadder.armorTypeOf(recipe.resultId());
         if (armorType == null && !com.github.cerealklla.lyfe.socket.SocketToolRegistry.isSocketTool(recipe.resultId())) {
             // Tool/weapon only -- custom base-durability override (2026-10-06), applied before
@@ -352,6 +355,14 @@ public class CraftingStructureMenu extends AbstractContainerMenu {
         }
         if (!player.getInventory().add(result)) {
             player.drop(result, false);
+        }
+        // Optional second, always-fixed-quantity output alongside the primary one -- see
+        // GeneratedRecipe's own class doc (MiscRecipes' Cobblestone -> Flint/Gravel conversion).
+        if (recipe.secondaryResultId().isPresent() && recipe.secondaryOutputCount() > 0) {
+            ItemStack secondaryResult = new ItemStack(BuiltInRegistries.ITEM.getValue(recipe.secondaryResultId().get()), recipe.secondaryOutputCount());
+            if (!player.getInventory().add(secondaryResult)) {
+                player.drop(secondaryResult, false);
+            }
         }
 
         Lyfe.addXp(player, Skills.CRAFTER_ID, CrafterConstants.CRAFTER_XP_PER_CRAFT);

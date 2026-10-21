@@ -43,10 +43,14 @@ import net.minecraft.resources.Identifier;
 final class MaterialPool {
 
     private static final Map<Integer, List<Identifier>> TIER_GENERIC_ITEMS = Map.of(
-            0, idList("stick", "wheat_seeds", "string", "flint", "charcoal"),
+            // "charcoal" replaced 2026-10-21 (explicit user request) with the generic group
+            // Any Coal (below) -- Coal and Charcoal are interchangeable here, same reasoning as the
+            // Any Log/Any Plank groups. Budget-neutral: one specific item swapped for one group, so
+            // the combined total stays exactly 10 (see the tally note below).
+            0, idList("stick", "wheat_seeds", "string", "flint"),
             1, idList("cobblestone", "gravel", "coarse_dirt"),
             // Combined generic (items + groups) budget caps at 10 unique entries (user's explicit
-            // limit) -- already reached below at Tier 1 (5 items + 2 groups + 3 items = 10), so
+            // limit) -- already reached below at Tier 1 (4 items + 3 groups + 3 items = 10), so
             // every tier above introduces no further generics of their own, only specialized.
             2, idList(),
             3, idList(),
@@ -59,7 +63,7 @@ final class MaterialPool {
             // oak_log replaced 2026-10-03 (user correction) -- a hardcoded single wood type can't
             // be satisfied in a biome where that type doesn't grow; these resolve to ANY member at
             // craft time instead (see ComponentGroups/CraftingStructureMenu).
-            0, List.of(ComponentGroups.ANY_LOG, ComponentGroups.ANY_PLANK),
+            0, List.of(ComponentGroups.ANY_LOG, ComponentGroups.ANY_PLANK, ComponentGroups.ANY_COAL),
             1, List.of(),
             2, List.of(),
             3, List.of(),

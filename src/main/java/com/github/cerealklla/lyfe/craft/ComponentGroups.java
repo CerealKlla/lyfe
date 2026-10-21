@@ -20,13 +20,18 @@ public final class ComponentGroups {
 
     static final String ANY_LOG = "Any Log";
     static final String ANY_PLANK = "Any Plank";
+    // Added 2026-10-21 (explicit user request, replacing MaterialPool's old hardcoded "charcoal"
+    // Tier 0 generic item) -- Coal and Charcoal are functionally interchangeable fuel/smelting-cost
+    // items, same "don't force one specific scavenge" reasoning as Any Log/Any Plank.
+    static final String ANY_COAL = "Any Coal";
 
     private static final Map<String, List<Identifier>> GROUPS = Map.of(
             ANY_LOG, idList("oak_log", "birch_log", "spruce_log", "jungle_log", "acacia_log",
                     "dark_oak_log", "mangrove_log", "cherry_log", "pale_oak_log"),
             ANY_PLANK, idList("oak_planks", "birch_planks", "spruce_planks", "jungle_planks",
                     "acacia_planks", "dark_oak_planks", "mangrove_planks", "cherry_planks",
-                    "pale_oak_planks", "bamboo_planks")
+                    "pale_oak_planks", "bamboo_planks"),
+            ANY_COAL, idList("coal", "charcoal")
     );
 
     private ComponentGroups() {
