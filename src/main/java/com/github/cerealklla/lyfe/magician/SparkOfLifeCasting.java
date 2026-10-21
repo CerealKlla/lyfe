@@ -18,6 +18,11 @@ import net.minecraft.world.level.Level;
  * -- see design doc Section 24's "NPCs must be able to cast spells too" requirement. Deliberately
  * one shared method rather than two copies, so mana/cooldown enforcement can never drift between
  * the player and NPC paths.
+ *
+ * <p>A successful cast is gated by -- and starts -- two independent cooldowns on {@link
+ * SpellCooldowns}: Spark of Life's own per-spell cooldown ({@link SpellProficiencyCurve#cooldownTicks})
+ * and the spell-agnostic Casting Speed global gate ({@link CastingSpeed#ticksFor}, added
+ * 2026-10-21) that will also block casting any *other* future spell for the same duration.
  */
 public final class SparkOfLifeCasting {
 
@@ -78,7 +83,8 @@ public final class SparkOfLifeCasting {
             return CastResult.ON_COOLDOWN; // Never actually reached server-side; just a safe default.
         }
         long now = level.getGameTime();
-        if (caster.getData(ModAttachments.SPELL_COOLDOWNS).isOnCooldown(SpellIds.SPARK_OF_LIFE, now)) {
+        var cooldowns = caster.getData(ModAttachments.SPELL_COOLDOWNS);
+        if (cooldowns.isOnCooldown(SpellIds.SPARK_OF_LIFE, now) || cooldowns.isGloballyOnCooldown(now)) {
             return CastResult.ON_COOLDOWN;
         }
         int proficiencyLevel = proficiencyLevel(caster);
@@ -87,7 +93,8 @@ public final class SparkOfLifeCasting {
             return CastResult.NOT_ENOUGH_MANA;
         }
         int cooldownTicks = SpellProficiencyCurve.cooldownTicks(proficiencyLevel);
-        caster.getData(ModAttachments.SPELL_COOLDOWNS).startCooldown(SpellIds.SPARK_OF_LIFE, now, cooldownTicks);
+        cooldowns.startCooldown(SpellIds.SPARK_OF_LIFE, now, cooldownTicks);
+        cooldowns.startGlobalCooldown(now, CastingSpeed.ticksFor(caster));
 
         SparkOfLifeProjectile projectile = new SparkOfLifeProjectile(level, caster);
         projectile.shootFromRotation(caster, caster.getXRot(), caster.getYRot(), 0.0F, launchSpeedFor(caster), LAUNCH_INACCURACY);

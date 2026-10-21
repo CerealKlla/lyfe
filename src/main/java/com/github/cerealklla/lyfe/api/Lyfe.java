@@ -415,7 +415,8 @@ public final class Lyfe {
             return false;
         }
         long now = level.getGameTime();
-        if (caster.getData(ModAttachments.SPELL_COOLDOWNS).isOnCooldown(com.github.cerealklla.lyfe.magician.SpellIds.SPARK_OF_LIFE, now)) {
+        var cooldowns = caster.getData(ModAttachments.SPELL_COOLDOWNS);
+        if (cooldowns.isOnCooldown(com.github.cerealklla.lyfe.magician.SpellIds.SPARK_OF_LIFE, now) || cooldowns.isGloballyOnCooldown(now)) {
             return false;
         }
         int proficiencyLevel = com.github.cerealklla.lyfe.magician.SparkOfLifeCasting.proficiencyLevel(caster);

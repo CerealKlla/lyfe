@@ -52,6 +52,22 @@ public final class ModAttributes {
     public static final DeferredHolder<Attribute, Attribute> GOLD_FIND = ATTRIBUTES.register(
             "gold_find", () -> new RangedAttribute("attribute.name.lyfe.gold_find", 0.0, 0.0, 1000.0).setSyncable(true));
 
+    /**
+     * Casting Speed (added 2026-10-21, explicit user spec): "speed in seconds which must elapse
+     * between spells" -- a global, cross-spell gate enforced by {@code magician.SpellCooldowns}'
+     * {@code isGloballyOnCooldown}/{@code startGlobalCooldown}, separate from any one spell's own
+     * per-spell cooldown ({@code SpellProficiencyCurve#cooldownTicks}). With only one spell
+     * registered today it rarely matters on its own (whichever of the two cooldowns is longer always
+     * wins), but is the real limiter once a second spell exists -- "if we had 2 different spells you
+     * can't cast them on top of each other." Base value (1.0 second) is a flagged tunable
+     * placeholder, same convention as every other untuned magnitude in this mod -- nothing reduces
+     * it yet (no skill/gear/Rune bonus exists for this stat), but it's a real {@code Attribute} for
+     * exactly the same reason the other four are: so one can be added later with zero structural
+     * change.
+     */
+    public static final DeferredHolder<Attribute, Attribute> CASTING_SPEED = ATTRIBUTES.register(
+            "casting_speed", () -> new RangedAttribute("attribute.name.lyfe.casting_speed", 1.0, 0.0, 60.0).setSyncable(true));
+
     /** Mod-bus listener, registered in {@code LyfeMod}'s constructor -- see class doc for why this iterates every registered type instead of a fixed list. */
     public static void onEntityAttributeModification(EntityAttributeModificationEvent event) {
         for (var entityType : event.getTypes()) {
@@ -59,6 +75,7 @@ public final class ModAttributes {
             event.add(entityType, MANA_REGEN);
             event.add(entityType, MAGIC_FIND);
             event.add(entityType, GOLD_FIND);
+            event.add(entityType, CASTING_SPEED);
         }
     }
 }
