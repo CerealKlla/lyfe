@@ -78,9 +78,22 @@ public final class SparkOfLifeProjectile extends ThrowableItemProjectile {
         boolean casterHostile = owner != null && hostile(owner);
         boolean targetHostile = hostile(target);
 
+        // Temporary diagnostic, 2026-10-20 (real report: healing a visibly-injured NPC granted no
+        // Spell Proficiency XP, confirmed by the user to be real healing, not a no-op/absorption
+        // case) -- every value this branch's decision depends on, logged unconditionally so the next
+        // real cast gives a definitive answer instead of more guessing from static code reading.
+        // Remove once the real cause is found.
+        com.github.cerealklla.lyfe.LyfeMod.LOGGER.info(
+                "[SparkOfLifeDiag] owner={} ownerType={} casterHostile={} targetHostile={} targetHealth={}/{}",
+                owner, owner == null ? "null" : owner.getClass().getSimpleName(), casterHostile, targetHostile,
+                target.getHealth(), target.getMaxHealth());
+
         if (casterHostile == targetHostile) {
             boolean healedAnything = healAlly(target);
+            com.github.cerealklla.lyfe.LyfeMod.LOGGER.info("[SparkOfLifeDiag] healedAnything={} ownerIsServerPlayer={}",
+                    healedAnything, owner instanceof ServerPlayer);
             if (healedAnything && owner instanceof ServerPlayer player) {
+                com.github.cerealklla.lyfe.LyfeMod.LOGGER.info("[SparkOfLifeDiag] calling grantProgress for {}", player.getName().getString());
                 MagicianListener.grantProgress(player, SpellIds.SPARK_OF_LIFE, SpellProficiencyCurve.PROGRESS_PER_LEVEL);
             }
         } else {
