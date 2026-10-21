@@ -331,7 +331,8 @@ public class CraftingStructureMenu extends AbstractContainerMenu {
         ItemStack result = new ItemStack(BuiltInRegistries.ITEM.getValue(recipe.resultId()), rolledOutputCount);
         var armorType = EquipmentTierLadder.armorTypeOf(recipe.resultId());
         int focusTier = FocusLadder.tierOfItem(recipe.resultId());
-        if (armorType == null && focusTier < 0 && !com.github.cerealklla.lyfe.socket.SocketToolRegistry.isSocketTool(recipe.resultId())) {
+        if (armorType == null && focusTier < 0 && !com.github.cerealklla.lyfe.socket.SocketToolRegistry.isSocketTool(recipe.resultId())
+                && !MiscRecipes.allIds().contains(recipe.resultId())) {
             // Tool/weapon only -- custom base-durability override (2026-10-06), applied before
             // Quality's own % bonus so Quality boosts off the custom base, not vanilla's raw value.
             // Excludes the Die Grinder/Pry Bar (see SocketToolRegistry's own doc) -- their "Tier 4"
@@ -339,6 +340,12 @@ public class CraftingStructureMenu extends AbstractContainerMenu {
             // their own registered 1000 durability instead of Gold's rebalanced 900. Excludes Focus
             // too (2026-10-21, design doc Section 25) -- it's deliberately not damageable at all, so
             // this generic tier-keyed override must never give it a MAX_DAMAGE component.
+            //
+            // Real bug found 2026-10-21: MiscRecipes' outputs (Charcoal, Flint, Cobblestone) were
+            // never excluded either, despite being Tier 0 raw-material conversions, not tools -- a
+            // crafted Flint silently got a bogus MAX_DAMAGE=200 component real vanilla Flint never
+            // has, which also meant it could never stack with naturally-mined Flint (ItemStacks only
+            // stack when every component matches). Excluded the same way the others already are.
             int baseDurabilityOverride = EquipmentTierLadder.baseDurabilityOverride(recipe.tier());
             if (baseDurabilityOverride > 0) {
                 result.set(net.minecraft.core.component.DataComponents.MAX_DAMAGE, baseDurabilityOverride);
