@@ -33,13 +33,12 @@ import net.minecraft.world.phys.HitResult;
  * new client rendering/model code needed, same discipline as {@code npc.NpcHealthBar}'s nameplate
  * reuse.
  *
- * <p>Grants Magician XP on either outcome -- healing an ally or damaging an enemy, each only when
- * the action actually had a real effect -- but Spark of Life's own Spell Proficiency progress only
- * on a successful heal/overheal (explicit user correction, 2026-10-21: "Spark of Life Proficiency
- * gain when specifically hitting Spark of Life on a target and that target actually being healed/
- * overhealed"; see {@code MagicianListener}'s class doc for the full Magician-XP-vs-Proficiency
- * split). The {@code combat.CombatState}/{@code CombatStateTracker} infrastructure stays, just not
- * wired to either of these.
+ * <p>Grants Spell Proficiency progress -- and, through it, Magician's own level (see {@code
+ * MagicianListener}'s class doc: Magician's level is literally the sum of per-spell Proficiency
+ * levels) -- only on a successful heal/overheal, never on damaging an enemy (explicit user spec,
+ * 2026-10-21: "Spark of Life Proficiency gain when specifically hitting Spark of Life on a target
+ * and that target actually being healed/overhealed"). The {@code combat.CombatState}/{@code
+ * CombatStateTracker} infrastructure stays, just not wired to either of these.
  *
  * <p><b>Ally/enemy resolution is alignment-symmetric</b> (explicit user answer, 2026-10-20: "for
  * now, non-hostile. Will expand in future with player party system... I could see Pillagers
@@ -112,27 +111,23 @@ public final class SparkOfLifeProjectile extends ThrowableItemProjectile {
         if (casterHostile == targetHostile) {
             boolean healedAnything = healAlly(target);
             if (healedAnything && owner instanceof ServerPlayer player) {
-                // Spell Proficiency (per-spell cost/cooldown reduction) is now heal/overheal-only --
-                // explicit user correction, 2026-10-21: "Spark of Life Proficiency gain when
+                // Spell Proficiency (per-spell cost/cooldown reduction, AND -- as of 2026-10-21 --
+                // the sole source of Magician's own level, see MagicianListener's class doc) is
+                // heal/overheal-only -- explicit user spec: "Spark of Life Proficiency gain when
                 // specifically hitting Spark of Life on a target and that target actually being
-                // healed/overhealed." Magician's own XP (a fully separate track, see
-                // MagicianListener's class doc) still grants here too, same as the damage branch.
+                // healed/overhealed."
                 MagicianListener.grantProgress(player, SpellIds.SPARK_OF_LIFE, SpellProficiencyCurve.PROGRESS_PER_CAST);
-                MagicianListener.grantSpellHitXp(player);
             }
         } else {
             double velocity = getDeltaMovement().length();
             int damage = (int) Math.ceil(velocity * BASE_DAMAGE);
             DamageSource damageSource = damageSources().indirectMagic(this, owner);
-            // Gated on hurtOrSimulate's own return value (an actually-effective hit, not blocked/
-            // invulnerable/already dead), same "did this really do anything" discipline the heal
-            // branch above already uses. Grants Magician XP only -- explicit user correction,
-            // 2026-10-21: damaging an enemy no longer raises Spark of Life's own Spell Proficiency,
-            // only healing/overhealing does (see the heal branch above).
-            boolean hitLanded = target.hurtOrSimulate(damageSource, damage);
-            if (hitLanded && owner instanceof ServerPlayer player) {
-                MagicianListener.grantSpellHitXp(player);
-            }
+            // Damaging an enemy grants nothing toward Spell Proficiency (and therefore nothing
+            // toward Magician either, since Magician's level is now purely the sum of Proficiency
+            // levels) -- explicit user spec, see the heal branch above. hurtOrSimulate is still used
+            // (not a plain hurt) purely for the "did this actually do anything" semantics, consistent
+            // with the rest of this class, even though nothing currently reads its result here.
+            target.hurtOrSimulate(damageSource, damage);
         }
         discard();
     }

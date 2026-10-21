@@ -529,19 +529,31 @@ public final class Skills {
         );
     }
 
-    // Magician (design doc Section 24, explicit user spec) -- "Similar to Huntsman, tracks
-    // proficiency by spell, gains levels as spell proficiency increases." Reuses huntsmanCurve()
-    // directly (same flat, small-XP-per-sub-level-up shape -- magician.MagicianListener grants it
-    // the same way huntsman.HuntsmanListener grants Huntsman's own XP). Effects list empty, same
+    // Magician (design doc Section 24; revised 2026-10-21 per explicit user spec, verbatim:
+    // "Magician: Sum of Spell Proficiencies") -- a flat 1-XP-per-level curve, deliberately NOT
+    // shared with huntsmanCurve() despite the superficial similarity. magician.MagicianListener
+    // keeps Magician's own XP in exact lockstep with the sum of the player's per-spell Proficiency
+    // levels (1 XP == 1 summed level, by construction of this curve) -- a mismatched-scale curve is
+    // exactly what caused the original bug this was corrected from: Spark of Life reaching its own
+    // max Proficiency level (8) while Magician, fed a flat 1 XP per Proficiency level *crossed* into
+    // huntsmanCurve()'s 5-XP/level curve, could only ever reach level 1. Effects list empty, same
     // reason as Huntsman's own -- the real per-level bonus (+10 Max Mana/+1 Mana Regen) is computed
     // directly by MagicianListener reading this skill's own level, not driven by SkillEffect data.
+    private static XpCurve magicianCurve() {
+        List<Long> thresholds = new ArrayList<>();
+        for (int level = 1; level <= MAX_LEVEL; level++) {
+            thresholds.add((long) level);
+        }
+        return new XpCurve(thresholds);
+    }
+
     private static SkillDefinition magician() {
         return new SkillDefinition(
                 MAGICIAN_ID,
                 "Magician",
                 SkillCategory.COMBAT,
                 Optional.empty(),
-                huntsmanCurve(),
+                magicianCurve(),
                 List.of()
         );
     }

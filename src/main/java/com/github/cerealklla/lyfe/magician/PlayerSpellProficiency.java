@@ -46,4 +46,18 @@ public final class PlayerSpellProficiency {
         progress.put(spellId, updated);
         return updated;
     }
+
+    /**
+     * Sum of {@link SpellProficiencyCurve#levelForProgress} across every spell with any tracked
+     * progress -- explicit user spec, 2026-10-21: "Magician: Sum of Spell Proficiencies." Only one
+     * spell (Spark of Life) exists today, so this is currently just that spell's own level, but the
+     * sum shape is what actually matters once more spells exist.
+     */
+    public int totalProficiencyLevel() {
+        int sum = 0;
+        for (int value : progress.values()) {
+            sum += SpellProficiencyCurve.levelForProgress(value);
+        }
+        return sum;
+    }
 }

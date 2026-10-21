@@ -7,6 +7,7 @@ import com.github.cerealklla.lyfe.api.Lyfe;
 import com.github.cerealklla.lyfe.registration.ModAttachments;
 import com.github.cerealklla.lyfe.registration.ModAttributes;
 import com.github.cerealklla.lyfe.skill.Skills;
+import com.github.cerealklla.lyfe.xpbar.XpGainPayload;
 
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
@@ -14,24 +15,27 @@ import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
+import net.neoforged.neoforge.network.PacketDistributor;
 
 /**
  * Magician (design doc Section 24): applies the skill's own per-level Max Mana/Mana Regen bonus
  * (+10/+1 per level, exactly mirroring {@code heartiness.HeartinessListener#applyMaxHealthBonus}'s
  * per-tick transient-modifier pattern).
  *
- * <p><b>Magician XP and per-spell Spell Proficiency are two fully independent tracks</b> (explicit
- * user correction, 2026-10-21: "Magician XP gain when hitting any kind of spell" /
- * "Spark of Life Proficiency gain when specifically hitting Spark of Life on a target and that
- * target actually being healed/overhealed" -- replacing an earlier version where Magician XP was
- * only ever granted indirectly, as a side effect of a Spell Proficiency level-up. That made real
- * Magician XP gain vanishingly rare in practice once Proficiency's own per-level cost grew to 125
- * cumulative casts (see {@code SpellProficiencyCurve}), which the player correctly flagged as "not
- * gaining magician xp at all." Magician XP is now granted directly, once per landed spell, via
- * {@link #grantSpellHitXp} -- called from every successful hit branch in
- * {@code SparkOfLifeProjectile#onHitEntity}, heal or damage alike. Spell Proficiency progress
- * ({@link #grantProgress}) is unchanged in shape but now only ever called from the heal/overheal
- * branch -- it no longer grants Magician XP itself at all, since that's this class's own job now.
+ * <p><b>Magician's own level is kept in exact lockstep with the sum of the player's per-spell
+ * Spell Proficiency levels</b> (explicit user spec, 2026-10-21, verbatim: "Magician: Sum of Spell
+ * Proficiencies" -- reverting a same-day detour where Magician XP was granted as a flat amount per
+ * landed spell hit, independent of Proficiency entirely. That detour was itself a reaction to a
+ * real, correctly-reported symptom -- "Spark of Life max leveled after 8 spells, and Magician
+ * seemed to not have" -- but the actual root cause was a curve mismatch, not the wrong trigger:
+ * Magician previously reused {@code Skills#huntsmanCurve()} (5 XP per level) fed by a flat 1 XP per
+ * Proficiency level *crossed*, so even Spark of Life's entire climb to its own max level (8) could
+ * only ever hand Magician 8 total XP -- enough to reach Magician level 1 and no further, no matter
+ * how far Proficiency itself had gone. Fixed properly this time: Magician now uses its own flat
+ * 1-XP-per-level curve ({@code Skills#magicianCurve()}), and {@link #grantProgress} resyncs
+ * Magician's XP to exactly {@link PlayerSpellProficiency#totalProficiencyLevel} every time it
+ * changes -- so Magician's level literally *is* that sum, not an approximation of it, both now and
+ * once more spells exist to sum over.
  */
 public final class MagicianListener {
 
@@ -40,11 +44,6 @@ public final class MagicianListener {
 
     private static final int MAX_MANA_PER_LEVEL = 10;
     private static final int MANA_REGEN_PER_LEVEL = 1;
-
-    // Flagged tunable placeholder, same convention as huntsman.HuntsmanListener's own
-    // HUNTSMAN_XP_PER_QUARRY_LEVEL -- flat Magician XP per spell that actually lands on a target,
-    // heal/overheal or damage alike, decoupled entirely from Spell Proficiency (see class doc).
-    private static final long MAGICIAN_XP_PER_SPELL_HIT = 1L;
 
     @SubscribeEvent
     public void onPlayerTick(PlayerTickEvent.Post event) {
@@ -77,21 +76,40 @@ public final class MagicianListener {
     }
 
     /**
-     * Adds {@code amount} Spell Proficiency progress toward {@code spellId} -- purely a per-spell
-     * cost/cooldown-reduction track now (see {@link SpellProficiencyCurve}), no longer a Magician XP
-     * source itself (see class doc). A no-op for anything that isn't a real {@code ServerPlayer} --
-     * NPCs always read Proficiency as a flat 1 (see {@code SparkOfLifeCasting#proficiencyLevel}),
-     * never tracked progress, so there's never anything to grant here for them.
+     * Adds {@code amount} Spell Proficiency progress toward {@code spellId} (the per-spell cost/
+     * cooldown-reduction track, see {@link SpellProficiencyCurve}), then resyncs Magician's own XP
+     * to match the new total across every spell (see class doc). A no-op for anything that isn't a
+     * real {@code ServerPlayer} -- NPCs always read Proficiency as a flat 1 (see {@code
+     * SparkOfLifeCasting#proficiencyLevel}), never tracked progress, so there's never anything to
+     * grant here for them.
      */
     public static void grantProgress(ServerPlayer player, Identifier spellId, int amount) {
         var proficiency = player.getData(ModAttachments.PLAYER_SPELL_PROFICIENCY);
         proficiency.addProgress(spellId, amount);
         player.syncData(ModAttachments.PLAYER_SPELL_PROFICIENCY);
+        syncLevelToProficiencySum(player, proficiency);
     }
 
-    /** Flat Magician XP for any spell that actually lands on a target -- heal/overheal or damage alike. */
-    public static void grantSpellHitXp(ServerPlayer player) {
-        Lyfe.addXp(player, Skills.MAGICIAN_ID, MAGICIAN_XP_PER_SPELL_HIT);
+    /**
+     * Brings Magician's own XP up to exactly {@link PlayerSpellProficiency#totalProficiencyLevel}
+     * (1 XP == 1 summed Proficiency level, by construction of {@code Skills#magicianCurve()}).
+     * Deliberately bypasses {@link Lyfe#addXp} -- this isn't newly *earned* XP for an action, it's a
+     * direct resync to a derived total, and {@code addXp}'s Well Rested doubling would permanently
+     * desync Magician's level from the real sum the next time this runs. Still sends the same XP-bar
+     * HUD popup {@code addXp} would have, for UX parity with every other skill.
+     */
+    private static void syncLevelToProficiencySum(ServerPlayer player, PlayerSpellProficiency proficiency) {
+        var skills = player.getData(ModAttachments.PLAYER_SKILLS);
+        long desiredXp = proficiency.totalProficiencyLevel();
+        long currentXp = skills.getXp(Skills.MAGICIAN_ID);
+        if (desiredXp <= currentXp) {
+            return;
+        }
+        long newXp = skills.addXp(Skills.MAGICIAN_ID, desiredXp - currentXp);
+        player.syncData(ModAttachments.PLAYER_SKILLS);
+        if (!Lyfe.isMaxLevel(player, Skills.MAGICIAN_ID)) {
+            PacketDistributor.sendToPlayer(player, new XpGainPayload(Skills.MAGICIAN_ID, currentXp, newXp));
+        }
     }
 
     /** Skills-screen benefit lines (design doc Section 13) -- real current values, never formulas. */
