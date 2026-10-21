@@ -53,6 +53,8 @@ import com.github.cerealklla.lyfe.rest.client.SeatEntityRenderer;
 import com.github.cerealklla.lyfe.swim.SwimmerOverlay;
 import com.github.cerealklla.lyfe.huntsman.client.ClientHuntsmanBarState;
 import com.github.cerealklla.lyfe.huntsman.client.HuntsmanBarOverlay;
+import com.github.cerealklla.lyfe.magician.client.ClientSpellProficiencyBarState;
+import com.github.cerealklla.lyfe.magician.client.SpellProficiencyBarOverlay;
 import com.github.cerealklla.lyfe.research.client.ClientResearchBarState;
 import com.github.cerealklla.lyfe.research.client.ResearchBarOverlay;
 import com.github.cerealklla.lyfe.xpbar.client.ClientXpBarState;
@@ -192,6 +194,7 @@ public class LyfeModClient {
         event.registerAboveAll(Identifier.fromNamespaceAndPath(LyfeMod.MODID, "xp_bar_overlay"), new XpBarOverlay());
         event.registerAboveAll(Identifier.fromNamespaceAndPath(LyfeMod.MODID, "research_bar_overlay"), new ResearchBarOverlay());
         event.registerAboveAll(Identifier.fromNamespaceAndPath(LyfeMod.MODID, "huntsman_bar_overlay"), new HuntsmanBarOverlay());
+        event.registerAboveAll(Identifier.fromNamespaceAndPath(LyfeMod.MODID, "spell_proficiency_bar_overlay"), new SpellProficiencyBarOverlay());
         // Recallcinite Totem's 10-second recall channel progress bar, 2026-10-09.
         event.registerAboveAll(Identifier.fromNamespaceAndPath(LyfeMod.MODID, "recallcinite_channel_overlay"), new RecallciniteChannelOverlay());
         // The custom vanilla-style hotbar swipe for the totem's own cooldown, 2026-10-09 -- see
@@ -379,6 +382,7 @@ public class LyfeModClient {
         ClientXpBarState.tick();
         ClientResearchBarState.tick();
         ClientHuntsmanBarState.tick();
+        ClientSpellProficiencyBarState.tick();
         ClientLuckySpotState.tick();
         ClientRecallciniteState.tick();
         com.github.cerealklla.lyfe.hunger.ClientSprintLock.tick();

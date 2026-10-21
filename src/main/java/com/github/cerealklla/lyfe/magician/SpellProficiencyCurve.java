@@ -53,6 +53,20 @@ public final class SpellProficiencyCurve {
         return Math.min(MAX_LEVEL, Math.max(0, progress) / PROGRESS_PER_LEVEL);
     }
 
+    /**
+     * Fractional progress (0.0-1.0) toward the next level, for the transient progress bar (added
+     * 2026-10-21 for {@code magician.client.SpellProficiencyBarOverlay} -- mirrors {@code
+     * huntsman.QuarryKnowledgeCurve#fractionToNextLevel} exactly, just against this curve's flat
+     * per-level cost instead of a doubling one).
+     */
+    public static double fractionToNextLevel(int progress) {
+        if (levelForProgress(progress) >= MAX_LEVEL) {
+            return 1.0;
+        }
+        int progressThisLevel = Math.max(0, progress) % PROGRESS_PER_LEVEL;
+        return Math.clamp((double) progressThisLevel / PROGRESS_PER_LEVEL, 0.0, 1.0);
+    }
+
     /** Linearly interpolates {@link #BASE_MANA_COST} down to {@link #PROFICIENCY_END_MANA_COST} over 0..{@link #MAX_LEVEL}, clamped to the hard {@link #MIN_MANA_COST} floor. */
     public static int manaCost(int level) {
         double fraction = Math.max(0, Math.min(level, MAX_LEVEL)) / (double) MAX_LEVEL;

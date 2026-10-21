@@ -85,8 +85,15 @@ public final class MagicianListener {
      */
     public static void grantProgress(ServerPlayer player, Identifier spellId, int amount) {
         var proficiency = player.getData(ModAttachments.PLAYER_SPELL_PROFICIENCY);
-        proficiency.addProgress(spellId, amount);
+        int oldProgress = proficiency.progress(spellId);
+        int newProgress = proficiency.addProgress(spellId, amount);
         player.syncData(ModAttachments.PLAYER_SPELL_PROFICIENCY);
+        // Transient per-cast progress HUD (explicit user request, 2026-10-21: "this should look
+        // visually like XP gains, same as the popup with Quarry Knowledge and every other similar
+        // mechanic we have") -- independent of syncLevelToProficiencySum's own rarer popup below,
+        // which only fires once every PROGRESS_PER_LEVEL casts when a whole level is actually
+        // crossed. This one fires every single successful cast, same as QuarryKnowledgeProgressPayload.
+        PacketDistributor.sendToPlayer(player, new SpellProficiencyProgressPayload(spellId, oldProgress, newProgress));
         syncLevelToProficiencySum(player, proficiency);
     }
 

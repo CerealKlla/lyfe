@@ -232,6 +232,13 @@ public class LyfeMod {
                 (payload, context) -> ClientHuntsmanBarState.onProgress(
                         payload.mobType(), payload.oldKills(), payload.newKills()));
 
+        // Spell Proficiency progress HUD (Magician/Spark of Life, 2026-10-21) -- same shape as the
+        // Quarry Knowledge progress payload just above.
+        event.registrar("1").playToClient(com.github.cerealklla.lyfe.magician.SpellProficiencyProgressPayload.TYPE,
+                com.github.cerealklla.lyfe.magician.SpellProficiencyProgressPayload.STREAM_CODEC,
+                (payload, context) -> com.github.cerealklla.lyfe.magician.client.ClientSpellProficiencyBarState.onProgress(
+                        payload.spellId(), payload.oldProgress(), payload.newProgress()));
+
         // Registered unconditionally, same reasoning as LocationPayload above -- MinimapTracker is
         // only ever constructed (and so only ever actually sends this) when Cartographyr is loaded,
         // but the handler itself must exist regardless (one global network registry per modid).
