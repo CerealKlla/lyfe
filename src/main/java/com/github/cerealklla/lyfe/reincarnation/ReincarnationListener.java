@@ -18,6 +18,7 @@ import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.gamerules.GameRules;
+import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
@@ -55,7 +56,18 @@ public final class ReincarnationListener {
     private final Map<UUID, Map<ProtectedSlot, ItemStack>> pendingRestore = new ConcurrentHashMap<>();
     private final Set<UUID> pendingNoXpWarning = java.util.concurrent.ConcurrentHashMap.newKeySet();
 
-    @SubscribeEvent
+    // Real, reproduced-every-time bug, 2026-10-20: "I had a custom crafted sword in slot 1... Proved,
+    // this isn't working." Root cause had nothing to do with level/type at all -- Yconomics'
+    // bag.LootBagListener has its OWN LivingDeathEvent handler that sweeps the player's ENTIRE
+    // hotbar/inventory into a loot bag, at the exact same default priority this listener used to run
+    // at. Whichever mod's listener NeoForge happened to dispatch first won the race: if LootBagListener
+    // went first, it already cleared hotbar slot 1 (and every other inventory slot) before this
+    // method ever got a chance to pull a protected item out, so protectSlots below found nothing but
+    // empty slots to "protect." HIGH guarantees this always runs first, regardless of mod load order,
+    // so a protected slot is always pulled out before any other mod's own death-drop handling can see
+    // it at all -- the same timing guarantee this class's own doc already claimed for vanilla's drop
+    // logic, just never actually enforced against a same-priority sibling listener from another mod.
+    @SubscribeEvent(priority = EventPriority.HIGH)
     public void onLivingDeath(LivingDeathEvent event) {
         LivingEntity entity = event.getEntity();
         if (!(entity instanceof ServerPlayer player)) {

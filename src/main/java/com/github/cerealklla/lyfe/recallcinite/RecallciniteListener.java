@@ -25,6 +25,7 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LightningBolt;
 import net.minecraft.world.entity.Relative;
 import net.minecraft.world.item.ItemStack;
+import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.ModList;
 import net.neoforged.neoforge.event.entity.item.ItemTossEvent;
@@ -108,8 +109,17 @@ public final class RecallciniteListener {
         grantTotemIfMissing(player);
     }
 
-    /** Pulls the totem out of the dying player's inventory before vanilla's own death-drop logic runs (same timing guarantee {@code reincarnation.ReincarnationListener#onLivingDeath} relies on) -- {@code keepInventory} already keeps it, nothing to do there. */
-    @SubscribeEvent
+    /**
+     * Pulls the totem out of the dying player's inventory before vanilla's own death-drop logic runs
+     * (same timing guarantee {@code reincarnation.ReincarnationListener#onLivingDeath} relies on) --
+     * {@code keepInventory} already keeps it, nothing to do there. {@code HIGH} priority added
+     * 2026-10-20 alongside that same class's identical fix -- see its own doc for the real bug this
+     * closes: Yconomics' {@code bag.LootBagListener} has its own same-priority {@code LivingDeathEvent}
+     * handler that sweeps the whole hotbar/inventory into a loot bag, and whichever mod's listener
+     * happened to run first determined whether this method ever saw the totem still in the inventory
+     * to protect. Same race, same fix.
+     */
+    @SubscribeEvent(priority = EventPriority.HIGH)
     public void onLivingDeath(LivingDeathEvent event) {
         if (!(event.getEntity() instanceof ServerPlayer player)) {
             return;
