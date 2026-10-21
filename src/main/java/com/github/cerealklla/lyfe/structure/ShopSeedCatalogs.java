@@ -180,6 +180,15 @@ public final class ShopSeedCatalogs {
             listings.add(SeedListing.ofResource(ShopResource.ofItem(itemId), SWORD_PRICE_PER_TIER * Math.max(1, tier), EQUIPMENT_STOCK));
             notes.add(ResearchNoteItem.createFor(itemId, tier));
         }
+        // Focus (added 2026-10-21, design doc Section 25) -- same "own small ladder, needs its own
+        // explicit loop" shape as Nature Staff just above (its own small ladder, not an
+        // EquipmentTierLadder.ToolType, so it never falls out of the main loop at the top of this
+        // method automatically).
+        for (int tier = com.github.cerealklla.lyfe.craft.FocusLadder.MIN_TIER; tier <= Math.min(maxTier, com.github.cerealklla.lyfe.craft.FocusLadder.MAX_TIER); tier++) {
+            Identifier itemId = com.github.cerealklla.lyfe.craft.FocusLadder.itemId(tier);
+            listings.add(SeedListing.ofResource(ShopResource.ofItem(itemId), SWORD_PRICE_PER_TIER * Math.max(1, tier), EQUIPMENT_STOCK));
+            notes.add(ResearchNoteItem.createFor(itemId, tier));
+        }
         if (!notes.isEmpty()) {
             listings.add(SeedListing.ofStacks(NOTE_PRICE, notes));
         }

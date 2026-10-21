@@ -84,6 +84,12 @@ public final class ServerRecipeStore {
             Identifier itemId = NatureStaffLadder.itemId(tier);
             result.put(itemId, RecipeGenerator.generate(itemId, tier, NatureStaffLadder.previousTierItem(tier), random));
         }
+        // Focus (4 tiers, added 2026-10-21, design doc Section 25) -- a real tier-chained family
+        // like Nature Staff above, just its own 4-entry ladder (see FocusLadder's own doc).
+        for (int tier = FocusLadder.MIN_TIER; tier <= FocusLadder.MAX_TIER; tier++) {
+            Identifier itemId = FocusLadder.itemId(tier);
+            result.put(itemId, RecipeGenerator.generate(itemId, tier, FocusLadder.previousTierItem(tier), random));
+        }
         // Socketing tools (Diamond Die Grinder/Pry Bar, added 2026-10-17) -- same fixed-tier, no-
         // upgrade-chain shape as ranged weapons above, plus a guaranteed 3-Diamond base merged on top
         // of the random roll (explicit user spec: "3 diamond base + random other components") -- see

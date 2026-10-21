@@ -121,6 +121,7 @@ public class CraftingStructureMenu extends AbstractContainerMenu {
                         EquipmentTierLadder.allGeneratedArmorItemIds().stream(),
                         EquipmentTierLadder.allGeneratedRangedWeaponIds().stream(),
                         NatureStaffLadder.allIds().stream(),
+                        FocusLadder.allIds().stream(),
                         com.github.cerealklla.lyfe.socket.SocketToolRegistry.allIds().stream(),
                         MiscRecipes.allIds().stream())
                 .flatMap(s -> s)
@@ -329,12 +330,15 @@ public class CraftingStructureMenu extends AbstractContainerMenu {
                 : recipe.outputCount();
         ItemStack result = new ItemStack(BuiltInRegistries.ITEM.getValue(recipe.resultId()), rolledOutputCount);
         var armorType = EquipmentTierLadder.armorTypeOf(recipe.resultId());
-        if (armorType == null && !com.github.cerealklla.lyfe.socket.SocketToolRegistry.isSocketTool(recipe.resultId())) {
+        int focusTier = FocusLadder.tierOfItem(recipe.resultId());
+        if (armorType == null && focusTier < 0 && !com.github.cerealklla.lyfe.socket.SocketToolRegistry.isSocketTool(recipe.resultId())) {
             // Tool/weapon only -- custom base-durability override (2026-10-06), applied before
             // Quality's own % bonus so Quality boosts off the custom base, not vanilla's raw value.
             // Excludes the Die Grinder/Pry Bar (see SocketToolRegistry's own doc) -- their "Tier 4"
             // is a recipe-weighting number only, not a real ladder membership, so they must keep
-            // their own registered 1000 durability instead of Gold's rebalanced 900.
+            // their own registered 1000 durability instead of Gold's rebalanced 900. Excludes Focus
+            // too (2026-10-21, design doc Section 25) -- it's deliberately not damageable at all, so
+            // this generic tier-keyed override must never give it a MAX_DAMAGE component.
             int baseDurabilityOverride = EquipmentTierLadder.baseDurabilityOverride(recipe.tier());
             if (baseDurabilityOverride > 0) {
                 result.set(net.minecraft.core.component.DataComponents.MAX_DAMAGE, baseDurabilityOverride);
@@ -352,6 +356,18 @@ public class CraftingStructureMenu extends AbstractContainerMenu {
             // score Durability was just scaled by above.
             result.set(net.minecraft.core.component.DataComponents.ATTRIBUTE_MODIFIERS,
                     com.github.cerealklla.lyfe.magician.NatureStaffItem.attributesFor(natureStaffTier, quality));
+        }
+        if (focusTier > 0) {
+            // Focus (design doc Section 25): "their stats will be randomized at time of crafting" --
+            // rolled once here, stored on the stack, and never touched again. Quality is deliberately
+            // NOT factored in (the spec names only Nature Staff's Mana/ManaRegen for that treatment).
+            com.github.cerealklla.lyfe.magician.FocusData data = com.github.cerealklla.lyfe.magician.FocusStatRoller.roll(focusTier, random);
+            result.set(com.github.cerealklla.lyfe.registration.ModItems.FOCUS_DATA.get(), data);
+            result.set(net.minecraft.core.component.DataComponents.ATTRIBUTE_MODIFIERS,
+                    com.github.cerealklla.lyfe.magician.FocusItem.attributesFor(data));
+            result.set(net.minecraft.core.component.DataComponents.CUSTOM_MODEL_DATA,
+                    new net.minecraft.world.item.component.CustomModelData(List.of(), List.of(),
+                            List.of(data.variant().name().toLowerCase(java.util.Locale.ROOT)), List.of()));
         }
         if (!player.getInventory().add(result)) {
             player.drop(result, false);

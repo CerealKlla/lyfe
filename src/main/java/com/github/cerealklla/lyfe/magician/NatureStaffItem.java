@@ -98,8 +98,20 @@ public final class NatureStaffItem extends Item {
         builder.accept(Component.literal("Fires a bolt of light -- heals an ally or damages an enemy on hit.").withStyle(ChatFormatting.GRAY));
     }
 
+    /**
+     * Gated to a plain (non-sneaking) right-click, 2026-10-21 -- explicit user spec for the new
+     * off-hand Focus item: "a main hand weapon granting a spell, and an off-hand focus granting a
+     * spell, could both be used," via shift+right-click for the off-hand one. Returning {@code PASS}
+     * (not {@code FAIL}) while sneaking is what actually makes this work -- confirmed against the
+     * real decompiled client source ({@code Minecraft#startUseItem}'s
+     * {@code for (InteractionHand hand : InteractionHand.values())} loop only moves on to the next
+     * hand when the previous result isn't {@code InteractionResult.Success}), not assumed.
+     */
     @Override
     public InteractionResult use(Level level, Player player, InteractionHand hand) {
+        if (player.isShiftKeyDown()) {
+            return InteractionResult.PASS;
+        }
         if (level.isClientSide()) {
             return InteractionResult.CONSUME;
         }

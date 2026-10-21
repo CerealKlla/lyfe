@@ -409,6 +409,17 @@ public final class Lyfe {
                 == com.github.cerealklla.lyfe.magician.SparkOfLifeCasting.CastResult.SUCCESS;
     }
 
+    /**
+     * Whether {@code offhandStack} is a Focus (design doc Section 25) that rolled a granted spell
+     * -- lets Settlemynts' Guard AI (see {@code bridge.LyfeMagicianBridge}) decide whether to swap
+     * in spell-casting behavior off an off-hand item, the same way {@link #isNatureStaff} already
+     * does for a mainhand one.
+     */
+    public static boolean hasOffhandSpell(net.minecraft.world.item.ItemStack offhandStack) {
+        com.github.cerealklla.lyfe.magician.FocusData data = com.github.cerealklla.lyfe.magician.FocusItem.dataOf(offhandStack);
+        return data != null && data.grantedSpellId().isPresent();
+    }
+
     /** Whether {@code caster} could cast Spark of Life right now without actually casting it -- lets an NPC AI goal decide "heal/ranged vs. melee fallback" without a wasted cast attempt. */
     public static boolean canCastSparkOfLife(net.minecraft.world.entity.LivingEntity caster) {
         if (!(caster.level() instanceof net.minecraft.world.level.Level level)) {

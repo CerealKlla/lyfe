@@ -15,7 +15,10 @@ import com.github.cerealklla.lyfe.fishing.SunkenTreasureItem;
 import com.github.cerealklla.lyfe.cook.RecipeNoteItem;
 import com.github.cerealklla.lyfe.cook.RecipeNoteTarget;
 import com.github.cerealklla.lyfe.knowledge.KnowledgeReference;
+import com.github.cerealklla.lyfe.craft.FocusLadder;
 import com.github.cerealklla.lyfe.craft.NatureStaffLadder;
+import com.github.cerealklla.lyfe.magician.FocusData;
+import com.github.cerealklla.lyfe.magician.FocusItem;
 import com.github.cerealklla.lyfe.magician.NatureStaffItem;
 import com.github.cerealklla.lyfe.recallcinite.RecallciniteTotemItem;
 import com.github.cerealklla.lyfe.research.ResearchNoteItem;
@@ -147,6 +150,13 @@ public final class ModItems {
                     .persistent(Codec.STRING)
                     .networkSynchronized(ByteBufCodecs.STRING_UTF8));
 
+    // Focus (design doc Section 25) -- the randomly-rolled variant/stats/granted-spell payload,
+    // see magician.FocusData's own doc. Persisted and synced for the same reasons SOCKET_DATA is.
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<FocusData>> FOCUS_DATA =
+            DATA_COMPONENTS.registerComponentType("focus_data", builder -> builder
+                    .persistent(FocusData.CODEC)
+                    .networkSynchronized(FocusData.STREAM_CODEC));
+
     public static final DeferredRegister.Items ITEMS = DeferredRegister.createItems(LyfeMod.MODID);
 
     // Lyfe's first real custom Item -- every target/tier is baked into RESEARCH_NOTE_TARGET above,
@@ -255,6 +265,30 @@ public final class ModItems {
             "nature_staff_t5",
             id -> new NatureStaffItem(5, new Item.Properties()
                     .durability(NatureStaffLadder.material(5).durability())
+                    .setId(ResourceKey.create(Registries.ITEM, id))));
+
+    // Focus, 4 tiers (design doc Section 25) -- see craft.FocusLadder's own doc for why this is a
+    // brand-new item family. Deliberately no .durability(...) call -- not damageable, see
+    // magician.FocusItem's own doc.
+    public static final DeferredItem<FocusItem> FOCUS_T2 = ITEMS.register(
+            "focus_t2",
+            id -> new FocusItem(2, new Item.Properties()
+                    .stacksTo(1)
+                    .setId(ResourceKey.create(Registries.ITEM, id))));
+    public static final DeferredItem<FocusItem> FOCUS_T3 = ITEMS.register(
+            "focus_t3",
+            id -> new FocusItem(3, new Item.Properties()
+                    .stacksTo(1)
+                    .setId(ResourceKey.create(Registries.ITEM, id))));
+    public static final DeferredItem<FocusItem> FOCUS_T4 = ITEMS.register(
+            "focus_t4",
+            id -> new FocusItem(4, new Item.Properties()
+                    .stacksTo(1)
+                    .setId(ResourceKey.create(Registries.ITEM, id))));
+    public static final DeferredItem<FocusItem> FOCUS_T5 = ITEMS.register(
+            "focus_t5",
+            id -> new FocusItem(5, new Item.Properties()
+                    .stacksTo(1)
                     .setId(ResourceKey.create(Registries.ITEM, id))));
 
     public static final DeferredItem<PryBarItem> DIAMOND_PRY_BAR = ITEMS.register(

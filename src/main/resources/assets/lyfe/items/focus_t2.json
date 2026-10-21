@@ -1,0 +1,33 @@
+{
+  "model": {
+    "type": "minecraft:select",
+    "property": "minecraft:custom_model_data",
+    "cases": [
+      {
+        "when": "candle",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/focus_candle"
+        }
+      },
+      {
+        "when": "skull",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/focus_skull"
+        }
+      },
+      {
+        "when": "old_book",
+        "model": {
+          "type": "minecraft:model",
+          "model": "lyfe:item/focus_old_book"
+        }
+      }
+    ],
+    "fallback": {
+      "type": "minecraft:model",
+      "model": "lyfe:item/focus_candle"
+    }
+  }
+}
