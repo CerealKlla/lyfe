@@ -48,9 +48,12 @@ final class MaterialPool {
             // Any Log/Any Plank groups. Budget-neutral: one specific item swapped for one group, so
             // the combined total stays exactly 10 (see the tally note below).
             0, idList("stick", "wheat_seeds", "string", "flint"),
-            1, idList("cobblestone", "gravel", "coarse_dirt"),
+            // "coarse_dirt" replaced 2026-10-21 (explicit user request: "add the various types of
+            // stone in the normal world") with the generic group Any Stone (below) -- again
+            // budget-neutral, one item swapped for one group.
+            1, idList("cobblestone", "gravel"),
             // Combined generic (items + groups) budget caps at 10 unique entries (user's explicit
-            // limit) -- already reached below at Tier 1 (4 items + 3 groups + 3 items = 10), so
+            // limit) -- already reached below at Tier 1 (4 items + 4 groups + 2 items = 10), so
             // every tier above introduces no further generics of their own, only specialized.
             2, idList(),
             3, idList(),
@@ -64,7 +67,7 @@ final class MaterialPool {
             // be satisfied in a biome where that type doesn't grow; these resolve to ANY member at
             // craft time instead (see ComponentGroups/CraftingStructureMenu).
             0, List.of(ComponentGroups.ANY_LOG, ComponentGroups.ANY_PLANK, ComponentGroups.ANY_COAL),
-            1, List.of(),
+            1, List.of(ComponentGroups.ANY_STONE),
             2, List.of(),
             3, List.of(),
             4, List.of(),

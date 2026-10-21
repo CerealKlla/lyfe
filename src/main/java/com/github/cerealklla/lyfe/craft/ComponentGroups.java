@@ -24,6 +24,16 @@ public final class ComponentGroups {
     // Tier 0 generic item) -- Coal and Charcoal are functionally interchangeable fuel/smelting-cost
     // items, same "don't force one specific scavenge" reasoning as Any Log/Any Plank.
     static final String ANY_COAL = "Any Coal";
+    // Added 2026-10-21 (explicit user request: "add the various types of stone in the normal
+    // world"), replacing MaterialPool's old hardcoded "coarse_dirt" Tier 1 generic item -- every
+    // naturally-generated Overworld stone-type block (not a mined/crafted form -- Cobblestone is
+    // already its own separate Tier 1 item, same Stone-vs-Cobblestone distinction this group already
+    // draws for Log-vs-Plank). Deepslate included as the deep-level equivalent of Stone; Diorite/
+    // Andesite/Granite are the natural blob-generated variants; Tuff/Calcite are the newer naturally
+    // generated stone-type blocks. Granite is ALSO Tier 1's own single specialized item (see
+    // MaterialPool) -- deliberately not mutually exclusive, a player's Granite can count toward
+    // either requirement.
+    static final String ANY_STONE = "Any Stone";
 
     private static final Map<String, List<Identifier>> GROUPS = Map.of(
             ANY_LOG, idList("oak_log", "birch_log", "spruce_log", "jungle_log", "acacia_log",
@@ -31,7 +41,8 @@ public final class ComponentGroups {
             ANY_PLANK, idList("oak_planks", "birch_planks", "spruce_planks", "jungle_planks",
                     "acacia_planks", "dark_oak_planks", "mangrove_planks", "cherry_planks",
                     "pale_oak_planks", "bamboo_planks"),
-            ANY_COAL, idList("coal", "charcoal")
+            ANY_COAL, idList("coal", "charcoal"),
+            ANY_STONE, idList("stone", "granite", "diorite", "andesite", "tuff", "calcite", "deepslate")
     );
 
     private ComponentGroups() {
