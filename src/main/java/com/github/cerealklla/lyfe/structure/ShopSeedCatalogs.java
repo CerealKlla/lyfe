@@ -212,20 +212,14 @@ public final class ShopSeedCatalogs {
      * flat number. No Tier gating -- ingredients aren't on either tier ladder.
      */
     // Real report, 2026-10-20 (screenshot: "listing some crazy items for sale that don't appear to
-    // have valid baseline prices") -- Track B's randomly-generated "signature dish" recipes (e.g.
-    // Shepherd's Platter, Feast of the Kyngdoms) pull from a broad ingredient pool for rarity/flavor,
-    // not a food-only one, and happily drew in Gold Nugget/Ingot/Block as components (confirmed
-    // directly in the persisted `lyfe_food_recipes.json`). Since this method treats every recipe
-    // component that isn't itself a dish result as a sellable grocery good with no further filter,
-    // those three ended up listed for sale at the flat floor price -- not just thematically odd, but
-    // a severe real exploit: a Gold Ingot (worth 9 real Gold Nuggets, this economy's actual currency
-    // unit) sold for a floor-clamped 2 gold is free money every single purchase. Excluded outright --
-    // a Grocer sells food ingredients, never the currency itself.
-    private static final java.util.Set<Identifier> GROCER_EXCLUDED_CURRENCY_ITEMS = java.util.Set.of(
-            net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(net.minecraft.world.item.Items.GOLD_NUGGET),
-            net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(net.minecraft.world.item.Items.GOLD_INGOT),
-            net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(net.minecraft.world.item.Items.GOLD_BLOCK));
-
+    // have valid baseline prices") -- initially misdiagnosed as "a Grocer should never sell gold" and
+    // fixed by excluding Gold Nugget/Ingot/Block outright. Corrected by the user the same day: it's
+    // entirely correct for a Grocer to sell whatever its real recipes genuinely require (Track B's
+    // "signature dish" recipes, e.g. Shepherd's Platter, legitimately use gold as a flavor/rarity
+    // ingredient) -- the actual bug was only ever that the *price* was wrong (a flat floor price
+    // instead of gold's real value), not which items got listed. See Yconomics' own decisions.md,
+    // same date, for the real root cause (derived pricing had never actually been computed on this
+    // world at all) and its fix (automatic recalculation every boot, no exclusion needed here).
     private static List<SeedListing> grocerListings() {
         java.util.Set<Identifier> resultIds = new java.util.HashSet<>(FoodTierLadder.allResultIds());
         java.util.Set<Identifier> components = new java.util.LinkedHashSet<>();
@@ -233,7 +227,6 @@ public final class ShopSeedCatalogs {
             components.addAll(recipe.components().keySet());
         }
         components.removeAll(resultIds);
-        components.removeAll(GROCER_EXCLUDED_CURRENCY_ITEMS);
 
         List<SeedListing> listings = new ArrayList<>();
         for (Identifier itemId : components) {
