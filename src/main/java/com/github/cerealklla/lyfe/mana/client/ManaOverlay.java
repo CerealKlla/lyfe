@@ -117,11 +117,15 @@ public final class ManaOverlay implements GuiLayer {
         }
 
         // Max Mana outgrew what the capped grid can show as icons -- fall back to a compact numeric
-        // readout instead of ever drawing another row (see MAX_ICON_ROWS' own doc).
+        // readout instead of ever drawing another row (see MAX_ICON_ROWS' own doc). Real follow-up
+        // report, 2026-10-21 (screenshot): "The #s cover the chat" -- the first version placed this
+        // text in its own row ABOVE the icons, which just relocated the exact same overlap problem
+        // onto the new element instead of fixing it. Placed on the SAME row instead, after the last
+        // icon column, so this can never add any height of its own at all.
         if (iconCount > maxVisibleIcons) {
             String readout = (int) currentMana + "/" + (int) maxMana;
-            int textY = yBase - (MAX_ICON_ROWS - 1) * ROW_SPACING - ICON_SIZE - 2;
-            guiGraphics.text(Minecraft.getInstance().font, Component.literal(readout), xLeft, textY, OVERFLOW_TEXT_COLOR, true);
+            int textX = xLeft + ICONS_PER_ROW * ICON_SPACING + 4;
+            guiGraphics.text(Minecraft.getInstance().font, Component.literal(readout), textX, yBase + 1, OVERFLOW_TEXT_COLOR, true);
         }
     }
 }
