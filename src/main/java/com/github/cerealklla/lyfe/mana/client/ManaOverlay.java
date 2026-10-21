@@ -32,7 +32,9 @@ public final class ManaOverlay implements GuiLayer {
     private static final int ICONS_PER_ROW = 10;
     private static final int ROW_SPACING = 10;
     private static final int MARGIN_LEFT = 10;
-    private static final int MARGIN_BOTTOM = 49;
+    // Real report, 2026-10-20 (screenshot): "it's directly in line with chat text right now." Was
+    // 49 -- dropped it below chat's own default bottom-left text line.
+    private static final int MARGIN_BOTTOM = 36;
 
     // Real request, 2026-10-20: "can't we do water droplets? ... there isn't a reason to do it on
     // the HUD too" (re: the placeholder filled-square icons, originally shipped square-only since no
