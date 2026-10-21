@@ -12,11 +12,16 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 
 /**
- * Intercepts a right-click on vanilla's own repair blocks and opens {@link RepairStructureMenu}
- * instead of the vanilla Anvil/Grindstone menu entirely (2026-10-07 explicit user decision -- vanilla
- * renaming/combining on the Anvil and disenchanting on the Grindstone are gone; repairing now only
- * happens through this screen's resources/gold economy). Covers every Anvil damage-state block
- * (Anvil/Chipped Anvil/Damaged Anvil all share the same menu, same as vanilla) plus the Grindstone.
+ * Intercepts a right-click on the Grindstone and opens {@link RepairStructureMenu} instead of
+ * vanilla's own Grindstone menu (2026-10-07 explicit user decision -- disenchanting on the
+ * Grindstone is gone; repairing now happens through this screen's resources/gold economy).
+ *
+ * <p><b>Reverted 2026-10-21, explicit user request</b>: the Anvil is no longer intercepted at all --
+ * right-clicking any Anvil damage-state block (Anvil/Chipped Anvil/Damaged Anvil) now opens vanilla's
+ * own real Anvil menu again (renaming, combining/repairing two items, enchantment application), while
+ * the Grindstone keeps this mod's custom repair economy. Vanilla's own Anvil repair path sets damage
+ * directly rather than going through {@code ItemStack#hurtAndBreak}, so it's unaffected by Unbreakable
+ * Equipment's damage-clamping mixin.
  */
 public final class RepairInteractionListener {
 
@@ -26,7 +31,7 @@ public final class RepairInteractionListener {
             return;
         }
         var block = event.getLevel().getBlockState(event.getPos()).getBlock();
-        if (block != Blocks.ANVIL && block != Blocks.CHIPPED_ANVIL && block != Blocks.DAMAGED_ANVIL && block != Blocks.GRINDSTONE) {
+        if (block != Blocks.GRINDSTONE) {
             return;
         }
         event.setCanceled(true);

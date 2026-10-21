@@ -16,12 +16,13 @@ import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 
 /**
- * Replaces vanilla's Anvil/Grindstone menu entirely (2026-10-07 user request: "the existing
- * [vanilla] structure(s) used for repairing... will now have a repair GUI") -- one slot for the
- * damaged item, and the same 3 funding-option buttons {@code craft.CraftingStructureMenu}'s own
+ * Replaces vanilla's Grindstone menu (2026-10-07 user request: "the existing [vanilla]
+ * structure(s) used for repairing... will now have a repair GUI"; the Anvil was reverted back to
+ * vanilla's own menu 2026-10-21, see {@link RepairInteractionListener}'s own doc) -- one slot for
+ * the damaged item, and the same 3 funding-option buttons {@code craft.CraftingStructureMenu}'s own
  * "Upgrade Station" already uses ({@link FundingOption}), reworded to "Repair with..." per the
  * user's exact spec. See {@link RepairFunding} for what each option actually costs and {@link
- * RepairInteractionListener} for how a right-click on the real Anvil/Grindstone block ends up here
+ * RepairInteractionListener} for how a right-click on the real Grindstone block ends up here
  * instead of vanilla's own menu.
  *
  * <p>The repaired item stays in its own slot afterward (just with its damage cleared) rather than
