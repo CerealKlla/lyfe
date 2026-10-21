@@ -33,11 +33,13 @@ import net.minecraft.world.phys.HitResult;
  * new client rendering/model code needed, same discipline as {@code npc.NpcHealthBar}'s nameplate
  * reuse.
  *
- * <p>Grants Spell Proficiency progress on either outcome -- healing an ally or damaging an enemy,
- * each only when the action actually had a real effect (explicit user spec, 2026-10-20: "change
- * Magician to gain XP when a spell heals an ally or damages an enemy. We'll use 'Survived Combat'
- * for something later" -- the {@code combat.CombatState}/{@code CombatStateTracker} infrastructure
- * stays, just no longer wired to Magician).
+ * <p>Grants Magician XP on either outcome -- healing an ally or damaging an enemy, each only when
+ * the action actually had a real effect -- but Spark of Life's own Spell Proficiency progress only
+ * on a successful heal/overheal (explicit user correction, 2026-10-21: "Spark of Life Proficiency
+ * gain when specifically hitting Spark of Life on a target and that target actually being healed/
+ * overhealed"; see {@code MagicianListener}'s class doc for the full Magician-XP-vs-Proficiency
+ * split). The {@code combat.CombatState}/{@code CombatStateTracker} infrastructure stays, just not
+ * wired to either of these.
  *
  * <p><b>Ally/enemy resolution is alignment-symmetric</b> (explicit user answer, 2026-10-20: "for
  * now, non-hostile. Will expand in future with player party system... I could see Pillagers
@@ -110,20 +112,26 @@ public final class SparkOfLifeProjectile extends ThrowableItemProjectile {
         if (casterHostile == targetHostile) {
             boolean healedAnything = healAlly(target);
             if (healedAnything && owner instanceof ServerPlayer player) {
+                // Spell Proficiency (per-spell cost/cooldown reduction) is now heal/overheal-only --
+                // explicit user correction, 2026-10-21: "Spark of Life Proficiency gain when
+                // specifically hitting Spark of Life on a target and that target actually being
+                // healed/overhealed." Magician's own XP (a fully separate track, see
+                // MagicianListener's class doc) still grants here too, same as the damage branch.
                 MagicianListener.grantProgress(player, SpellIds.SPARK_OF_LIFE, SpellProficiencyCurve.PROGRESS_PER_CAST);
+                MagicianListener.grantSpellHitXp(player);
             }
         } else {
             double velocity = getDeltaMovement().length();
             int damage = (int) Math.ceil(velocity * BASE_DAMAGE);
             DamageSource damageSource = damageSources().indirectMagic(this, owner);
-            // Proficiency gain moved here from "Surviving Combat" (explicit user spec, 2026-10-20:
-            // "change Magician to gain XP when a spell heals an ally or damages an enemy. We'll use
-            // 'Survived Combat' for something later") -- gated on hurtOrSimulate's own return value
-            // (an actually-effective hit, not blocked/invulnerable/already dead), same "did this
-            // really do anything" discipline the heal branch above already uses.
+            // Gated on hurtOrSimulate's own return value (an actually-effective hit, not blocked/
+            // invulnerable/already dead), same "did this really do anything" discipline the heal
+            // branch above already uses. Grants Magician XP only -- explicit user correction,
+            // 2026-10-21: damaging an enemy no longer raises Spark of Life's own Spell Proficiency,
+            // only healing/overhealing does (see the heal branch above).
             boolean hitLanded = target.hurtOrSimulate(damageSource, damage);
             if (hitLanded && owner instanceof ServerPlayer player) {
-                MagicianListener.grantProgress(player, SpellIds.SPARK_OF_LIFE, SpellProficiencyCurve.PROGRESS_PER_CAST);
+                MagicianListener.grantSpellHitXp(player);
             }
         }
         discard();
