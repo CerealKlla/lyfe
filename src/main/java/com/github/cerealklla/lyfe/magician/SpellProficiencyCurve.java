@@ -15,15 +15,18 @@ package com.github.cerealklla.lyfe.magician;
  * #MIN_MANA_COST} both untouched since only the one number was actually asked for -- flagged here
  * rather than silently changed, in case the floor becoming unreachable wasn't intended.
  *
- * <p>Progress-per-level is a flat, explicitly tunable placeholder ({@link #PROGRESS_PER_LEVEL}),
- * same convention as every other first-pass numeric constant in this mod -- the spec names the
- * cost/cooldown reduction per level precisely, but never says how many casts/heals/combat-survivals
- * a level actually takes.
+ * <p><b>{@link #PROGRESS_PER_LEVEL} retuned to 125, 2026-10-20</b> (explicit request: "Change the
+ * scaling so it would take 1000 successful casts to be max proficiency") -- was 5. Each successful
+ * cast/heal grants a flat {@link #PROGRESS_PER_CAST} (1, previously this was the same number as
+ * {@code PROGRESS_PER_LEVEL} itself, a coincidence that made 1 cast = 1 level) toward raw progress;
+ * {@code MAX_LEVEL * PROGRESS_PER_LEVEL} (8 * 125 = 1000) is exactly the cast count that reaches
+ * {@link #MAX_LEVEL}, by construction.
  */
 public final class SpellProficiencyCurve {
 
     public static final int MAX_LEVEL = 8;
-    public static final int PROGRESS_PER_LEVEL = 5;
+    public static final int PROGRESS_PER_LEVEL = 125;
+    public static final int PROGRESS_PER_CAST = 1;
 
     private static final int BASE_MANA_COST = 16;
     private static final int MIN_MANA_COST = 4;

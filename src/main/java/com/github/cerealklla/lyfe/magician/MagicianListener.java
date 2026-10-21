@@ -83,9 +83,6 @@ public final class MagicianListener {
         int newProgress = proficiency.addProgress(spellId, amount);
         player.syncData(ModAttachments.PLAYER_SPELL_PROFICIENCY);
         int newLevel = SpellProficiencyCurve.levelForProgress(newProgress);
-        // Temporary diagnostic, 2026-10-20 -- see SparkOfLifeProjectile's own identical addition for why.
-        LyfeMod.LOGGER.info("[SparkOfLifeDiag] grantProgress: oldProgress={} newProgress={} oldLevel={} newLevel={}",
-                oldProgress, newProgress, oldLevel, newLevel);
         if (newLevel > oldLevel) {
             Lyfe.addXp(player, Skills.MAGICIAN_ID, (newLevel - oldLevel) * MAGICIAN_XP_PER_PROFICIENCY_LEVEL);
         }
