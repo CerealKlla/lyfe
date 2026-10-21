@@ -1,9 +1,12 @@
 package com.github.cerealklla.lyfe.magician;
 
+import java.util.function.Consumer;
+
 import com.github.cerealklla.lyfe.LyfeMod;
 import com.github.cerealklla.lyfe.craft.NatureStaffLadder;
 import com.github.cerealklla.lyfe.registration.ModAttributes;
 
+import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.InteractionHand;
@@ -14,7 +17,9 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.component.ItemAttributeModifiers;
+import net.minecraft.world.item.component.TooltipDisplay;
 import net.minecraft.world.item.component.Weapon;
 import net.minecraft.world.level.Level;
 
@@ -84,6 +89,13 @@ public final class NatureStaffItem extends Item {
                         new AttributeModifier(manaRegenId, scaledManaRegen, AttributeModifier.Operation.ADD_VALUE),
                         EquipmentSlotGroup.MAINHAND)
                 .build();
+    }
+
+    /** Real request, 2026-10-20: "The tooltip should say something about the spell cast by right clicking." */
+    @Override
+    public void appendHoverText(ItemStack stack, TooltipContext context, TooltipDisplay display, Consumer<Component> builder, TooltipFlag tooltipFlag) {
+        builder.accept(Component.literal("Right-click: Cast Spark of Life").withStyle(ChatFormatting.AQUA));
+        builder.accept(Component.literal("Fires a bolt of light -- heals an ally or damages an enemy on hit.").withStyle(ChatFormatting.GRAY));
     }
 
     @Override

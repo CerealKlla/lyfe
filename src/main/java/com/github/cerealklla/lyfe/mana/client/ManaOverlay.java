@@ -1,5 +1,6 @@
 package com.github.cerealklla.lyfe.mana.client;
 
+import com.github.cerealklla.lyfe.LyfeMod;
 import com.github.cerealklla.lyfe.mana.EntityMana;
 import com.github.cerealklla.lyfe.registration.ModAttachments;
 import com.github.cerealklla.lyfe.registration.ModAttributes;
@@ -8,6 +9,8 @@ import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.neoforged.neoforge.client.gui.GuiLayer;
 
@@ -16,30 +19,31 @@ import net.neoforged.neoforge.client.gui.GuiLayer;
  * icon, 1 for every 10 Mana. Depleted looks like a small blue dot"). No vanilla bar exists to
  * replace (unlike {@code hunger.HungerOverlay}/{@code swim.SwimmerOverlay}), so this registers as
  * a brand-new layer via {@code RegisterGuiLayersEvent#registerAboveAll} rather than {@code
- * replaceLayer}. Drawn with plain filled squares rather than a new sprite texture -- no "blue
- * droplet" art exists anywhere in this codebase yet, and this suite's own established precedent
- * (e.g. the Guard renderer's reskinned-zombie placeholder) is to ship something functionally
- * correct first rather than block on real art.
+ * replaceLayer}. Originally shipped as plain filled squares (no droplet art existed yet); now uses
+ * real one-off generated droplet sprites -- see this class's own fields for the real request.
  *
- * <p>Positioned above the vanilla Health bar on the left side (mirroring Hunger/Air's own
- * right-side stacking, just mirrored to the other side since Mana has no existing row to replace).
- * Uses a fixed margin rather than {@code HungerOverlay}/{@code SwimmerOverlay}'s dynamic
- * row-counting trick -- vanilla's own Health bar can also wrap to multiple rows once max health
- * grows past 10 hearts (Heartiness), which could in principle still collide with a high max-health
- * player; flagged as a known follow-up rather than guessed at blind, same as this suite's many
- * other HUD overlays that needed a live-test round to get positioning exactly right.
+ * <p>Anchored to the real left edge of the screen (not vanilla's hotbar-centered reference point --
+ * see {@code xLeft}'s own doc) and, per explicit request, never auto-hides even at full Mana.</p>
  */
 public final class ManaOverlay implements GuiLayer {
 
-    private static final int ICON_SIZE = 7;
-    private static final int ICON_SPACING = 8;
+    private static final int ICON_SIZE = 9;
+    private static final int ICON_SPACING = 9;
     private static final int ICONS_PER_ROW = 10;
     private static final int ROW_SPACING = 10;
     private static final int MARGIN_LEFT = 10;
     private static final int MARGIN_BOTTOM = 49;
 
-    private static final int FULL_COLOR = 0xFF1E90FF;
-    private static final int EMPTY_COLOR = 0xFF0D2A4A;
+    // Real request, 2026-10-20: "can't we do water droplets? ... there isn't a reason to do it on
+    // the HUD too" (re: the placeholder filled-square icons, originally shipped square-only since no
+    // art existed yet -- the NPC-nameplate text bar is genuinely stuck with plain characters, but the
+    // HUD can render real textures same as Hunger/Air's own vanilla sprites). Generated as a small,
+    // one-off pixel-art droplet (same "no Python/Node available, use a one-off Java program" pipeline
+    // this suite already uses for its other generated art, e.g. the Recallcinite Totem's recolor) --
+    // see context/decisions.md for the generator. A partial (mid-10) icon reuses the FULL droplet at
+    // a smaller inset scale over the EMPTY droplet, mirroring the old inset-square trick with real art.
+    private static final Identifier FULL_SPRITE = Identifier.fromNamespaceAndPath(LyfeMod.MODID, "hud/mana_full");
+    private static final Identifier EMPTY_SPRITE = Identifier.fromNamespaceAndPath(LyfeMod.MODID, "hud/mana_empty");
     private static final int DOT_INSET = 2;
 
     @Override
@@ -55,15 +59,24 @@ public final class ManaOverlay implements GuiLayer {
         double maxMana = maxManaAttribute.getValue();
         EntityMana mana = player.getData(ModAttachments.ENTITY_MANA);
         double currentMana = mana.getCurrentMana();
-        if (maxMana <= 0.0 || currentMana >= maxMana) {
-            return; // Matches Hunger/Air's own behavior: no bar at all while fully topped up.
+        if (maxMana <= 0.0) {
+            return;
         }
+        // Explicit user request, 2026-10-20: "do not make the mana bar auto-hide on the HUD, it
+        // should be always visible" -- deliberately does NOT mirror Hunger/Air's own "hide while
+        // fully topped up" behavior (that was an assumption carried over from the wrong precedent,
+        // never actually asked for here).
 
         int iconCount = (int) Math.ceil(maxMana / 10.0);
         int fullIcons = (int) (currentMana / 10.0);
         boolean partialDot = currentMana % 10.0 != 0;
 
-        int xLeft = guiGraphics.guiWidth() / 2 - 91 + MARGIN_LEFT;
+        // Real report, 2026-10-20 (screenshot): "Please move this to the left instead of in the
+        // middle." The old `guiWidth() / 2 - 91` anchor was vanilla's own hotbar-centered reference
+        // point (where Health/Hunger sit, just offset outward) -- correct for sitting *next to* those
+        // bars, but still visually "in the middle" of the screen as a whole, not actually on the left
+        // edge like the user wanted. Anchored to the real screen edge instead.
+        int xLeft = MARGIN_LEFT;
         int yBase = guiGraphics.guiHeight() - MARGIN_BOTTOM;
 
         for (int i = 0; i < iconCount; i++) {
@@ -73,13 +86,14 @@ public final class ManaOverlay implements GuiLayer {
             int y = yBase - row * ROW_SPACING;
 
             if (i < fullIcons) {
-                guiGraphics.fill(x, y, x + ICON_SIZE, y + ICON_SIZE, FULL_COLOR);
+                guiGraphics.blitSprite(RenderPipelines.GUI_TEXTURED, FULL_SPRITE, x, y, ICON_SIZE, ICON_SIZE);
             } else if (i == fullIcons && partialDot) {
-                // "Depleted looks like a small blue dot" -- a smaller inset square inside the empty slot.
-                guiGraphics.fill(x, y, x + ICON_SIZE, y + ICON_SIZE, EMPTY_COLOR);
-                guiGraphics.fill(x + DOT_INSET, y + DOT_INSET, x + ICON_SIZE - DOT_INSET, y + ICON_SIZE - DOT_INSET, FULL_COLOR);
+                // "Depleted looks like a small blue dot" -- a smaller inset droplet over the empty one.
+                guiGraphics.blitSprite(RenderPipelines.GUI_TEXTURED, EMPTY_SPRITE, x, y, ICON_SIZE, ICON_SIZE);
+                guiGraphics.blitSprite(RenderPipelines.GUI_TEXTURED, FULL_SPRITE,
+                        x + DOT_INSET, y + DOT_INSET, ICON_SIZE - DOT_INSET * 2, ICON_SIZE - DOT_INSET * 2);
             } else {
-                guiGraphics.fill(x, y, x + ICON_SIZE, y + ICON_SIZE, EMPTY_COLOR);
+                guiGraphics.blitSprite(RenderPipelines.GUI_TEXTURED, EMPTY_SPRITE, x, y, ICON_SIZE, ICON_SIZE);
             }
         }
     }

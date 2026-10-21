@@ -1,5 +1,7 @@
 package com.github.cerealklla.lyfe.magician;
 
+import java.util.List;
+
 import com.github.cerealklla.lyfe.LyfeMod;
 
 import net.minecraft.resources.Identifier;
@@ -8,6 +10,9 @@ import net.minecraft.resources.Identifier;
 public final class SpellIds {
 
     public static final Identifier SPARK_OF_LIFE = Identifier.fromNamespaceAndPath(LyfeMod.MODID, "spark_of_life");
+
+    /** Every known spell id -- added 2026-10-20 for {@code menu.client.SpellsTab}, so a future second spell needs no changes there. */
+    public static final List<Identifier> ALL = List.of(SPARK_OF_LIFE);
 
     private SpellIds() {
     }
