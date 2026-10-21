@@ -368,6 +368,14 @@ public class CraftingStructureMenu extends AbstractContainerMenu {
             result.set(net.minecraft.core.component.DataComponents.CUSTOM_MODEL_DATA,
                     new net.minecraft.world.item.component.CustomModelData(List.of(), List.of(),
                             List.of(data.variant().name().toLowerCase(java.util.Locale.ROOT)), List.of()));
+            // Real report, 2026-10-21: vanilla's own automatic attribute tooltip ("When in Off Hand:
+            // +2 Max Health") was showing up right alongside FocusItem#appendHoverText's own friendlier
+            // "+1 Heart"-style line for the exact same modifier -- the same bonus shown twice in two
+            // different unit conventions. Hides vanilla's generated section entirely so only the
+            // custom-worded line remains.
+            result.set(net.minecraft.core.component.DataComponents.TOOLTIP_DISPLAY,
+                    net.minecraft.world.item.component.TooltipDisplay.DEFAULT.withHidden(
+                            net.minecraft.core.component.DataComponents.ATTRIBUTE_MODIFIERS, true));
         }
         if (!player.getInventory().add(result)) {
             player.drop(result, false);
