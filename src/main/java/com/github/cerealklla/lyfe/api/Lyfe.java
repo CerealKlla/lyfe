@@ -10,7 +10,6 @@ import com.mojang.authlib.GameProfile;
 import com.github.cerealklla.lyfe.LyfeMod;
 import com.github.cerealklla.lyfe.knowledge.KnowledgeFactor;
 import com.github.cerealklla.lyfe.map.QuestWaypointPayload;
-import com.github.cerealklla.lyfe.mana.ManaNameplate;
 import com.github.cerealklla.lyfe.merchant.MerchantListener;
 import com.github.cerealklla.lyfe.registration.ModAttachments;
 import com.github.cerealklla.lyfe.registration.ModAttributes;
@@ -385,17 +384,6 @@ public final class Lyfe {
             entity.syncData(ModAttachments.ENTITY_MANA);
         }
         return spent;
-    }
-
-    /**
-     * A short nameplate-ready Mana indicator line for {@code entity} (design doc, 2026-10-20: "...
-     * above NPC heads when not at 100%") -- empty whenever this entity type has no Mana Attribute at
-     * all, or is already at full Mana. See {@code mana.ManaNameplate}'s own doc for why this is a
-     * plain colored-text bar (mirroring Settlemynts' existing health-bar nameplate technique) rather
-     * than a new icon renderer.
-     */
-    public static Optional<net.minecraft.network.chat.Component> manaNameplateLine(net.minecraft.world.entity.LivingEntity entity) {
-        return ManaNameplate.lineFor(entity);
     }
 
     /**

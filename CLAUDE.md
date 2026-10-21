@@ -394,3 +394,10 @@ isolation from the start. `./gradlew build`/`test` green in both repos, whole-su
 rebuild + `runServer` boot-smoke-test clean. **Not yet live-tested.** Slice 5 (new Runes for the
 4 new stats, Rune/Gem/Gold-drop-rate attacker-aware scaling) remains, deliberately deferred -- a
 separate thread from Nature Staff itself, not requested this pass.
+
+**Mana display moved onto Nuclyus's new generic floating stat-bar system, 2026-10-21** (see
+Nuclyus's own CLAUDE.md/decisions.md for the full writeup) -- explicit user request for real
+floating Health/Mana indicators that don't block a future NPC name. `mana.ManaNameplate` and
+`api.Lyfe#manaNameplateLine` deleted outright, replaced by `mana.ManaStatBarProvider` registered
+directly with `nuclyus.statbar.StatBarRegistry`. `./gradlew build` green, whole-suite (13 mods)
+rebuild + `runServer` boot-smoke-test clean. **Not yet live-tested.**

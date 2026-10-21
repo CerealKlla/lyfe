@@ -197,6 +197,7 @@ public class LyfeMod {
 
     private void commonSetup(FMLCommonSetupEvent event) {
         LOGGER.info("Lyfe common setup");
+        com.github.cerealklla.nuclyus.statbar.StatBarRegistry.register(new com.github.cerealklla.lyfe.mana.ManaStatBarProvider());
     }
 
     // Registered unconditionally (not gated on Cartographyr being loaded): harmless to register
