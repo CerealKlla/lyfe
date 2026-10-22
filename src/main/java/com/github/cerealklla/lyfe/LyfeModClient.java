@@ -162,6 +162,25 @@ public class LyfeModClient {
         MOUNT_FIELD = field;
     }
 
+    // Real report, 2026-10-21 (screenshot): the bind button's original Y (a guessed
+    // "screen.height / 4 + 110" formula, not the panel's own real position) overlapped the player's
+    // inventory grid. AbstractContainerScreen#topPos (the panel's real top-left, confirmed against
+    // the real decompiled source: `yo = (height - imageHeight) / 2`, identical to this field) is
+    // protected with no public getter -- same reflective-read precedent as MOUNT_FIELD above.
+    private static final Field TOP_POS_FIELD;
+
+    static {
+        Field field;
+        try {
+            field = net.minecraft.client.gui.screens.inventory.AbstractContainerScreen.class.getDeclaredField("topPos");
+            field.setAccessible(true);
+        } catch (ReflectiveOperationException e) {
+            LyfeMod.LOGGER.warn("Could not access AbstractContainerScreen#topPos -- the Summoning Stone bind button will use a fallback position", e);
+            field = null;
+        }
+        TOP_POS_FIELD = field;
+    }
+
     // Auto-Rotate toggle, wired up 2026-09-29 for a live test -- see ClientMinimapState's own doc.
     private static final KeyMapping MINIMAP_TOGGLE_ROTATION = new KeyMapping(
             "key.lyfe.minimap_toggle_rotation", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_O, KeyMapping.Category.MISC);
@@ -574,7 +593,20 @@ public class LyfeModClient {
         }
         int mountEntityId = mount.getId();
         int centerX = screen.width / 2;
-        int buttonY = screen.height / 4 + 110;
+        // Real panel top (see TOP_POS_FIELD's own doc) + 72 -- clears AbstractMountInventoryScreen's
+        // own portrait-render zone (yo+18 to yo+70, confirmed against the real decompiled
+        // extractBackground) while staying above the "Inventory" label/player grid below it. Falls
+        // back to the old guessed formula only if reflection genuinely failed to set up.
+        int buttonY;
+        if (TOP_POS_FIELD != null) {
+            try {
+                buttonY = (int) TOP_POS_FIELD.get(screen) + 72;
+            } catch (IllegalAccessException e) {
+                buttonY = screen.height / 4 + 110;
+            }
+        } else {
+            buttonY = screen.height / 4 + 110;
+        }
         event.addListener(Button.builder(Component.literal("Bind to Summoning Stone"), b -> {
             var connection = Minecraft.getInstance().getConnection();
             if (connection != null) {
