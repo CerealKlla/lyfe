@@ -2,6 +2,7 @@ package com.github.cerealklla.lyfe.summoning;
 
 import java.util.Optional;
 
+import com.github.cerealklla.lyfe.registration.ModAttachments;
 import com.github.cerealklla.lyfe.registration.ModItems;
 
 import net.minecraft.nbt.CompoundTag;
@@ -39,7 +40,8 @@ public final class MountBindListener {
     }
 
     public static void requestBind(ServerPlayer player, RequestMountBindPayload payload) {
-        if (resolveRiddenMount(player, payload.mountEntityId()).isEmpty()) {
+        LivingEntity mount = resolveRiddenMount(player, payload.mountEntityId()).orElse(null);
+        if (mount == null || mount.getExistingData(ModAttachments.SUMMONED_MOUNT_OWNER).isPresent()) {
             return;
         }
         PacketDistributor.sendToPlayer(player, new OpenMountBindNameScreenPayload(payload.mountEntityId()));
@@ -52,6 +54,13 @@ public final class MountBindListener {
         LivingEntity mount = resolveRiddenMount(player, payload.mountEntityId()).orElse(null);
         if (mount == null) {
             player.sendSystemMessage(Component.literal("You're no longer riding that mount."));
+            return;
+        }
+        // Never trust the client alone (the button is hidden client-side for this case too, see
+        // ModAttachments#SUMMONED_MOUNT_OWNER's own doc) -- re-binding an already-summoned mount
+        // would let a player duplicate it via a second, independent Summoning Stone.
+        if (mount.getExistingData(ModAttachments.SUMMONED_MOUNT_OWNER).isPresent()) {
+            player.sendSystemMessage(Component.literal("That mount is already bound to a Summoning Stone."));
             return;
         }
         String name = payload.name().isBlank() ? mount.getType().toShortString() : payload.name();

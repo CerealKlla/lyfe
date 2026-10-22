@@ -592,6 +592,13 @@ public class LyfeModClient {
         if (mount == null) {
             return;
         }
+        // Real report, 2026-10-21: re-binding an already-summoned mount let a player duplicate it
+        // (see SUMMONED_MOUNT_OWNER's own doc in ModAttachments for the full exploit). Its presence
+        // (now synced) means this mount is currently out from some Summoning Stone -- don't offer
+        // the button at all in that case. MountBindListener rejects it server-side too regardless.
+        if (mount.getExistingData(com.github.cerealklla.lyfe.registration.ModAttachments.SUMMONED_MOUNT_OWNER).isPresent()) {
+            return;
+        }
         int mountEntityId = mount.getId();
         // Real report, 2026-10-21 (second screenshot): the previous fix still overlapped the
         // inventory, because it centered a 200-wide button across the whole screen -- almost

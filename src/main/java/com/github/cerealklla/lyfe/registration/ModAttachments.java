@@ -216,13 +216,20 @@ public final class ModAttachments {
 
     // Summoning Stone (design doc Section 26) -- a back-reference on a summoned mount to the player
     // who summoned it, see summoning.SummonedMountOwner's own doc. Persisted (a summon surviving a
-    // restart should still be attributable), not synced -- only server-side death handling reads
-    // this. No default/holder-based factory makes sense here (there's no meaningful "no owner" UUID),
-    // so every real caller uses setData explicitly and reads via getExistingData, never getData's
-    // own default.
+    // restart should still be attributable). Synced (added 2026-10-21, real bug fix) -- its mere
+    // *presence* also marks a mount as "currently out from a Summoning Stone," which
+    // LyfeModClient#onMountScreenInit needs client-side to hide the "Bind to Summoning Stone" button
+    // on an already-summoned mount (otherwise re-binding it mid-summon let a player duplicate it:
+    // the new bind discards the live entity into a second stone while the original stone's
+    // `summonedMountId` goes stale and silently self-heals back to its own pre-rebind snapshot on
+    // next use). MountBindListener re-checks this server-side too, never trusting the client alone.
+    // No default/holder-based factory makes sense here (there's no meaningful "no owner" UUID), so
+    // every real caller uses setData explicitly and reads via getExistingData, never getData's own
+    // default.
     public static final Supplier<AttachmentType<com.github.cerealklla.lyfe.summoning.SummonedMountOwner>> SUMMONED_MOUNT_OWNER =
             ATTACHMENT_TYPES.register("summoned_mount_owner",
                     () -> AttachmentType.builder(holder -> new com.github.cerealklla.lyfe.summoning.SummonedMountOwner(new UUID(0L, 0L)))
                             .serialize(com.github.cerealklla.lyfe.summoning.SummonedMountOwner.CODEC)
+                            .sync(ByteBufCodecs.fromCodecWithRegistries(com.github.cerealklla.lyfe.summoning.SummonedMountOwner.CODEC.codec()))
                             .build());
 }
