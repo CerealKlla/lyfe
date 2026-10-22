@@ -65,6 +65,7 @@ import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.inventory.AbstractSignEditScreen;
 import net.minecraft.client.gui.screens.inventory.SignEditScreen;
 import com.github.cerealklla.lyfe.summoning.RequestMountBindPayload;
@@ -592,26 +593,38 @@ public class LyfeModClient {
             return;
         }
         int mountEntityId = mount.getId();
+        // Real report, 2026-10-21 (second screenshot): the previous fix still overlapped the
+        // inventory, because it centered a 200-wide button across the whole screen -- almost
+        // double the panel's own 176px width (AbstractContainerScreen's real default, confirmed
+        // against the decompiled source's 3-arg constructor overload: `this(menu, inventory,
+        // title, 176, 166)`, which AbstractMountInventoryScreen never overrides). The actual empty
+        // area the user pointed at is the real "chest slot" zone AbstractMountInventoryScreen's own
+        // extractBackground reserves at `xo + 79, yo + 17`, 54 tall -- rendered empty here only
+        // because a Skeleton Horse has no chest (HorseInventoryScreen#shouldRenderArmorSlot is also
+        // false for it, so only the saddle slot shows on the left). `centerX` already lines up with
+        // the panel's own horizontal center (the panel itself is screen-centered), so the panel's
+        // left edge is `centerX - 88`; the empty zone's left edge is 79px right of that.
         int centerX = screen.width / 2;
-        // Real panel top (see TOP_POS_FIELD's own doc) + 72 -- clears AbstractMountInventoryScreen's
-        // own portrait-render zone (yo+18 to yo+70, confirmed against the real decompiled
-        // extractBackground) while staying above the "Inventory" label/player grid below it. Falls
-        // back to the old guessed formula only if reflection genuinely failed to set up.
+        int panelLeft = centerX - 88;
+        int buttonX = panelLeft + 81; // 79 (zone start) + 2px breathing room.
+        int buttonWidth = 86; // zone is 90px wide (79 to 169); leaves a couple px margin each side.
         int buttonY;
         if (TOP_POS_FIELD != null) {
             try {
-                buttonY = (int) TOP_POS_FIELD.get(screen) + 72;
+                int topPos = (int) TOP_POS_FIELD.get(screen);
+                buttonY = topPos + 34; // vertically centers a 20-tall button in the 54-tall zone.
             } catch (IllegalAccessException e) {
-                buttonY = screen.height / 4 + 110;
+                buttonY = screen.height / 2 - 49; // equivalent to topPos + 34 when topPos = height/2 - 83.
             }
         } else {
-            buttonY = screen.height / 4 + 110;
+            buttonY = screen.height / 2 - 49;
         }
-        event.addListener(Button.builder(Component.literal("Bind to Summoning Stone"), b -> {
+        event.addListener(Button.builder(Component.literal("Bind"), b -> {
             var connection = Minecraft.getInstance().getConnection();
             if (connection != null) {
                 connection.send(new ServerboundCustomPayloadPacket(new RequestMountBindPayload(mountEntityId)));
             }
-        }).bounds(centerX - 100, buttonY, 200, 20).build());
+        }).tooltip(Tooltip.create(Component.literal("Bind to Summoning Stone")))
+                .bounds(buttonX, buttonY, buttonWidth, 20).build());
     }
 }
