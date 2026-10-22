@@ -2,16 +2,13 @@ package com.github.cerealklla.lyfe.summoning;
 
 import java.util.Optional;
 
-import com.github.cerealklla.lyfe.LyfeMod;
 import com.github.cerealklla.lyfe.registration.ModItems;
 
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.storage.TagValueOutput;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 
@@ -68,15 +65,8 @@ public final class SummoningDistanceTicker {
             return;
         }
 
-        ProblemReporter.ScopedCollector reporter = new ProblemReporter.ScopedCollector(mount.problemPath(), LyfeMod.LOGGER);
-        try {
-            TagValueOutput output = TagValueOutput.createWithContext(reporter, level.registryAccess());
-            mount.saveWithoutId(output);
-            SummoningStoneData updated = data.withSavedState(output.buildResult()).withSummonedMountId(Optional.empty());
-            stack.set(ModItems.SUMMONING_STONE_DATA.get(), updated);
-        } finally {
-            reporter.close();
-        }
+        SummoningStoneData updated = data.withSavedState(SummoningStoneData.capture(mount, level)).withSummonedMountId(Optional.empty());
+        stack.set(ModItems.SUMMONING_STONE_DATA.get(), updated);
         mount.ejectPassengers();
         mount.discard();
     }

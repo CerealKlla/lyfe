@@ -2,17 +2,14 @@ package com.github.cerealklla.lyfe.summoning;
 
 import java.util.Optional;
 
-import com.github.cerealklla.lyfe.LyfeMod;
 import com.github.cerealklla.lyfe.registration.ModItems;
 
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.storage.TagValueOutput;
 import net.neoforged.neoforge.network.PacketDistributor;
 
 /**
@@ -23,11 +20,11 @@ import net.neoforged.neoforge.network.PacketDistributor;
  * at both steps, or the bind silently does nothing.
  *
  * <p>Discards the original ridden mount the instant a bind succeeds (explicit default -- otherwise
- * binding the same mount repeatedly would duplicate it for free with no cost at all). {@code
- * Entity#saveWithoutId} captures its complete state (type, equipment, a chested mount's own
- * inventory, temper/tame/owner, everything each class's own save-data chain already writes) except
- * its UUID -- exactly "type + equipment remembered" plus a genuinely fresh identity on every future
- * summon.
+ * binding the same mount repeatedly would duplicate it for free with no cost at all). {@link
+ * SummoningStoneData#capture} captures its complete state (type, equipment, a chested mount's own
+ * inventory, temper/tame/owner, everything each class's own save-data chain already writes) with a
+ * genuinely fresh identity guaranteed on every future summon -- see that method's own doc for a real
+ * bug this fixed.
  */
 public final class MountBindListener {
 
@@ -60,15 +57,7 @@ public final class MountBindListener {
         String name = payload.name().isBlank() ? mount.getType().toShortString() : payload.name();
         mount.setCustomName(Component.literal(name));
 
-        ProblemReporter.ScopedCollector reporter = new ProblemReporter.ScopedCollector(mount.problemPath(), LyfeMod.LOGGER);
-        CompoundTag savedState;
-        try {
-            TagValueOutput output = TagValueOutput.createWithContext(reporter, level.registryAccess());
-            mount.saveWithoutId(output);
-            savedState = output.buildResult();
-        } finally {
-            reporter.close();
-        }
+        CompoundTag savedState = SummoningStoneData.capture(mount, level);
 
         mount.ejectPassengers();
         mount.discard();
