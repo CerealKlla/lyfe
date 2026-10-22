@@ -96,8 +96,13 @@ public final class SparkOfLifeCasting {
         cooldowns.startCooldown(SpellIds.SPARK_OF_LIFE, now, cooldownTicks);
         cooldowns.startGlobalCooldown(now, CastingSpeed.ticksFor(caster));
 
+        float launchSpeed = launchSpeedFor(caster);
         SparkOfLifeProjectile projectile = new SparkOfLifeProjectile(level, caster);
-        projectile.shootFromRotation(caster, caster.getXRot(), caster.getYRot(), 0.0F, launchSpeedFor(caster), LAUNCH_INACCURACY);
+        // Fixed at cast time, from launch speed alone -- not re-derived from the projectile's own
+        // live (decaying) flight velocity at impact. See SparkOfLifeProjectile#fixedDamage's own doc:
+        // explicit user correction, 2026-10-22, "spells should not lose damage as they fly."
+        projectile.setDamage((int) Math.ceil(launchSpeed * SparkOfLifeProjectile.BASE_DAMAGE));
+        projectile.shootFromRotation(caster, caster.getXRot(), caster.getYRot(), 0.0F, launchSpeed, LAUNCH_INACCURACY);
         level.addFreshEntity(projectile);
         level.playSound(null, caster.getX(), caster.getY(), caster.getZ(),
                 SoundEvents.EVOKER_CAST_SPELL, SoundSource.PLAYERS, 1.0F, 1.4F);

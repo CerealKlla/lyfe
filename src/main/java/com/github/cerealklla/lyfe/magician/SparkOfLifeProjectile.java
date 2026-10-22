@@ -52,10 +52,18 @@ import net.minecraft.world.phys.HitResult;
 public final class SparkOfLifeProjectile extends ThrowableItemProjectile {
 
     // Matches AbstractArrow's own default baseDamage (2.0) -- combined with this spell's launch
-    // speed (3.0, matching a fully-drawn bow shot) this reproduces vanilla's own "ceil(velocity *
-    // baseDamage)" formula for ~6 damage, the same ballpark a real unenchanted bow deals.
-    private static final double BASE_DAMAGE = 2.0;
+    // speed, reused by SparkOfLifeCasting (see its own doc) to compute a fixed per-cast damage
+    // value, the same ballpark a real unenchanted bow deals at that Tier's own launch speed.
+    public static final double BASE_DAMAGE = 2.0;
     private static final float HEAL_AMOUNT = 2.0F; // 1 heart
+
+    // Real report, 2026-10-22: "spells should not lose damage as they fly, it's a spell not a
+    // projectile." Previously recomputed from getDeltaMovement().length() at the moment of impact,
+    // which vanilla's own drag/gravity physics decay over distance/flight time exactly like a real
+    // arrow -- correct for a physical weapon, wrong for a spell. SparkOfLifeCasting now computes this
+    // once, from the caster's Nature Staff Tier alone, at the instant of casting, and threads it
+    // through via setDamage -- distance/travel time no longer affects it at all.
+    private int fixedDamage;
 
     public SparkOfLifeProjectile(EntityType<SparkOfLifeProjectile> type, Level level) {
         super(type, level);
@@ -63,6 +71,11 @@ public final class SparkOfLifeProjectile extends ThrowableItemProjectile {
 
     public SparkOfLifeProjectile(Level level, LivingEntity owner) {
         super(ModEntities.SPARK_OF_LIFE_PROJECTILE.get(), owner, level, new ItemStack(Items.GLOWSTONE_DUST));
+    }
+
+    /** Set once at cast time by {@code SparkOfLifeCasting} -- see {@link #fixedDamage}'s own doc for why this isn't derived from live flight velocity. */
+    public void setDamage(int damage) {
+        this.fixedDamage = damage;
     }
 
     @Override
@@ -140,15 +153,13 @@ public final class SparkOfLifeProjectile extends ThrowableItemProjectile {
                 MagicianListener.grantProgress(player, SpellIds.SPARK_OF_LIFE, SpellProficiencyCurve.PROGRESS_PER_CAST);
             }
         } else {
-            double velocity = getDeltaMovement().length();
-            int damage = (int) Math.ceil(velocity * BASE_DAMAGE);
             DamageSource damageSource = damageSources().indirectMagic(this, owner);
             // Damaging an enemy grants nothing toward Spell Proficiency (and therefore nothing
             // toward Magician either, since Magician's level is now purely the sum of Proficiency
             // levels) -- explicit user spec, see the heal branch above. hurtOrSimulate is still used
             // (not a plain hurt) purely for the "did this actually do anything" semantics, consistent
             // with the rest of this class, even though nothing currently reads its result here.
-            target.hurtOrSimulate(damageSource, damage);
+            target.hurtOrSimulate(damageSource, fixedDamage);
         }
         discard();
     }

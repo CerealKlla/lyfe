@@ -93,7 +93,12 @@ public final class MagicianListener {
         // mechanic we have") -- independent of syncLevelToProficiencySum's own rarer popup below,
         // which only fires once every PROGRESS_PER_LEVEL casts when a whole level is actually
         // crossed. This one fires every single successful cast, same as QuarryKnowledgeProgressPayload.
-        PacketDistributor.sendToPlayer(player, new SpellProficiencyProgressPayload(spellId, oldProgress, newProgress));
+        // Suppressed once already at MAX_LEVEL (real report, 2026-10-22: the bar kept popping up at
+        // "Lv25" with nothing left to gain) -- mirrors the same max-level suppression every other
+        // skill's XP popup already has (see Lyfe#isMaxLevel's own call sites).
+        if (SpellProficiencyCurve.levelForProgress(oldProgress) < SpellProficiencyCurve.MAX_LEVEL) {
+            PacketDistributor.sendToPlayer(player, new SpellProficiencyProgressPayload(spellId, oldProgress, newProgress));
+        }
         syncLevelToProficiencySum(player, proficiency);
     }
 
