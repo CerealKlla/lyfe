@@ -16,6 +16,7 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult;
 
@@ -96,6 +97,26 @@ public final class SparkOfLifeProjectile extends ThrowableItemProjectile {
 
     private static boolean hostile(Entity entity) {
         return entity instanceof Enemy;
+    }
+
+    /**
+     * Real root cause of a live server performance incident, 2026-10-21: this class only ever
+     * discarded itself on a hit *entity* (see {@link #onHitEntity}) -- the base {@code
+     * Projectile#onHitBlock} only dispatches {@code BlockState#onProjectileHit}, it never discards
+     * on its own (confirmed against the decompiled source; vanilla's own throwables, e.g. {@code
+     * Snowball},
+     * override the shared {@code onHit} dispatcher specifically to guarantee a discard on *either*
+     * hit type). Any cast that lands on terrain instead of a living target -- the common case for
+     * guards auto-casting at range -- never got removed, ticking (and sending a particle) forever;
+     * 146 live instances had accumulated after about 9 minutes of uptime with only 4 casting guards,
+     * measurably degrading tick time server-wide with no correlation to player location at all.
+     */
+    @Override
+    protected void onHitBlock(BlockHitResult hitResult) {
+        super.onHitBlock(hitResult);
+        if (!level().isClientSide()) {
+            discard();
+        }
     }
 
     @Override
