@@ -109,7 +109,15 @@ public final class AllaySpellCastGoal extends Goal {
         if (player == null) {
             return null;
         }
-        long now = allay.level().getGameTime();
+        // Real bug found live, 2026-10-24: this used to compare against allay.level().getGameTime()
+        // (world game time) -- but LivingEntity#setLastHurtMob/setLastHurtByMob stamp their
+        // timestamp from the PLAYER ENTITY's own tickCount (confirmed against the decompiled
+        // source, e.g. LivingEntity's own internal "tickCount - lastHurtByMobTimestamp > 100"
+        // staleness check uses tickCount too), a completely different, far smaller counter in any
+        // long-running world -- so "now - timestamp" was essentially always a huge number, meaning
+        // this never actually found a recent-combat target in practice. Fixed to compare against
+        // the same counter vanilla itself uses.
+        int now = player.tickCount;
         LivingEntity attacking = player.getLastHurtMob();
         if (attacking != null && attacking.isAlive() && now - player.getLastHurtMobTimestamp() <= RECENT_COMBAT_TICKS) {
             return attacking;

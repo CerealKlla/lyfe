@@ -71,7 +71,9 @@ public final class AllayOwnerCombatTargetGoal extends Goal {
         if (player == null) {
             return null;
         }
-        long now = allay.level().getGameTime();
+        // See AllaySpellCastGoal#resolveAttackTarget's own doc for the real bug this avoids --
+        // the timestamp is stamped from the player entity's own tickCount, not world game time.
+        int now = player.tickCount;
         LivingEntity attacking = player.getLastHurtMob();
         if (attacking != null && attacking.isAlive() && now - player.getLastHurtMobTimestamp() <= RECENT_COMBAT_TICKS) {
             return attacking;
