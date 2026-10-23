@@ -380,6 +380,13 @@ public class CraftingStructureMenu extends AbstractContainerMenu {
             com.github.cerealklla.lyfe.magician.FocusData data =
                     com.github.cerealklla.lyfe.magician.FocusStatRoller.roll(focusTier, quality, random);
             result.set(com.github.cerealklla.lyfe.registration.ModItems.FOCUS_DATA.get(), data);
+            // Real report, 2026-10-24: Quality's stat-roll effect on Focus was always real (see
+            // FocusStatRoller.roll above), but QualityApplier.apply's generic call above does
+            // nothing for a non-damageable item like Focus -- no QUALITY component, no named/colored
+            // prefix -- making the whole mechanic look broken. Focus opts into the display half
+            // explicitly instead of QualityApplier.apply gaining a blanket exception (which would
+            // also wrongly give MiscRecipes' raw-material conversions a quality-tier name).
+            QualityApplier.applyDisplay(result, quality);
             net.minecraft.world.item.component.ItemAttributeModifiers focusModifiers =
                     com.github.cerealklla.lyfe.magician.FocusItem.attributesFor(data);
             result.set(net.minecraft.core.component.DataComponents.ATTRIBUTE_MODIFIERS, focusModifiers);
