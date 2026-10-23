@@ -84,6 +84,15 @@ public final class AllaySpellCastGoal extends Goal {
         }
     }
 
+    @Override
+    public void stop() {
+        // See AllayOwnerCombatTargetGoal's own doc -- allay.setTarget(...) here doubles as the
+        // "actively engaged" signal AllayCombatBrainSuppressMixin reads, not a real attack target
+        // when healing. Must be cleared when this goal stops, or the Allay's Brain (gather-item
+        // fetching, etc.) would stay suppressed forever after the last heal/attack.
+        allay.setTarget(null);
+    }
+
     private ServerPlayer owner() {
         if (!(allay.level() instanceof ServerLevel level)) {
             return null;
@@ -113,6 +122,11 @@ public final class AllaySpellCastGoal extends Goal {
     }
 
     private void engage(LivingEntity target) {
+        // Doubles as the "actively engaged" signal AllayCombatBrainSuppressMixin reads -- not a real
+        // attack target when healing an ally, just reusing the one field nothing else on a bound
+        // Allay reads for its own combat purposes (AllayOwnerCombatTargetGoal/this goal are mutually
+        // exclusive per Equip item, so there's no real attack-target meaning to collide with).
+        allay.setTarget(target);
         double distanceSqr = allay.distanceToSqr(target);
         boolean lineOfSight = allay.hasLineOfSight(target);
         if (distanceSqr > CAST_RANGE_SQR || !lineOfSight) {

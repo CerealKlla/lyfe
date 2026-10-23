@@ -4,10 +4,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
 
-import com.github.cerealklla.lyfe.registration.ModAttachments;
-
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.Brain;
 import net.minecraft.world.entity.animal.allay.Allay;
@@ -30,11 +27,18 @@ import net.minecraft.world.entity.animal.allay.Allay;
  * navigation/lookControl calls and were equally affected).
  *
  * <p>This mixin redirects the one {@code Brain#tick} call inside {@code Allay#customServerAiStep}
- * to skip entirely whenever the Allay is armed (a real {@code SummonedAllayOwner} bound to it, Equip
- * -- offhand -- slot non-empty) -- the exact condition under which {@code AllayGoalInjectionListener}
- * has added a combat or spell goal in the first place. An unarmed bound Allay (empty Equip slot)
- * still runs its Brain completely normally (follow-the-owner via the Gather/LIKED_PLAYER mechanic,
- * dancing, item fetching, etc.), since none of this suite's own goals compete with it in that case.
+ * to skip entirely whenever the Allay is *actively engaged* -- {@code Allay#getTarget() != null}.
+ * Reused as a dual-purpose signal: {@code AllayOwnerCombatTargetGoal} sets it for a real attack
+ * target (melee/Bow/Crossbow), and {@link com.github.cerealklla.lyfe.summoning.AllaySpellCastGoal}
+ * sets it too, for either an attack or a heal-ally engagement (neither goal can ever be present on
+ * the same Allay at once, so there's no real attack-target meaning to collide with). **Corrected the
+ * same day** from an earlier, too-broad version that suppressed Brain for the Allay's entire armed
+ * lifetime (any non-empty Equip slot) -- a real regression caught live: that version also silently
+ * stopped a merely-armed-but-not-currently-fighting Allay from ever walking over to fetch a Gather
+ * item, since Brain's own {@code GoToWantedItem} IDLE behavior never got to run either. Gating on
+ * an actual target instead means Brain (gathering, dancing, following the owner via Gather/
+ * LIKED_PLAYER, etc.) runs completely normally whenever nothing is actually being fought or healed,
+ * armed or not -- only suppressed for the ticks a combat/spell goal is genuinely doing something.
  * Lyfe's second Mixin ever, after {@code durability.mixin.ItemStackUnbreakableMixin} -- added only
  * after confirming (via the real decompiled source, not a guess) that no event-based alternative can
  * reach "after Brain decided what to do, before moveControl/lookControl consume it" from outside a
@@ -48,11 +52,9 @@ public abstract class AllayCombatBrainSuppressMixin {
             at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/ai/Brain;tick(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/entity/LivingEntity;)V")
     )
     @SuppressWarnings({"unchecked", "rawtypes"})
-    private void lyfe$skipBrainTickWhileArmed(Brain brain, ServerLevel level, LivingEntity body) {
+    private void lyfe$skipBrainTickWhileEngaged(Brain brain, ServerLevel level, LivingEntity body) {
         Allay allay = (Allay) (Object) this;
-        boolean armed = allay.getExistingData(ModAttachments.SUMMONED_ALLAY_OWNER).isPresent()
-                && !allay.getItemInHand(InteractionHand.OFF_HAND).isEmpty();
-        if (armed) {
+        if (allay.getTarget() != null) {
             return;
         }
         brain.tick(level, body);
