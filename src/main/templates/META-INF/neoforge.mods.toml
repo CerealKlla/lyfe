@@ -58,6 +58,14 @@ config="${mod_id}.mixins.json"
 [[mixins]]
 config="${mod_id}_socket.mixins.json"
 
+# A third config, summoning.mixin package -- 2026-10-24, Allay in a Bottle combat AI. Allay's own
+# Brain AI (StayCloseToTarget/RunOne idle wandering) fights classic Goals for navigation/look
+# control every tick it runs, since Brain.tick() happens after goalSelector.tick() but before
+# moveControl.tick()/lookControl.tick() in Mob#serverAiStep -- see AllayCombatBrainSuppressMixin's
+# own doc comment for the full mechanism.
+[[mixins]]
+config="${mod_id}_summoning.mixins.json"
+
 # The [[accessTransformers]] block allows you to declare where your AT file is.
 # If this block is omitted, a fallback attempt will be made to load an AT from META-INF/accesstransformer.cfg
 #[[accessTransformers]]

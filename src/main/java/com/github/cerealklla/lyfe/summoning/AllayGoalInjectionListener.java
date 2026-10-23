@@ -51,8 +51,8 @@ public final class AllayGoalInjectionListener {
     public static void reassessSpellGoal(Allay allay) {
         GoalSelector goals = goalSelector(allay);
         GoalSelector targets = targetSelector(allay);
-        goals.removeAllGoals(goal -> goal instanceof AllaySpellCastGoal
-                || goal instanceof MeleeAttackGoal || goal instanceof AllayBowAttackGoal);
+        goals.removeAllGoals(goal -> goal instanceof AllaySpellCastGoal || goal instanceof MeleeAttackGoal
+                || goal instanceof AllayBowAttackGoal || goal instanceof AllayCrossbowAttackGoal);
         targets.removeAllGoals(goal -> goal instanceof AllayOwnerCombatTargetGoal);
 
         // The Equip item always ends up in OFFHAND unless it's a real armor piece (see
@@ -65,6 +65,8 @@ public final class AllayGoalInjectionListener {
             targets.addGoal(1, new AllayOwnerCombatTargetGoal(allay));
             if (offhand.getItem() instanceof BowItem) {
                 goals.addGoal(2, new AllayBowAttackGoal(allay));
+            } else if (offhand.getItem() instanceof net.minecraft.world.item.CrossbowItem) {
+                goals.addGoal(2, new AllayCrossbowAttackGoal(allay));
             } else {
                 goals.addGoal(2, new MeleeAttackGoal(allay, 1.0, false));
             }
