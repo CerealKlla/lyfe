@@ -30,6 +30,7 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.ModList;
 import net.neoforged.neoforge.event.entity.item.ItemTossEvent;
 import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
+import net.neoforged.neoforge.event.entity.player.PlayerContainerEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerRespawnPositionEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerSetSpawnEvent;
@@ -72,9 +73,6 @@ public final class RecallciniteListener {
     private static final Identifier RECALLCINITE_STONE_ZONE_TYPE_ID = Identifier.fromNamespaceAndPath("blueprynts", "recallcinite_stone");
 
     private static final int PLOT_CHECK_INTERVAL_TICKS = 20;
-    // Infrequent -- a bound plot's own Tier/zoning rarely changes mid-session, this is just keeping
-    // the tooltip's "strength" readout from going stale, not anything latency-sensitive.
-    private static final int STRENGTH_REFRESH_INTERVAL_TICKS = 100;
 
     // The totem's pinned hotbar slot -- index 8 is the RIGHTMOST hotbar slot (items list indices
     // 0-8 are the hotbar left-to-right, so 0 would be leftmost/key "1"; the user's own "slot 0"
@@ -187,37 +185,42 @@ public final class RecallciniteListener {
         if (!(event.getEntity() instanceof ServerPlayer player)) {
             return;
         }
-        snapToPinnedSlot(player);
-
         if (player.tickCount % PLOT_CHECK_INTERVAL_TICKS == 0) {
             checkPlotEntryReminder(player);
         }
-        if (player.tickCount % STRENGTH_REFRESH_INTERVAL_TICKS == 0) {
-            refreshBoundPlotTier(player);
-        }
     }
 
-    /** Snaps a Recallcinite Totem found anywhere else in the player's own inventory back to {@link #PINNED_SLOT} every tick -- covers accidental reordering; see the class doc for the real limitation (a container quick-move can't be caught this way). */
-    private void snapToPinnedSlot(ServerPlayer player) {
-        var inventory = player.getInventory();
-        int totemIndex = -1;
-        for (int i = 0; i < inventory.getContainerSize(); i++) {
-            if (inventory.getItem(i).getItem() instanceof RecallciniteTotemItem) {
-                if (totemIndex == -1) {
-                    totemIndex = i;
-                } else {
-                    // A duplicate somehow exists (e.g. a stale world-dropped copy picked back up
-                    // before this listener's own ItemTossEvent guard existed) -- discard the extra
-                    // rather than let two totems exist for one player.
-                    inventory.setItem(i, ItemStack.EMPTY);
-                }
-            }
+    /**
+     * The totem must never come to rest in any container besides the player's own inventory --
+     * same real gap, same fix shape as Yconomics' {@code currency.CoinPurseListener
+     * #recoverPurseFromForeignContainer} (a player can shift-click/drag it into an open chest,
+     * where nothing else here ever looks, since every other check only scans the player's own
+     * {@code Inventory}). Event-driven, not polled -- removed 2026-10-22's own per-tick
+     * {@code snapToPinnedSlot} (explicit user correction: "no need to have a timer to move the
+     * totem back to 9... who cares about the drag case") covered a different gap entirely (a plain
+     * drag within the player's OWN inventory screen, which fires no event at all in this NeoForge
+     * version -- confirmed directly against the decompiled {@code ItemStackedOnOtherEvent}, the
+     * only cancellable event anywhere near this, which only covers stacking onto an already-occupied
+     * slot, not a move into an empty one) -- that specific case is simply no longer corrected at
+     * all, by explicit choice, not an oversight.
+     */
+    @SubscribeEvent
+    public void onContainerClose(PlayerContainerEvent.Close event) {
+        if (!(event.getEntity() instanceof ServerPlayer player)) {
+            return;
         }
-        if (totemIndex != -1 && totemIndex != PINNED_SLOT) {
-            ItemStack totem = inventory.getItem(totemIndex);
-            ItemStack pinnedSlotItem = inventory.getItem(PINNED_SLOT);
+        var inventory = player.getInventory();
+        for (net.minecraft.world.inventory.Slot slot : event.getContainer().slots) {
+            if (slot.container == inventory || !(slot.getItem().getItem() instanceof RecallciniteTotemItem)) {
+                continue;
+            }
+            ItemStack totem = slot.remove(slot.getItem().getCount());
+            slot.setChanged();
+            ItemStack displaced = inventory.getItem(PINNED_SLOT);
             inventory.setItem(PINNED_SLOT, totem);
-            inventory.setItem(totemIndex, pinnedSlotItem);
+            if (!displaced.isEmpty() && !inventory.add(displaced)) {
+                player.drop(displaced, false);
+            }
         }
     }
 
@@ -241,24 +244,12 @@ public final class RecallciniteListener {
         wasInsidePlot.put(player.getUUID(), insideNow);
     }
 
-    /** Keeps {@link RecallciniteData#boundPlotTier} current for the tooltip's "strength" readout -- see that field's own doc. No-op (and no sync) if nothing actually changed. */
-    private void refreshBoundPlotTier(ServerPlayer player) {
-        RecallciniteData data = player.getData(ModAttachments.RECALLCINITE_DATA);
-        Optional<GlobalPos> bound = data.boundLocation();
-        if (bound.isEmpty()) {
-            return;
-        }
-        MinecraftServer server = player.level().getServer();
-        ServerLevel level = server != null ? server.getLevel(bound.get().dimension()) : null;
-        if (level == null) {
-            return;
-        }
-        int tier = recallciniteStonePlotTier(level, bound.get().pos());
-        if (tier != data.boundPlotTier()) {
-            data.setBoundPlotTier(tier);
-            player.syncData(ModAttachments.RECALLCINITE_DATA);
-        }
-    }
+    // refreshBoundPlotTier removed, 2026-10-22 -- explicit user correction: "no reason to
+    // auto-improve the quality for the recallcinite totem binding if the plot gets upgraded. The
+    // quality at the time the totem is bound determines the cooldown. No ticker needed." This used
+    // to re-read the bound plot's live Tier every 5 seconds purely to keep the tooltip's "strength"
+    // readout current -- RecallciniteData#boundPlotTier is now genuinely frozen at bind time
+    // (set once in handleBindConfirmed) and never touched again until the next real bind.
 
     // --- Respawn override (replaces bed-based spawn) -----------------------------------------------
 
@@ -448,13 +439,13 @@ public final class RecallciniteListener {
         BlockPos pos = bound.pos();
         player.teleportTo(targetLevel, pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5, Set.<Relative>of(), player.getYRot(), player.getXRot(), true);
 
-        // Tier is read at the DESTINATION (the bound location), not where the player recalled from --
-        // "bind at a Recallcinite Stone plot" is what earns the reduced cooldown, and since binding
-        // itself is now free/uncapped (see RecallciniteData's own doc), the cooldown this reduction
-        // actually gates is paid here, on recall, instead.
-        int tier = recallciniteStonePlotTier(targetLevel, pos);
-        data.setBoundPlotTier(tier);
-        long cooldownTicks = cooldownTicksFor(player, tier);
+        // Explicit user correction, 2026-10-22: the Tier used to be re-read live from the DESTINATION
+        // plot right here on every recall (and separately kept live by a now-deleted periodic ticker,
+        // see refreshBoundPlotTier's own removed doc) -- "no reason to auto-improve the quality for
+        // the binding if the plot gets upgraded. The quality at the time the totem is bound determines
+        // the cooldown." data.boundPlotTier() is exactly that frozen-at-bind value (set once in
+        // handleBindConfirmed, never touched again) -- used directly here, not recomputed.
+        long cooldownTicks = cooldownTicksFor(player, data.boundPlotTier());
         data.setCooldown(nowMillis, cooldownTicks);
 
         // Re-opens bind XP eligibility at the settlement just recalled to (explicit user request --
