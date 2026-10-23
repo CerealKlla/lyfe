@@ -21,7 +21,9 @@ import net.minecraft.world.phys.AABB;
  * doc Section 27) -- direct port of Settlemynts' {@code guardhouse.GuardSpellCastGoal} (same
  * priority shape: heal a nearby hurt ally first, else attack, else idle), with one real difference
  * an Allay needs that a Guard doesn't: a Guard acquires its own combat target via a separate sight
- * goal, but an Allay has no combat AI of its own at all, so "a target you are attacking (or has
+ * goal, but an Allay has no native combat-targeting of its own at all (see {@link
+ * AllayOwnerCombatTargetGoal}, the 2026-10-24 non-spell-weapon combat follow-up, which resolves a
+ * target the identical way for the same reason), so "a target you are attacking (or has
  * recently damaged the you)" is resolved directly off the *owning player's* own vanilla combat
  * state ({@link LivingEntity#getLastHurtMob()}/{@link LivingEntity#getLastHurtByMob()}, the same
  * general tracking {@code combat.AssistTracker}-style features elsewhere in this suite already
