@@ -5,10 +5,7 @@ import java.util.EnumSet;
 import java.util.List;
 
 import com.github.cerealklla.lyfe.api.Lyfe;
-import com.github.cerealklla.lyfe.registration.ModAttachments;
 
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.animal.allay.Allay;
@@ -19,19 +16,19 @@ import net.minecraft.world.phys.AABB;
 /**
  * A bound Allay's spell-casting behavior while its Equip slot holds a spell-bearing item (design
  * doc Section 27) -- direct port of Settlemynts' {@code guardhouse.GuardSpellCastGoal} (same
- * priority shape: heal a nearby hurt ally first, else attack, else idle), with one real difference
- * an Allay needs that a Guard doesn't: a Guard acquires its own combat target via a separate sight
- * goal, but an Allay has no native combat-targeting of its own at all (see {@link
- * AllayOwnerCombatTargetGoal}, the 2026-10-24 non-spell-weapon combat follow-up, which resolves a
- * target the identical way for the same reason), so "a target you are attacking (or has
- * recently damaged the you)" is resolved directly off the *owning player's* own vanilla combat
- * state ({@link LivingEntity#getLastHurtMob()}/{@link LivingEntity#getLastHurtByMob()}, the same
- * general tracking {@code combat.AssistTracker}-style features elsewhere in this suite already
- * read) rather than anything the Allay tracks itself. Added onto a summoned Allay's classic
- * {@code goalSelector}/{@code targetSelector} via reflection by {@link AllayGoalInjectionListener}
- * -- Allay itself runs on the newer Brain AI framework, but classic Goals still tick alongside it
- * with no conflict (confirmed against the real decompiled {@code Mob#tick} source, which ticks both
+ * priority shape: heal a nearby hurt ally first, else attack, else idle). Added onto a summoned
+ * Allay's classic {@code goalSelector} via reflection by {@link AllayGoalInjectionListener} --
+ * Allay itself runs on the newer Brain AI framework, but classic Goals still tick alongside it with
+ * no conflict (confirmed against the real decompiled {@code Mob#tick} source, which ticks both
  * unconditionally), so this needs no Brain-specific integration at all.
+ *
+ * <p><b>Attack-target resolution reworked to be fully event-driven, 2026-10-24</b> -- a Guard
+ * acquires its own combat target via a separate sight goal, but an Allay has no native combat-
+ * targeting of its own at all, so this goal's attack branch just reads whatever {@link
+ * Allay#getTarget()} already holds, set externally by {@link AllayCombatEventListener} the instant
+ * the owning player deals or takes damage (real-time, no tick-based "was there recent combat"
+ * polling at all -- explicit correction of an earlier version here that compared stale recency
+ * timestamps, confirmed broken, then just slow/indirect even once fixed).
  */
 public final class AllaySpellCastGoal extends Goal {
 
@@ -40,7 +37,6 @@ public final class AllaySpellCastGoal extends Goal {
     private static final double CAST_RANGE_SQR = CAST_RANGE * CAST_RANGE;
     private static final float CRITICAL_HEAL_THRESHOLD = 0.5F;
     private static final float TOP_OFF_HEAL_THRESHOLD = 1.0F;
-    private static final int RECENT_COMBAT_TICKS = 100; // 5 seconds.
 
     private final Allay allay;
 
@@ -93,40 +89,10 @@ public final class AllaySpellCastGoal extends Goal {
         allay.setTarget(null);
     }
 
-    private ServerPlayer owner() {
-        if (!(allay.level() instanceof ServerLevel level)) {
-            return null;
-        }
-        var ownerData = allay.getExistingData(ModAttachments.SUMMONED_ALLAY_OWNER);
-        if (ownerData.isEmpty()) {
-            return null;
-        }
-        return level.getServer().getPlayerList().getPlayer(ownerData.get().playerId());
-    }
-
+    /** Whatever {@link AllayCombatEventListener} most recently pushed onto {@link Allay#setTarget} -- see this class's own doc. */
     private LivingEntity resolveAttackTarget() {
-        ServerPlayer player = owner();
-        if (player == null) {
-            return null;
-        }
-        // Real bug found live, 2026-10-24: this used to compare against allay.level().getGameTime()
-        // (world game time) -- but LivingEntity#setLastHurtMob/setLastHurtByMob stamp their
-        // timestamp from the PLAYER ENTITY's own tickCount (confirmed against the decompiled
-        // source, e.g. LivingEntity's own internal "tickCount - lastHurtByMobTimestamp > 100"
-        // staleness check uses tickCount too), a completely different, far smaller counter in any
-        // long-running world -- so "now - timestamp" was essentially always a huge number, meaning
-        // this never actually found a recent-combat target in practice. Fixed to compare against
-        // the same counter vanilla itself uses.
-        int now = player.tickCount;
-        LivingEntity attacking = player.getLastHurtMob();
-        if (attacking != null && attacking.isAlive() && now - player.getLastHurtMobTimestamp() <= RECENT_COMBAT_TICKS) {
-            return attacking;
-        }
-        LivingEntity attacker = player.getLastHurtByMob();
-        if (attacker != null && attacker.isAlive() && now - player.getLastHurtByMobTimestamp() <= RECENT_COMBAT_TICKS) {
-            return attacker;
-        }
-        return null;
+        LivingEntity target = allay.getTarget();
+        return target != null && target.isAlive() ? target : null;
     }
 
     private void engage(LivingEntity target) {

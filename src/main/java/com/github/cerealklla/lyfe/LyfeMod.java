@@ -139,6 +139,7 @@ public class LyfeMod {
         NeoForge.EVENT_BUS.register(new ShipwreckMarkerListener());
         NeoForge.EVENT_BUS.register(new com.github.cerealklla.lyfe.summoning.AllayInteractionListener());
         NeoForge.EVENT_BUS.register(new com.github.cerealklla.lyfe.summoning.AllayGoalInjectionListener());
+        NeoForge.EVENT_BUS.register(new com.github.cerealklla.lyfe.summoning.AllayCombatEventListener());
         NeoForge.EVENT_BUS.register(new com.github.cerealklla.lyfe.summoning.AllayDeathListener());
         NeoForge.EVENT_BUS.register(new LockedChestUnlockListener());
         NeoForge.EVENT_BUS.register(new com.github.cerealklla.lyfe.cook.FoodStarterPackListener());

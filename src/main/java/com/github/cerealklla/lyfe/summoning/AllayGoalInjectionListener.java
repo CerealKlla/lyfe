@@ -20,25 +20,30 @@ import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
  * Attaches/detaches combat-related goals on a summoned Allay as its Equip slot changes (design doc
  * Section 27, combat follow-up 2026-10-24). Lyfe has never subclassed {@code Allay} (unlike
  * Settlemynts' {@code GuardEntity}, a wholly custom {@code Mob}), so there's no constructor to add a
- * goal in -- {@code Mob#goalSelector}/{@code targetSelector} are {@code protected}, read once via
- * reflection (cached), same idiom Settlemynts' own {@code founding.GhostBlockDisplays} already uses
- * for an identically-protected vanilla field. Only ever touches a goal-selector belonging to a
- * *summoned* Allay (carrying {@link SummonedAllayOwner}) -- a wild Allay is never touched by this at
- * all.
+ * goal in -- {@code Mob#goalSelector} is {@code protected}, read once via reflection (cached), same
+ * idiom Settlemynts' own {@code founding.GhostBlockDisplays} already uses for an identically-
+ * protected vanilla field. Only ever touches a goal-selector belonging to a *summoned* Allay
+ * (carrying {@link SummonedAllayOwner}) -- a wild Allay is never touched by this at all.
  *
  * <p><b>Combat for a non-spell weapon, added 2026-10-24</b> -- a spell-bearing Equip item still gets
- * {@link AllaySpellCastGoal} exactly as before; any other non-empty Equip item instead gets {@link
- * AllayOwnerCombatTargetGoal} (targetSelector) paired with either vanilla's own {@link
- * MeleeAttackGoal} or, for a {@code BowItem}, the self-contained {@link AllayBowAttackGoal} (no
- * vanilla {@code RangedAttackMob} interface available to hang a reused {@code RangedBowAttackGoal}
- * off, since this is a plain vanilla {@code Allay} instance, not a subclass -- see that goal's own
- * doc). An empty Equip slot leaves the Allay with no combat behavior at all, same as before this
- * change.
+ * {@link AllaySpellCastGoal} exactly as before; any other non-empty Equip item instead gets vanilla's
+ * own {@link MeleeAttackGoal} or, for a {@code BowItem}/{@code CrossbowItem}, the self-contained
+ * {@link AllayBowAttackGoal}/{@link AllayCrossbowAttackGoal} (no vanilla {@code RangedAttackMob}/
+ * {@code CrossbowAttackMob} interface available to hang a reused vanilla ranged goal off, since this
+ * is a plain vanilla {@code Allay} instance, not a subclass). An empty Equip slot leaves the Allay
+ * with no combat behavior at all, same as before this change.
+ *
+ * <p><b>Target acquisition reworked to be fully event-driven, same day</b> -- there is deliberately
+ * no targetSelector goal here at all (the original {@code AllayOwnerCombatTargetGoal} is gone).
+ * {@link AllayCombatEventListener} sets {@code Allay#setTarget} directly the instant the owning
+ * player deals or takes damage, which every attack goal here already just reads via {@code
+ * getTarget()} -- a classic polling/recency-timestamp target-selector goal would have been both an
+ * unnecessary tick cost and a real, confirmed source of bugs (an earlier, polling-based version of
+ * this compared two unrelated tick counters and almost never found a target at all).
  */
 public final class AllayGoalInjectionListener {
 
     private static volatile Field goalSelectorField;
-    private static volatile Field targetSelectorField;
 
     @SubscribeEvent
     public void onJoin(EntityJoinLevelEvent event) {
@@ -50,10 +55,8 @@ public final class AllayGoalInjectionListener {
     /** Called again by {@code AllayBottleMenu#removed()} any time the Equip slot actually changes, so a later re-summon isn't the only time this is re-evaluated. */
     public static void reassessSpellGoal(Allay allay) {
         GoalSelector goals = goalSelector(allay);
-        GoalSelector targets = targetSelector(allay);
         goals.removeAllGoals(goal -> goal instanceof AllaySpellCastGoal || goal instanceof MeleeAttackGoal
                 || goal instanceof AllayBowAttackGoal || goal instanceof AllayCrossbowAttackGoal);
-        targets.removeAllGoals(goal -> goal instanceof AllayOwnerCombatTargetGoal);
 
         // The Equip item always ends up in OFFHAND unless it's a real armor piece (see
         // AllayEquipment's own doc) -- and armor has no spell-casting/weapon behavior to check for
@@ -62,7 +65,6 @@ public final class AllayGoalInjectionListener {
         if (hasSpell(offhand)) {
             goals.addGoal(2, new AllaySpellCastGoal(allay));
         } else if (!offhand.isEmpty()) {
-            targets.addGoal(1, new AllayOwnerCombatTargetGoal(allay));
             if (offhand.getItem() instanceof BowItem) {
                 goals.addGoal(2, new AllayBowAttackGoal(allay));
             } else if (offhand.getItem() instanceof net.minecraft.world.item.CrossbowItem) {
@@ -79,30 +81,17 @@ public final class AllayGoalInjectionListener {
 
     @SuppressWarnings("unchecked")
     private static GoalSelector goalSelector(Mob mob) {
-        return readSelector(mob, "goalSelector");
-    }
-
-    @SuppressWarnings("unchecked")
-    private static GoalSelector targetSelector(Mob mob) {
-        return readSelector(mob, "targetSelector");
-    }
-
-    private static GoalSelector readSelector(Mob mob, String fieldName) {
-        Field field = "goalSelector".equals(fieldName) ? goalSelectorField : targetSelectorField;
+        Field field = goalSelectorField;
         if (field == null) {
             synchronized (AllayGoalInjectionListener.class) {
-                field = "goalSelector".equals(fieldName) ? goalSelectorField : targetSelectorField;
+                field = goalSelectorField;
                 if (field == null) {
                     try {
-                        field = Mob.class.getDeclaredField(fieldName);
+                        field = Mob.class.getDeclaredField("goalSelector");
                         field.setAccessible(true);
-                        if ("goalSelector".equals(fieldName)) {
-                            goalSelectorField = field;
-                        } else {
-                            targetSelectorField = field;
-                        }
+                        goalSelectorField = field;
                     } catch (ReflectiveOperationException e) {
-                        throw new IllegalStateException("Could not resolve Mob's " + fieldName + " field", e);
+                        throw new IllegalStateException("Could not resolve Mob's goalSelector field", e);
                     }
                 }
             }
@@ -110,7 +99,7 @@ public final class AllayGoalInjectionListener {
         try {
             return (GoalSelector) field.get(mob);
         } catch (IllegalAccessException e) {
-            throw new IllegalStateException("Could not read Mob's " + fieldName + " field", e);
+            throw new IllegalStateException("Could not read Mob's goalSelector field", e);
         }
     }
 }

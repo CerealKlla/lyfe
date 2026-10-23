@@ -55,6 +55,10 @@ public final class AllayBowAttackGoal extends Goal {
     public void stop() {
         allay.getNavigation().stop();
         cooldown = 0;
+        // Clears the "actively engaged" signal AllayCombatBrainSuppressMixin reads -- without this,
+        // a dead-but-still-referenced target would leave the Allay's own Brain (gathering, etc.)
+        // suppressed forever until the next real combat event re-pushes a target.
+        allay.setTarget(null);
     }
 
     @Override

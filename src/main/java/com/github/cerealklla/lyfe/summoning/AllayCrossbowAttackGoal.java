@@ -64,6 +64,9 @@ public final class AllayCrossbowAttackGoal extends Goal {
         state = CrossbowState.UNCHARGED;
         seeTime = 0;
         attackDelay = 0;
+        // See AllayBowAttackGoal's own doc -- clears the "actively engaged" signal
+        // AllayCombatBrainSuppressMixin reads.
+        allay.setTarget(null);
     }
 
     @Override
