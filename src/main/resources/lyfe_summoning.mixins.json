@@ -4,7 +4,8 @@
   "package": "com.github.cerealklla.lyfe.summoning.mixin",
   "compatibilityLevel": "JAVA_25",
   "mixins": [
-    "AllayCombatBrainSuppressMixin"
+    "AllayCombatBrainSuppressMixin",
+    "AllayStatBarOwnerMixin"
   ],
   "client": [],
   "server": []
