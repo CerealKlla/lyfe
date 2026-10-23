@@ -505,6 +505,27 @@ public class LyfeModClient {
         ClientWaypointState.clear();
         TerrainCache.flushDirty();
         TerrainCache.clearAll();
+        com.github.cerealklla.lyfe.map.cache.ClientServerAddressOverride.clear();
+    }
+
+    /**
+     * Purely diagnostic, 2026-10-23 -- see {@code map.cache.ReportServerAddressPayload}'s own doc.
+     * Reports the real, raw {@code ServerData#ip} the client just resolved for a multiplayer server
+     * (no-op for singleplayer, where {@link MapStorageKey} never reads this field at all), so a real
+     * "Map keeps getting wiped every server update" report can be checked for address-string drift
+     * across sessions directly from server logs.
+     */
+    @SubscribeEvent
+    static void onLoggingIn(ClientPlayerNetworkEvent.LoggingIn event) {
+        var currentServer = Minecraft.getInstance().getCurrentServer();
+        if (currentServer == null) {
+            return;
+        }
+        var connection = Minecraft.getInstance().getConnection();
+        if (connection != null) {
+            connection.send(new ServerboundCustomPayloadPacket(
+                    new com.github.cerealklla.lyfe.map.cache.ReportServerAddressPayload(currentServer.ip)));
+        }
     }
 
     /**

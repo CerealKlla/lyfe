@@ -47,7 +47,21 @@ public final class MapStorageKey {
             }
             worldKey = "seed_" + overworld.getSeed();
         } else if (minecraft.getCurrentServer() != null) {
-            worldKey = sanitize(minecraft.getCurrentServer().ip);
+            // Real report, 2026-10-23: "their Map keeps getting wiped every time we do a server
+            // update." Nothing server-side can touch this client-local cache at all -- the real
+            // cause was ServerData#ip itself not being perfectly stable across sessions for the same
+            // real server (AutoModpack forces a full close/reopen/rejoin on every mod update, which
+            // is exactly "every server update" -- the one disconnect type that goes through a fresh
+            // "join a server" entry instead of staying connected). ServerAddressNormalizer collapses
+            // the common trivial variation (case, a trailing default port, stray whitespace) so that
+            // alone can't land a reconnecting player in a brand-new, empty worldKey folder. A
+            // same-shaped but real mismatch (a genuinely different address the player typed, or one
+            // this client resolved differently than expected) is instead corrected by the server at
+            // login -- see ReportServerAddressPayload/CorrectServerAddressPayload -- and overridden
+            // here via ClientServerAddressOverride, which always wins when present.
+            String override = ClientServerAddressOverride.get();
+            String rawAddress = override != null ? override : minecraft.getCurrentServer().ip;
+            worldKey = sanitize(ServerAddressNormalizer.normalize(rawAddress));
         } else {
             return null;
         }

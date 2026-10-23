@@ -97,6 +97,12 @@ public class LyfeMod {
     public static final String MODID = "lyfe";
     public static final Logger LOGGER = LogUtils.getLogger();
 
+    // The one real address players are meant to connect through -- see map.cache.MapStorageKey's own
+    // doc for why the full Map's TerrainCache is keyed off this at all. Hardcoded to match the root
+    // project's own established convention for Production's canonical hostname (its CLAUDE.md has
+    // treated "kyngdoms.game-server.cc" as this suite's one true address since 2026-09-28).
+    private static final String CANONICAL_SERVER_ADDRESS = "kyngdoms.game-server.cc";
+
     public LyfeMod(IEventBus modEventBus, ModContainer modContainer) {
         ModAttachments.ATTACHMENT_TYPES.register(modEventBus);
         ModItems.DATA_COMPONENTS.register(modEventBus);
@@ -308,6 +314,40 @@ public class LyfeMod {
                 });
         event.registrar("1").playToClient(MapSettlementsPayload.TYPE, MapSettlementsPayload.STREAM_CODEC,
                 (payload, context) -> ClientMapState.setSettlements(payload.settlements()));
+
+        // Real report, 2026-10-23: "their Map keeps getting wiped every time we do a server update."
+        // See map.cache.MapStorageKey's own doc for the root cause (ServerData#ip not being
+        // perfectly stable across the forced reconnect every AutoModpack mod update triggers). If a
+        // client's reported address genuinely disagrees with this server's own canonical one (after
+        // normalizing away harmless case/port variation), log it for later debugging and correct the
+        // client immediately rather than letting it keep reading/writing the wrong on-disk key for
+        // the rest of the session.
+        event.registrar("1").playToServer(com.github.cerealklla.lyfe.map.cache.ReportServerAddressPayload.TYPE,
+                com.github.cerealklla.lyfe.map.cache.ReportServerAddressPayload.STREAM_CODEC,
+                (payload, context) -> {
+                    if (!(context.player() instanceof ServerPlayer serverPlayer)) {
+                        return;
+                    }
+                    String reportedNormalized = com.github.cerealklla.lyfe.map.cache.ServerAddressNormalizer.normalize(payload.rawAddress());
+                    String canonicalNormalized = com.github.cerealklla.lyfe.map.cache.ServerAddressNormalizer.normalize(CANONICAL_SERVER_ADDRESS);
+                    if (!reportedNormalized.equals(canonicalNormalized)) {
+                        LOGGER.warn("TerrainCache address drift detected: player={} reported='{}' expected='{}'",
+                                serverPlayer.getGameProfile().name(), payload.rawAddress(), CANONICAL_SERVER_ADDRESS);
+                        net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(serverPlayer,
+                                new com.github.cerealklla.lyfe.map.cache.CorrectServerAddressPayload(CANONICAL_SERVER_ADDRESS));
+                    }
+                });
+        event.registrar("1").playToClient(com.github.cerealklla.lyfe.map.cache.CorrectServerAddressPayload.TYPE,
+                com.github.cerealklla.lyfe.map.cache.CorrectServerAddressPayload.STREAM_CODEC,
+                (payload, context) -> {
+                    com.github.cerealklla.lyfe.map.cache.ClientServerAddressOverride.set(payload.correctAddress());
+                    // Same flush-then-clear shape LyfeModClient#onLoggingOut already uses -- anything
+                    // explored during the brief window before this correction arrived gets written
+                    // out under the (wrong) key it was actually read/written through, then dropped
+                    // from memory so the very next read naturally pulls from the now-correct one.
+                    com.github.cerealklla.lyfe.map.cache.TerrainCache.flushDirty();
+                    com.github.cerealklla.lyfe.map.cache.TerrainCache.clearAll();
+                });
 
         // Rune Codex's "Runewords Discovered" sub-tab (2026-10-17) -- the fixed RunewordCatalog
         // definitions need no sync at all (identical static data both sides already); only each
