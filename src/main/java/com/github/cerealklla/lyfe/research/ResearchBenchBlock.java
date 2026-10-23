@@ -7,6 +7,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.EntityBlock;
@@ -39,6 +40,17 @@ public class ResearchBenchBlock extends HorizontalDirectionalBlock implements En
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
         builder.add(FACING);
+    }
+
+    /**
+     * Real report, 2026-10-24: "placing a research table doesn't rotate properly, always faces the
+     * same direction" -- this block never overrode this method at all, so every placement fell back
+     * to {@link #registerDefaultState}'s fixed NORTH regardless of the player's facing. Faces the
+     * block toward the placing player, the standard vanilla idiom (e.g. Furnace/Crafting Table).
+     */
+    @Override
+    public BlockState getStateForPlacement(BlockPlaceContext context) {
+        return defaultBlockState().setValue(FACING, context.getHorizontalDirection().getOpposite());
     }
 
     @Override

@@ -367,6 +367,11 @@ public class LyfeModClient {
         event.registerEntityRenderer(ModEntities.SPARK_OF_LIFE_PROJECTILE.get(),
                 context -> new net.minecraft.client.renderer.entity.ThrownItemRenderer<>(context, 0.5F, true));
 
+        // Shipwreck-proximity buff marker (design doc Section 28) -- always renders as nothing
+        // visible (Blocks.BARRIER), by design.
+        event.registerEntityRenderer(ModEntities.SHIPWRECK_MARKER.get(),
+                com.github.cerealklla.lyfe.fishing.client.ShipwreckMarkerRenderer::new);
+
         // Floating structure icons (2026-10-05 user request, extended same day to every custom
         // crafting/cooking/research/fish-cleaning structure, not just the crafting ladder) -- one
         // generic FloatingIconRenderer per block type, parameterized by how that type's icon is
@@ -413,6 +418,7 @@ public class LyfeModClient {
         event.register(ModMenus.REPAIR_STRUCTURE.get(), RepairStructureScreen::new);
         event.register(ModMenus.SOCKETING.get(), SocketingScreen::new);
         event.register(ModMenus.EXTRACTING.get(), ExtractingScreen::new);
+        event.register(ModMenus.ALLAY_BOTTLE.get(), com.github.cerealklla.lyfe.summoning.client.AllayBottleScreen::new);
     }
 
     @SubscribeEvent
@@ -432,6 +438,8 @@ public class LyfeModClient {
         });
         com.github.cerealklla.lyfe.summoning.ClientMountBindNameRequest.takePending().ifPresent(mountEntityId ->
                 Minecraft.getInstance().setScreen(new com.github.cerealklla.lyfe.summoning.client.MountBindNameScreen(mountEntityId)));
+        com.github.cerealklla.lyfe.summoning.ClientAllayBindRequest.takePending().ifPresent(allayEntityId ->
+                Minecraft.getInstance().setScreen(new com.github.cerealklla.lyfe.summoning.client.AllayBindNameScreen(allayEntityId)));
         if (ClientRecallciniteState.takePendingOpenBindConfirm() && Minecraft.getInstance().screen == null) {
             Minecraft.getInstance().setScreen(new RecallciniteBindConfirmScreen());
         }

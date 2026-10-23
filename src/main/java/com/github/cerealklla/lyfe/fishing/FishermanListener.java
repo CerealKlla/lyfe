@@ -25,7 +25,6 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.tags.FluidTags;
-import net.minecraft.tags.StructureTags;
 import net.minecraft.util.RandomSource;
 import net.minecraft.util.TriState;
 import net.minecraft.world.InteractionHand;
@@ -111,8 +110,14 @@ public final class FishermanListener {
             }
         }
 
-        boolean nearShipwreck = level.structureManager()
-                .getStructureWithPieceAt(pos, StructureTags.SHIPWRECK) != null;
+        // Real bug fixed 2026-10-24: StructureManager#getStructureWithPieceAt never actually returns
+        // null -- confirmed against the real decompiled source, it returns the non-null
+        // StructureStart.INVALID_START sentinel instead -- so this `!= null` check was always true,
+        // boosting the Locked Chest/Key chance on every single catch regardless of proximity to a
+        // real Shipwreck. Replaced outright with a ping-driven buff (design doc Section 28,
+        // ShipwreckMarkerEntity/ShipwreckMobEffect) instead of just correcting the old check in
+        // place, per explicit user request.
+        boolean nearShipwreck = player.hasEffect(com.github.cerealklla.lyfe.registration.ModMobEffects.SHIPWRECK);
 
         if (hook.isOpenWaterFishing() && isDeepWater(level, pos)) {
             double chance = sunkenTreasureChance(skillLevel);

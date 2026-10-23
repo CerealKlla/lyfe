@@ -1,6 +1,7 @@
 package com.github.cerealklla.lyfe.registration;
 
 import com.github.cerealklla.lyfe.LyfeMod;
+import com.github.cerealklla.lyfe.fishing.ShipwreckMarkerEntity;
 import com.github.cerealklla.lyfe.magician.SparkOfLifeProjectile;
 import com.github.cerealklla.lyfe.rest.SeatEntity;
 
@@ -37,4 +38,13 @@ public final class ModEntities {
             SparkOfLifeProjectile::new,
             MobCategory.MISC,
             builder -> builder.sized(0.25f, 0.25f));
+
+    // Shipwreck-proximity buff marker (design doc Section 28, 2026-10-24) -- a permanent, invisible
+    // Pingable entity placed once per naturally-discovered Shipwreck. Default clientTrackingRange
+    // (5 chunks/80 blocks) comfortably covers the marker's own 15-block ping range.
+    public static final DeferredHolder<EntityType<?>, EntityType<ShipwreckMarkerEntity>> SHIPWRECK_MARKER = ENTITIES.registerEntityType(
+            "shipwreck_marker",
+            ShipwreckMarkerEntity::new,
+            MobCategory.MISC,
+            builder -> builder.sized(0.5f, 0.5f).noSummon());
 }

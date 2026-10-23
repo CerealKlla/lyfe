@@ -1,0 +1,135 @@
+package com.github.cerealklla.lyfe.summoning;
+
+import com.github.cerealklla.lyfe.registration.ModItems;
+
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.Container;
+import net.minecraft.world.SimpleContainer;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.animal.allay.Allay;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.inventory.MenuType;
+import net.minecraft.world.inventory.Slot;
+import net.minecraft.world.item.ItemStack;
+
+/**
+ * The Equip/Gather GUI (design doc Section 27, Shift+Right-Click on an Allay Bottle) -- opened via
+ * {@code AllayBottleItem#use}, same "opened straight from a held item's own use(), no block/extra-
+ * data at all" shape as Lyfe's existing {@code socket.SocketingMenu}/{@code socket.ExtractingMenu}.
+ * Resolves the bottle being configured by re-checking the player's own hands directly (mainhand then
+ * offhand) rather than threading an explicit reference through the client-side menu-type factory --
+ * simpler, and always correct since this menu can only ever be opened by {@code AllayBottleItem
+ * #use} itself, always from whichever hand is currently holding it.
+ */
+public final class AllayBottleMenu extends AbstractContainerMenu {
+
+    public static final int EQUIP_SLOT_X = 62;
+    public static final int EQUIP_SLOT_Y = 46;
+    public static final int GATHER_SLOT_X = 98;
+    public static final int GATHER_SLOT_Y = 46;
+    public static final int PLAYER_INV_Y = 76;
+
+    private final Container container = new SimpleContainer(2);
+    private final Player owner;
+    private final String currentName;
+
+    public AllayBottleMenu(MenuType<?> type, int containerId, Inventory inventory) {
+        super(type, containerId);
+        this.owner = inventory.player;
+        ItemStack bottle = resolveBottle(owner);
+        AllayBottleData data = bottle.isEmpty() ? null : bottle.get(ModItems.ALLAY_BOTTLE_DATA.get());
+        if (data != null) {
+            container.setItem(0, data.equipItem().copy());
+            container.setItem(1, data.gatherItem().copy());
+            this.currentName = data.displayName();
+        } else {
+            this.currentName = "Allay";
+        }
+        layoutSlots(inventory);
+    }
+
+    public String currentName() {
+        return currentName;
+    }
+
+    private void layoutSlots(Inventory inventory) {
+        addSlot(new Slot(container, 0, EQUIP_SLOT_X, EQUIP_SLOT_Y));
+        addSlot(new Slot(container, 1, GATHER_SLOT_X, GATHER_SLOT_Y));
+        for (int row = 0; row < 3; row++) {
+            for (int col = 0; col < 9; col++) {
+                addSlot(new Slot(inventory, col + row * 9 + 9, 8 + col * 18, PLAYER_INV_Y + row * 18));
+            }
+        }
+        for (int col = 0; col < 9; col++) {
+            addSlot(new Slot(inventory, col, 8 + col * 18, PLAYER_INV_Y + 58));
+        }
+    }
+
+    private static ItemStack resolveBottle(Player player) {
+        ItemStack main = player.getMainHandItem();
+        if (main.getItem() instanceof AllayBottleItem) {
+            return main;
+        }
+        ItemStack off = player.getOffhandItem();
+        if (off.getItem() instanceof AllayBottleItem) {
+            return off;
+        }
+        return ItemStack.EMPTY;
+    }
+
+    @Override
+    public ItemStack quickMoveStack(Player player, int slotIndex) {
+        ItemStack clicked = ItemStack.EMPTY;
+        Slot slot = slots.get(slotIndex);
+        if (slot != null && slot.hasItem()) {
+            ItemStack stack = slot.getItem();
+            clicked = stack.copy();
+            if (slotIndex < 2) {
+                if (!moveItemStackTo(stack, 2, slots.size(), true)) {
+                    return ItemStack.EMPTY;
+                }
+            } else if (!moveItemStackTo(stack, 0, 2, false)) {
+                return ItemStack.EMPTY;
+            }
+            if (stack.isEmpty()) {
+                slot.setByPlayer(ItemStack.EMPTY);
+            } else {
+                slot.setChanged();
+            }
+        }
+        return clicked;
+    }
+
+    @Override
+    public void removed(Player player) {
+        super.removed(player);
+        ItemStack bottle = resolveBottle(owner);
+        if (!bottle.isEmpty() && bottle.get(ModItems.ALLAY_BOTTLE_DATA.get()) instanceof AllayBottleData data) {
+            ItemStack equip = container.getItem(0);
+            ItemStack gather = container.getItem(1);
+            AllayBottleData updated = data.withEquipItem(equip).withGatherItem(gather);
+            bottle.set(ModItems.ALLAY_BOTTLE_DATA.get(), updated);
+
+            if (updated.summonedAllayId().isPresent() && player.level() instanceof ServerLevel level) {
+                Entity summoned = level.getEntity(updated.summonedAllayId().get());
+                if (summoned instanceof Allay allay && allay.isAlive()) {
+                    AllayEquipment.applyEquipAndGather(allay, equip, gather, owner.getUUID());
+                    AllayGoalInjectionListener.reassessSpellGoal(allay);
+                }
+            }
+            // Already preserved into the bottle's own data above -- clear the scratch container
+            // before the usual clearContainer() below, or these would be duplicated back into the
+            // player's inventory as loose items on top of what's now saved on the bottle.
+            container.setItem(0, ItemStack.EMPTY);
+            container.setItem(1, ItemStack.EMPTY);
+        }
+        clearContainer(player, container);
+    }
+
+    @Override
+    public boolean stillValid(Player player) {
+        return true;
+    }
+}

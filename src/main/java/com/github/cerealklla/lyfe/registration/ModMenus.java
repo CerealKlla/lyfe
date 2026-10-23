@@ -94,4 +94,13 @@ public final class ModMenus {
     public static final DeferredHolder<MenuType<?>, MenuType<ExtractingMenu>> EXTRACTING = MENU_TYPES.register(
             "extracting",
             () -> IMenuTypeExtension.create((windowId, inventory, extraData) -> new ExtractingMenu(null, windowId, inventory)));
+
+    // Allay in a Bottle's Equip/Gather GUI (design doc Section 27) -- opened from the bottle's own
+    // held-item use() when sneaking, same null-backed shape as SOCKETING/EXTRACTING above. Resolves
+    // which bottle it's configuring by checking the opening player's own hands directly, not extra
+    // data -- see AllayBottleMenu's own doc.
+    public static final DeferredHolder<MenuType<?>, MenuType<com.github.cerealklla.lyfe.summoning.AllayBottleMenu>> ALLAY_BOTTLE = MENU_TYPES.register(
+            "allay_bottle",
+            () -> IMenuTypeExtension.create((windowId, inventory, extraData) ->
+                    new com.github.cerealklla.lyfe.summoning.AllayBottleMenu(null, windowId, inventory)));
 }

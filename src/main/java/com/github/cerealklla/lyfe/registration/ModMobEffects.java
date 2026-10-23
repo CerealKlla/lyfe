@@ -1,6 +1,7 @@
 package com.github.cerealklla.lyfe.registration;
 
 import com.github.cerealklla.lyfe.LyfeMod;
+import com.github.cerealklla.lyfe.fishing.ShipwreckMobEffect;
 import com.github.cerealklla.lyfe.heartiness.RapidRecoveryMobEffect;
 import com.github.cerealklla.lyfe.reincarnation.SummoningSicknessMobEffect;
 import com.github.cerealklla.lyfe.rest.WellRestedMobEffect;
@@ -36,4 +37,9 @@ public final class ModMobEffects {
     public static final DeferredHolder<MobEffect, SummoningSicknessMobEffect> SUMMONING_SICKNESS = MOB_EFFECTS.register(
             "summoning_sickness",
             () -> new SummoningSicknessMobEffect(MobEffectCategory.HARMFUL, 0x4B2E5A));
+
+    // Shipwreck-proximity buff (design doc Section 28, 2026-10-24) -- see ShipwreckMobEffect's own doc.
+    public static final DeferredHolder<MobEffect, ShipwreckMobEffect> SHIPWRECK = MOB_EFFECTS.register(
+            "shipwreck",
+            () -> new ShipwreckMobEffect(MobEffectCategory.BENEFICIAL, 0x5B7C99));
 }

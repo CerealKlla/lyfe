@@ -232,4 +232,13 @@ public final class ModAttachments {
                             .serialize(com.github.cerealklla.lyfe.summoning.SummonedMountOwner.CODEC)
                             .sync(ByteBufCodecs.fromCodecWithRegistries(com.github.cerealklla.lyfe.summoning.SummonedMountOwner.CODEC.codec()))
                             .build());
+
+    // Allay in a Bottle (design doc Section 27) -- same "no meaningful default, every real caller
+    // uses setData/getExistingData directly" shape as SUMMONED_MOUNT_OWNER above.
+    public static final Supplier<AttachmentType<com.github.cerealklla.lyfe.summoning.SummonedAllayOwner>> SUMMONED_ALLAY_OWNER =
+            ATTACHMENT_TYPES.register("summoned_allay_owner",
+                    () -> AttachmentType.builder(holder -> new com.github.cerealklla.lyfe.summoning.SummonedAllayOwner(new UUID(0L, 0L)))
+                            .serialize(com.github.cerealklla.lyfe.summoning.SummonedAllayOwner.CODEC)
+                            .sync(ByteBufCodecs.fromCodecWithRegistries(com.github.cerealklla.lyfe.summoning.SummonedAllayOwner.CODEC.codec()))
+                            .build());
 }

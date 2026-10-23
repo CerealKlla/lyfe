@@ -166,6 +166,12 @@ public final class ModItems {
                     .persistent(com.github.cerealklla.lyfe.summoning.SummoningStoneData.CODEC)
                     .networkSynchronized(com.github.cerealklla.lyfe.summoning.SummoningStoneData.STREAM_CODEC));
 
+    // Allay in a Bottle (design doc Section 27) -- same reasoning as SUMMONING_STONE_DATA above.
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<com.github.cerealklla.lyfe.summoning.AllayBottleData>> ALLAY_BOTTLE_DATA =
+            DATA_COMPONENTS.registerComponentType("allay_bottle_data", builder -> builder
+                    .persistent(com.github.cerealklla.lyfe.summoning.AllayBottleData.CODEC)
+                    .networkSynchronized(com.github.cerealklla.lyfe.summoning.AllayBottleData.STREAM_CODEC));
+
     // Real bug found 2026-10-21 while adding Focus socketing: socket.SocketApplier#recompute used to
     // wholesale-replace DATA_COMPONENTS.ATTRIBUTE_MODIFIERS from socket contents alone, silently
     // destroying a Nature Staff's/crafted armor's/Focus's own crafted-in stat bonuses the moment any
@@ -320,6 +326,14 @@ public final class ModItems {
     public static final DeferredItem<com.github.cerealklla.lyfe.summoning.SummoningStoneItem> SUMMONING_STONE = ITEMS.register(
             "summoning_stone",
             id -> new com.github.cerealklla.lyfe.summoning.SummoningStoneItem(new Item.Properties()
+                    .stacksTo(1)
+                    .setId(ResourceKey.create(Registries.ITEM, id))));
+
+    // Allay in a Bottle (design doc Section 27) -- stacksTo(1), same reasoning as the Summoning
+    // Stone above: every bottle carries genuinely unique per-instance data.
+    public static final DeferredItem<com.github.cerealklla.lyfe.summoning.AllayBottleItem> ALLAY_BOTTLE = ITEMS.register(
+            "allay_bottle",
+            id -> new com.github.cerealklla.lyfe.summoning.AllayBottleItem(new Item.Properties()
                     .stacksTo(1)
                     .setId(ResourceKey.create(Registries.ITEM, id))));
 

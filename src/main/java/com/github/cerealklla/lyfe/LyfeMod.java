@@ -15,6 +15,7 @@ import com.github.cerealklla.lyfe.debug.DebugCommands;
 import com.github.cerealklla.lyfe.durability.UnbreakableArmorListener;
 import com.github.cerealklla.lyfe.durability.UnbreakableToolListener;
 import com.github.cerealklla.lyfe.fishing.FishermanListener;
+import com.github.cerealklla.lyfe.fishing.ShipwreckMarkerListener;
 import com.github.cerealklla.lyfe.fishing.LockedChestUnlockListener;
 import com.github.cerealklla.lyfe.fishing.LuckySpotPayload;
 import com.github.cerealklla.lyfe.farming.FarmerListener;
@@ -135,6 +136,10 @@ public class LyfeMod {
         NeoForge.EVENT_BUS.register(new VanillaRecipeStripper());
         NeoForge.EVENT_BUS.register(new VanillaFoodRecipeStripper());
         NeoForge.EVENT_BUS.register(new FishermanListener());
+        NeoForge.EVENT_BUS.register(new ShipwreckMarkerListener());
+        NeoForge.EVENT_BUS.register(new com.github.cerealklla.lyfe.summoning.AllayInteractionListener());
+        NeoForge.EVENT_BUS.register(new com.github.cerealklla.lyfe.summoning.AllayGoalInjectionListener());
+        NeoForge.EVENT_BUS.register(new com.github.cerealklla.lyfe.summoning.AllayDeathListener());
         NeoForge.EVENT_BUS.register(new LockedChestUnlockListener());
         NeoForge.EVENT_BUS.register(new com.github.cerealklla.lyfe.cook.FoodStarterPackListener());
         NeoForge.EVENT_BUS.register(new CombatSkillListener());
@@ -267,6 +272,27 @@ public class LyfeMod {
                 (payload, context) -> {
                     if (context.player() instanceof ServerPlayer serverPlayer) {
                         com.github.cerealklla.lyfe.summoning.MountBindListener.confirmBind(serverPlayer, payload);
+                    }
+                });
+
+        // Allay in a Bottle bind flow (design doc Section 27) -- triggered by a direct world
+        // interaction (see AllayInteractionListener), not a GUI button, so there's no separate
+        // "request" payload -- only the open-naming-screen push and the real confirm.
+        event.registrar("1").playToClient(com.github.cerealklla.lyfe.summoning.OpenAllayBindNameScreenPayload.TYPE,
+                com.github.cerealklla.lyfe.summoning.OpenAllayBindNameScreenPayload.STREAM_CODEC,
+                (payload, context) -> com.github.cerealklla.lyfe.summoning.ClientAllayBindRequest.request(payload.allayEntityId()));
+        event.registrar("1").playToServer(com.github.cerealklla.lyfe.summoning.ConfirmAllayBindPayload.TYPE,
+                com.github.cerealklla.lyfe.summoning.ConfirmAllayBindPayload.STREAM_CODEC,
+                (payload, context) -> {
+                    if (context.player() instanceof ServerPlayer serverPlayer) {
+                        com.github.cerealklla.lyfe.summoning.AllayBindListener.confirmBind(serverPlayer, payload);
+                    }
+                });
+        event.registrar("1").playToServer(com.github.cerealklla.lyfe.summoning.RenameAllayBottlePayload.TYPE,
+                com.github.cerealklla.lyfe.summoning.RenameAllayBottlePayload.STREAM_CODEC,
+                (payload, context) -> {
+                    if (context.player() instanceof ServerPlayer serverPlayer) {
+                        com.github.cerealklla.lyfe.summoning.AllayBindListener.renameBottle(serverPlayer, payload);
                     }
                 });
 
