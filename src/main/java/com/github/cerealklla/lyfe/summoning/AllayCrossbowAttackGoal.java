@@ -26,6 +26,15 @@ import net.minecraft.world.item.ItemStack;
  * setChargingCrossbow}'s synched "charging" pose entirely -- that field only exists on {@code
  * CrossbowAttackMob} implementors and is purely cosmetic (third-person charging animation), not
  * required for the actual load/fire mechanics.
+ *
+ * <p><b>Simplified, 2026-10-24</b> -- real report: "the Allay is facing the enemy with the crossbow
+ * in hand but never firing." The first version mirrored vanilla's {@code RangedCrossbowAttackGoal}
+ * exactly, including its "only start charging once settled -- in range AND 5 ticks of continuous
+ * line-of-sight" debounce (`seeTime`/`needsToMove`) -- a real correctness hazard for a small flying
+ * Allay whose line-of-sight can plausibly flicker in and out from minor flight bob/terrain far more
+ * than a grounded Pillager's, which would keep resetting the debounce and could leave charging
+ * perpetually un-started while still visibly tracking/facing the target. Charging now starts as soon
+ * as the target is simply in range and visible this tick, full stop -- no settling delay.
  */
 public final class AllayCrossbowAttackGoal extends Goal {
 
@@ -36,7 +45,6 @@ public final class AllayCrossbowAttackGoal extends Goal {
 
     private final Allay allay;
     private CrossbowState state = CrossbowState.UNCHARGED;
-    private int seeTime;
     private int attackDelay;
 
     public AllayCrossbowAttackGoal(Allay allay) {
@@ -62,7 +70,6 @@ public final class AllayCrossbowAttackGoal extends Goal {
             allay.stopUsingItem();
         }
         state = CrossbowState.UNCHARGED;
-        seeTime = 0;
         attackDelay = 0;
         // See AllayBowAttackGoal's own doc -- clears the "actively engaged" signal
         // AllayCombatBrainSuppressMixin reads.
@@ -81,15 +88,9 @@ public final class AllayCrossbowAttackGoal extends Goal {
             return;
         }
         boolean hasLineOfSight = allay.hasLineOfSight(target);
-        boolean hadLineOfSight = seeTime > 0;
-        if (hasLineOfSight != hadLineOfSight) {
-            seeTime = 0;
-        }
-        seeTime += hasLineOfSight ? 1 : -1;
-
         double distanceSqr = allay.distanceToSqr(target);
-        boolean needsToMove = (distanceSqr > ATTACK_RADIUS_SQR || seeTime < 5) && attackDelay == 0;
-        if (needsToMove) {
+        boolean inRange = distanceSqr <= ATTACK_RADIUS_SQR && hasLineOfSight;
+        if (!inRange) {
             allay.getNavigation().moveTo(target, 1.0);
         } else {
             allay.getNavigation().stop();
@@ -103,7 +104,7 @@ public final class AllayCrossbowAttackGoal extends Goal {
 
         switch (state) {
             case UNCHARGED -> {
-                if (!needsToMove) {
+                if (inRange) {
                     allay.startUsingItem(InteractionHand.OFF_HAND);
                     state = CrossbowState.CHARGING;
                 }

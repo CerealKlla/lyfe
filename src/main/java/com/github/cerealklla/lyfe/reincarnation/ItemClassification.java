@@ -34,7 +34,7 @@ public final class ItemClassification {
         if (stack.isEmpty()) {
             return false;
         }
-        return isWeapon(stack) || isTool(stack) || isTorch(stack) || isFood(stack);
+        return isWeapon(stack) || isTool(stack) || isTorch(stack) || isFood(stack) || isBoundCompanion(stack);
     }
 
     private static boolean isWeapon(ItemStack stack) {
@@ -63,5 +63,17 @@ public final class ItemClassification {
 
     private static boolean isFood(ItemStack stack) {
         return stack.get(DataComponents.FOOD) != null;
+    }
+
+    /**
+     * Explicit user request, 2026-10-24: "Allay in a Bottle and Summoning stones need to be
+     * preserved if in a slot protected by Reincarnation." Unlike the Recallcinite Totem (its own
+     * dedicated, Reincarnation-level-independent always-protected mechanic), these two are meant to
+     * ride the normal leveled hotbar/offhand protection like any other real weapon/tool -- a player
+     * still needs to have earned a protected slot for it to matter.
+     */
+    private static boolean isBoundCompanion(ItemStack stack) {
+        return stack.is(com.github.cerealklla.lyfe.registration.ModItems.SUMMONING_STONE.get())
+                || stack.is(com.github.cerealklla.lyfe.registration.ModItems.ALLAY_BOTTLE.get());
     }
 }
