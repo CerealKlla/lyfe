@@ -16,6 +16,11 @@ import net.neoforged.neoforge.event.entity.living.LivingDropsEvent;
  * every current and future hostile mob (vanilla or modded) is covered automatically, not a
  * hand-authored mob-id list. The dropped Rune's own identity is {@link RuneWorth#rollRandomRune}'s
  * real worth-weighted roll, not a flat uniform pick.
+ *
+ * <p><b>Magic Find scaling, 2026-10-23</b> (explicit user spec: "the loot pool should be enhanced
+ * by both player's stats... extend further to include NPCs and Minions/Mercs") -- the base chance
+ * is multiplied by {@code 1 + (summed Magic Find across every assist-credited attacker) / 100},
+ * via {@code combat.AssistTracker#sumAttribute}.
  */
 public final class RuneDropListener {
 
@@ -30,7 +35,9 @@ public final class RuneDropListener {
         if (!(entity instanceof Enemy) || !(entity.level() instanceof ServerLevel serverLevel)) {
             return;
         }
-        double chance = entity instanceof Pillager ? PILLAGER_CHANCE : BASE_CHANCE;
+        double baseChance = entity instanceof Pillager ? PILLAGER_CHANCE : BASE_CHANCE;
+        double magicFind = com.github.cerealklla.lyfe.combat.AssistTracker.sumAttribute(entity, com.github.cerealklla.lyfe.registration.ModAttributes.MAGIC_FIND);
+        double chance = baseChance * (1.0 + magicFind / 100.0);
         if (random.nextDouble() >= chance) {
             return;
         }

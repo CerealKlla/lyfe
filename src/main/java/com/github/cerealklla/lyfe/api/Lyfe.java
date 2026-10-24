@@ -355,10 +355,40 @@ public final class Lyfe {
      * every player who dealt real damage to this mob within the last 15 seconds, not just whoever
      * landed the killing blow. Exposed here so Myssions' quest-kill tracking can give every assisting
      * player equal credit toward a kill-type quest milestone instead of only the one player the
-     * {@code LivingDeathEvent}'s own damage source names.
+     * {@code LivingDeathEvent}'s own damage source names. Despite the name, the returned set may
+     * also include non-player attacker ids since 2026-10-23 (see {@code combat.AssistTracker}'s own
+     * doc) -- harmless for this method's existing callers, which already resolve ids through the
+     * online player list and skip anything that doesn't resolve.
      */
     public static Set<UUID> getAssistCredit(net.minecraft.world.entity.LivingEntity deadMob) {
         return com.github.cerealklla.lyfe.combat.AssistTracker.creditedPlayers(deadMob);
+    }
+
+    /**
+     * Every attacker id (player, NPC, or summoned companion) currently credited toward killing
+     * {@code deadMob}, unlike {@link #getAssistCredit} which existing player-only callers rely on
+     * returning a mixed set unfiltered by caller convention. Added 2026-10-23 for Settlemynts' Guard
+     * kill-payment feature, which needs to find a non-player (Guard) attacker specifically -- see
+     * {@code bridge.LyfeAssistBridge} on that side.
+     */
+    public static Set<UUID> getAssistedAttackerIds(net.minecraft.world.entity.LivingEntity deadMob) {
+        return com.github.cerealklla.lyfe.combat.AssistTracker.creditedPlayers(deadMob);
+    }
+
+    /**
+     * Sum of {@code ModAttributes#MAGIC_FIND} across every currently-credited attacker on {@code
+     * deadMob} (2026-10-23, explicit user spec: "if multiple people with % magic find kill
+     * something, the loot pool should be enhanced by both player's stats... extend further to
+     * include NPCs and Minions/Mercs"). A plain 0-100+ percentage, same convention {@link
+     * ModAttributes#MAGIC_FIND}'s own doc describes -- the caller decides how to apply it.
+     */
+    public static double getAssistedMagicFindBonus(net.minecraft.world.entity.LivingEntity deadMob) {
+        return com.github.cerealklla.lyfe.combat.AssistTracker.sumAttribute(deadMob, ModAttributes.MAGIC_FIND);
+    }
+
+    /** Same as {@link #getAssistedMagicFindBonus} but for {@code ModAttributes#GOLD_FIND}. */
+    public static double getAssistedGoldFindBonus(net.minecraft.world.entity.LivingEntity deadMob) {
+        return com.github.cerealklla.lyfe.combat.AssistTracker.sumAttribute(deadMob, ModAttributes.GOLD_FIND);
     }
 
     /** {@code entity}'s live current Mana (design doc, 2026-10-20) -- any {@code LivingEntity}, not just a player. */

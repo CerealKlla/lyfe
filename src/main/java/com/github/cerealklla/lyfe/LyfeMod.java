@@ -156,6 +156,7 @@ public class LyfeMod {
         NeoForge.EVENT_BUS.register(new RunewordEffectListener());
         NeoForge.EVENT_BUS.register(new RuneDropListener());
         NeoForge.EVENT_BUS.register(new GemDropListener());
+        NeoForge.EVENT_BUS.register(new com.github.cerealklla.lyfe.loot.GoldFindDropListener());
         NeoForge.EVENT_BUS.register(new SocketDiscoveryListener());
         NeoForge.EVENT_BUS.register(new com.github.cerealklla.lyfe.socket.RuneBackfillListener());
         NeoForge.EVENT_BUS.register(new com.github.cerealklla.lyfe.combat.CombatStateTracker());

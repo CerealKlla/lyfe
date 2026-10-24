@@ -19,6 +19,9 @@ import net.neoforged.neoforge.event.entity.living.LivingDropsEvent;
  * curve, since the spec explicitly singles out quality odds. {@code QUALITY_CHANCE} is a first-pass
  * placeholder shape (common Chipped, rare Perfect), flagged tunable like every other numeric
  * constant in this mod.
+ *
+ * <p><b>Magic Find scaling, 2026-10-23</b> -- same mechanism and doc as {@link RuneDropListener}'s
+ * own; both share the exact same "summed Magic Find across every assist-credited attacker" scale.
  */
 public final class GemDropListener {
 
@@ -36,7 +39,9 @@ public final class GemDropListener {
         if (!(entity instanceof Enemy) || !(entity.level() instanceof ServerLevel serverLevel)) {
             return;
         }
-        double chance = entity instanceof Pillager ? PILLAGER_CHANCE : BASE_CHANCE;
+        double baseChance = entity instanceof Pillager ? PILLAGER_CHANCE : BASE_CHANCE;
+        double magicFind = com.github.cerealklla.lyfe.combat.AssistTracker.sumAttribute(entity, com.github.cerealklla.lyfe.registration.ModAttributes.MAGIC_FIND);
+        double chance = baseChance * (1.0 + magicFind / 100.0);
         if (random.nextDouble() >= chance) {
             return;
         }
