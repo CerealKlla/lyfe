@@ -76,8 +76,8 @@ public final class AllayBottleMenu extends AbstractContainerMenu {
     }
 
     private void layoutSlots(Inventory inventory) {
-        addSlot(new Slot(container, 0, EQUIP_SLOT_X, EQUIP_SLOT_Y));
-        addSlot(new Slot(container, 1, GATHER_SLOT_X, GATHER_SLOT_Y));
+        addSlot(new NoBottleSlot(container, 0, EQUIP_SLOT_X, EQUIP_SLOT_Y));
+        addSlot(new NoBottleSlot(container, 1, GATHER_SLOT_X, GATHER_SLOT_Y));
         for (int row = 0; row < 3; row++) {
             for (int col = 0; col < 9; col++) {
                 addSlot(new Slot(inventory, col + row * 9 + 9, 8 + col * 18, PLAYER_INV_Y + row * 18));
@@ -152,5 +152,34 @@ public final class AllayBottleMenu extends AbstractContainerMenu {
     @Override
     public boolean stillValid(Player player) {
         return true;
+    }
+
+    /**
+     * Real dupe report, 2026-10-24: "I somehow duped an item by moving it around on the Allay and
+     * closing/reopening it's menu." Root cause confirmed, not guessed -- Equip/Gather were plain,
+     * unrestricted {@code Slot}s, so vanilla's own hotbar-swap hotkey (number key while hovering a
+     * slot) could swap the bottle item itself -- currently held in hand, so already visible as one
+     * of this very menu's own hotbar slots -- directly into its own Equip/Gather slot. Once that
+     * happens, {@link #removed}'s own {@code resolveBottle(owner)} can no longer find the bottle in
+     * either hand (it's sitting in the scratch container instead), so the whole write-back is
+     * silently skipped -- including clearing the scratch slots -- and {@code clearContainer} just
+     * hands the bottle straight back unmodified. Whatever was previously in that slot (now sitting
+     * loose in the player's real hotbar, having been swapped out to make room) stays permanently
+     * referenced in the bottle's own never-updated stored data too -- the same item now exists both
+     * as a real possession and as the bottle's own "saved" copy, a real duplication once the bottle
+     * is reopened and that stale copy is read out again. Blocking the bottle itself here closes the
+     * hole at its actual source (the swap can never initiate at all, since vanilla's own generic
+     * SWAP click handling already checks {@code mayPlace} before allowing it) rather than trying to
+     * patch every possible downstream path that could exploit it.
+     */
+    private static final class NoBottleSlot extends Slot {
+        NoBottleSlot(Container container, int index, int x, int y) {
+            super(container, index, x, y);
+        }
+
+        @Override
+        public boolean mayPlace(ItemStack stack) {
+            return !(stack.getItem() instanceof AllayBottleItem);
+        }
     }
 }
