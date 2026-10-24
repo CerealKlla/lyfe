@@ -63,7 +63,15 @@ public final class AllayGoalInjectionListener {
         // anyway, so OFFHAND is the only slot that can ever actually hold a spell item or weapon.
         ItemStack offhand = allay.getItemInHand(InteractionHand.OFF_HAND);
         if (hasSpell(offhand)) {
+            // Real report, 2026-10-24: "can't melee when spell is on cd or out of mana" -- a bare
+            // spell goal left the Allay doing nothing at all once AllaySpellCastGoal#canUse() starts
+            // correctly deferring (see that class's own fix, same day). Stacked at a lower priority,
+            // same "spell goal first, melee goal as vanilla's own automatic fallback" shape
+            // guardhouse.GuardEntity#reassessWeaponGoal already uses -- no manual "is casting
+            // available" logic needed here, vanilla's GoalSelector already falls through to the next
+            // priority on its own whenever the higher one's canUse()/canContinueToUse() says no.
             goals.addGoal(2, new AllaySpellCastGoal(allay));
+            goals.addGoal(3, new MeleeAttackGoal(allay, 1.0, false));
         } else if (!offhand.isEmpty()) {
             if (offhand.getItem() instanceof BowItem) {
                 goals.addGoal(2, new AllayBowAttackGoal(allay));

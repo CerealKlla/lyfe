@@ -1,5 +1,8 @@
 package com.github.cerealklla.lyfe.summoning;
 
+import java.util.Optional;
+import java.util.UUID;
+
 import com.github.cerealklla.lyfe.registration.ModItems;
 
 import net.minecraft.server.level.ServerLevel;
@@ -25,15 +28,20 @@ import net.minecraft.world.item.ItemStack;
  */
 public final class AllayBottleMenu extends AbstractContainerMenu {
 
+    // Real report, 2026-10-24: "can you fix the overlaps" -- the Equip/Gather slot labels (drawn at
+    // slot_y - 10 = 36) sat squarely inside the Rename button's own y-range (20-40), so "Gather"
+    // visibly ran behind it. Slots moved down to make room for both a clean label row AND the new
+    // stats block below the name row (see client.AllayBottleScreen#extractLabels).
     public static final int EQUIP_SLOT_X = 62;
-    public static final int EQUIP_SLOT_Y = 46;
+    public static final int EQUIP_SLOT_Y = 94;
     public static final int GATHER_SLOT_X = 98;
-    public static final int GATHER_SLOT_Y = 46;
-    public static final int PLAYER_INV_Y = 76;
+    public static final int GATHER_SLOT_Y = 94;
+    public static final int PLAYER_INV_Y = 120;
 
     private final Container container = new SimpleContainer(2);
     private final Player owner;
     private final String currentName;
+    private final Optional<UUID> summonedAllayId;
 
     public AllayBottleMenu(MenuType<?> type, int containerId, Inventory inventory) {
         super(type, containerId);
@@ -44,14 +52,27 @@ public final class AllayBottleMenu extends AbstractContainerMenu {
             container.setItem(0, data.equipItem().copy());
             container.setItem(1, data.gatherItem().copy());
             this.currentName = data.displayName();
+            this.summonedAllayId = data.summonedAllayId();
         } else {
             this.currentName = "Allay";
+            this.summonedAllayId = Optional.empty();
         }
         layoutSlots(inventory);
     }
 
     public String currentName() {
         return currentName;
+    }
+
+    /**
+     * The currently-summoned Allay's id, if one is out right now -- resolved identically on both
+     * sides from the held bottle's own (already-synced-as-a-normal-item-component) data, same "no
+     * new networking needed" shape {@link #currentName} already uses. {@code client.AllayBottleScreen}
+     * reads the live entity straight off the client's own level with this (2026-10-24, explicit user
+     * request: "show the Allay's stats in here").
+     */
+    public Optional<UUID> summonedAllayId() {
+        return summonedAllayId;
     }
 
     private void layoutSlots(Inventory inventory) {

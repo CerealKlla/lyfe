@@ -45,11 +45,25 @@ public final class AllaySpellCastGoal extends Goal {
         setFlags(EnumSet.of(Flag.MOVE, Flag.LOOK));
     }
 
+    // Real report, 2026-10-24: "if I handed this nature staff to the allay it can't melee when
+    // spell is on cd or out of mana because technically it's equipped in it's off-hand" -- confirmed
+    // real, two-part bug. Part 1 (this method): unlike guardhouse.GuardSpellCastGoal's own
+    // canUseInternal (the reference this goal was ported from), the attack branch here never checked
+    // whether a cast was actually possible -- it claimed canUse()=true off target presence alone, so
+    // even with a melee fallback goal added (part 2, see AllayGoalInjectionListener), vanilla's own
+    // GoalSelector would never fall through to it while any target existed, cast-starved or not.
     @Override
     public boolean canUse() {
-        return findInjuredAlly(CRITICAL_HEAL_THRESHOLD) != null
-                || resolveAttackTarget() != null
-                || findInjuredAlly(TOP_OFF_HEAL_THRESHOLD) != null;
+        if (findInjuredAlly(CRITICAL_HEAL_THRESHOLD) != null) {
+            return true;
+        }
+        LivingEntity enemy = resolveAttackTarget();
+        if (enemy != null) {
+            // An enemy is present -- either cast at it, or defer entirely so a stacked melee goal
+            // (see AllayGoalInjectionListener) can take over, same as the Guard's own equivalent.
+            return Lyfe.canCastSparkOfLife(allay);
+        }
+        return findInjuredAlly(TOP_OFF_HEAL_THRESHOLD) != null;
     }
 
     @Override
@@ -84,9 +98,24 @@ public final class AllaySpellCastGoal extends Goal {
     public void stop() {
         // See AllayOwnerCombatTargetGoal's own doc -- allay.setTarget(...) here doubles as the
         // "actively engaged" signal AllayCombatBrainSuppressMixin reads, not a real attack target
-        // when healing. Must be cleared when this goal stops, or the Allay's Brain (gather-item
-        // fetching, etc.) would stay suppressed forever after the last heal/attack.
-        allay.setTarget(null);
+        // when healing. Must be cleared when this goal stops for good (no heal candidate and no live
+        // enemy left), or the Allay's Brain (gather-item fetching, etc.) would stay suppressed
+        // forever after the last heal/attack.
+        //
+        // Real report, 2026-10-24, fixed same day as canUse() above: unconditionally nulling here
+        // broke the new spell-then-melee goal stack the instant this goal deferred mid-fight (out of
+        // mana/on cooldown while an enemy was still alive) -- AllayGoalInjectionListener's stacked
+        // MeleeAttackGoal reads the exact same allay.getTarget(), so wiping it right as control
+        // handed off meant the fallback goal saw nothing to attack either. Only clear it when the
+        // current target isn't a live hostile Enemy -- a heal-target (never an Enemy, see
+        // findInjuredAlly's own `!(e instanceof Enemy)` filter) or a dead/already-gone target should
+        // still be cleared; a live enemy this goal is mid-fight-but-can't-currently-cast against must
+        // survive the handoff so the melee goal actually picks it up.
+        LivingEntity target = allay.getTarget();
+        boolean handingOffToMelee = target != null && target.isAlive() && target instanceof Enemy;
+        if (!handingOffToMelee) {
+            allay.setTarget(null);
+        }
     }
 
     /** Whatever {@link AllayCombatEventListener} most recently pushed onto {@link Allay#setTarget} -- see this class's own doc. */
