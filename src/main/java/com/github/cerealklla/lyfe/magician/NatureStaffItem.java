@@ -82,12 +82,23 @@ public final class NatureStaffItem extends Item {
                 .add(Attributes.ATTACK_SPEED,
                         new AttributeModifier(Item.BASE_ATTACK_SPEED_ID, NatureStaffLadder.attackSpeedBaseline(tier), AttributeModifier.Operation.ADD_VALUE),
                         EquipmentSlotGroup.MAINHAND)
+                // Real report, 2026-10-23: "why does the Allay never seem to get mana back?" -- a
+                // bound Allay's combat AI holds its Nature Staff in the OFFHAND (see
+                // summoning.AllayGoalInjectionListener#reassessSpellGoal, which checks that hand
+                // specifically), but Mana/Mana Regen were scoped to MAINHAND only (matching a
+                // player's own usage), so the staff's bonus never applied at all for an Allay --
+                // ManaListener's own `regenPerSecond <= 0.0` guard then meant it never regenerated,
+                // stuck at the base 0 regen/50 max. Widened to HAND (both mainhand and offhand) so
+                // the passive stat bonus applies regardless of which hand actually holds it; Attack
+                // Damage/Speed above stay MAINHAND-only on purpose -- those are real melee combat
+                // stats (vanilla itself never grants bonus attack damage from an offhand weapon),
+                // unrelated to this passive "while worn" aura.
                 .add(ModAttributes.MAX_MANA,
                         new AttributeModifier(maxManaId, scaledMaxMana, AttributeModifier.Operation.ADD_VALUE),
-                        EquipmentSlotGroup.MAINHAND)
+                        EquipmentSlotGroup.HAND)
                 .add(ModAttributes.MANA_REGEN,
                         new AttributeModifier(manaRegenId, scaledManaRegen, AttributeModifier.Operation.ADD_VALUE),
-                        EquipmentSlotGroup.MAINHAND)
+                        EquipmentSlotGroup.HAND)
                 .build();
     }
 

@@ -68,11 +68,24 @@ public final class ModAttributes {
     public static final DeferredHolder<Attribute, Attribute> CASTING_SPEED = ATTRIBUTES.register(
             "casting_speed", () -> new RangedAttribute("attribute.name.lyfe.casting_speed", 1.0, 0.0, 60.0).setSyncable(true));
 
+    /**
+     * A bound Allay's own base Mana Regen (explicit user request, 2026-10-23, right after the real
+     * "why does the Allay never seem to get mana back?" fix -- see {@code magician.NatureStaffItem}'s
+     * own doc) -- every other entity's base stays the attribute's own default (0.0, requires a
+     * Nature Staff/Focus/skill bonus to regen at all); an Allay regens a flat 1/second on its own,
+     * on top of whatever a held Nature Staff/Focus adds.
+     */
+    private static final double ALLAY_BASE_MANA_REGEN = 1.0;
+
     /** Mod-bus listener, registered in {@code LyfeMod}'s constructor -- see class doc for why this iterates every registered type instead of a fixed list. */
     public static void onEntityAttributeModification(EntityAttributeModificationEvent event) {
         for (var entityType : event.getTypes()) {
             event.add(entityType, MAX_MANA);
-            event.add(entityType, MANA_REGEN);
+            if (entityType == net.minecraft.world.entity.EntityType.ALLAY) {
+                event.add(entityType, MANA_REGEN, ALLAY_BASE_MANA_REGEN);
+            } else {
+                event.add(entityType, MANA_REGEN);
+            }
             event.add(entityType, MAGIC_FIND);
             event.add(entityType, GOLD_FIND);
             event.add(entityType, CASTING_SPEED);
