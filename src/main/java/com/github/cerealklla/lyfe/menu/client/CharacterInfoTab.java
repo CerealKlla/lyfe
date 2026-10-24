@@ -96,17 +96,22 @@ public final class CharacterInfoTab implements NuclyusMenu {
                         Component.literal("How much faster you move while swimming, on top of the vanilla base speed. Grows with your Swimmer skill."))));
 
         // Real gap found live, 2026-10-20: this section was never added when Mana shipped at all --
-        // every one of these four stats is already a real synced Attribute (registration.ModAttributes),
+        // every one of these five stats is already a real synced Attribute (registration.ModAttributes),
         // same read-only "live attribute value" pattern every other section on this tab already uses.
+        // Casting Speed itself (added 2026-10-21 with Nature Staff/Spark of Life) was missed from this
+        // list entirely until a real report caught it, 2026-10-23.
         double maxMana = attributeValue(player, ModAttributes.MAX_MANA);
         double manaRegen = attributeValue(player, ModAttributes.MANA_REGEN);
         double magicFind = attributeValue(player, ModAttributes.MAGIC_FIND);
         double goldFind = attributeValue(player, ModAttributes.GOLD_FIND);
+        double castingSpeed = attributeValue(player, ModAttributes.CASTING_SPEED);
         Section magic = new Section("Magic", List.of(
                 new Stat("Max Mana", String.format(Locale.ROOT, "%.0f", maxMana),
                         Component.literal("The most Mana you can have. Grows with your Magician skill, your Nature Staff's tier/Quality, and any equipped Rune bonuses.")),
                 new Stat("Mana Regen", String.format(Locale.ROOT, "+%.0f per second", manaRegen),
                         Component.literal("How quickly Mana replenishes. Grows with your Magician skill, your Nature Staff's tier/Quality, and any equipped Rune bonuses.")),
+                new Stat("Casting Speed", String.format(Locale.ROOT, "%.1f seconds", castingSpeed),
+                        Component.literal("How long you must wait between spell casts. Lower is better. Reduced by a Focus's Faster Casting Rate stat.")),
                 new Stat("Magic Find", String.format(Locale.ROOT, "+%.0f%%", magicFind),
                         Component.literal("Increases your odds of finding Runes and Gems.")),
                 new Stat("Gold Find", String.format(Locale.ROOT, "+%.0f%%", goldFind),
