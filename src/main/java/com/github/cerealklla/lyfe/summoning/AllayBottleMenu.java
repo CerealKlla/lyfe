@@ -31,12 +31,13 @@ public final class AllayBottleMenu extends AbstractContainerMenu {
     // Real report, 2026-10-24: "can you fix the overlaps" -- the Equip/Gather slot labels (drawn at
     // slot_y - 10 = 36) sat squarely inside the Rename button's own y-range (20-40), so "Gather"
     // visibly ran behind it. Slots moved down to make room for both a clean label row AND the new
-    // stats block below the name row (see client.AllayBottleScreen#extractLabels).
+    // stats block below the name row (see client.AllayBottleScreen#extractLabels). Shifted down
+    // another 10px, 2026-10-25, when a 4th stats line (Health Regen) was added below Mana Regen.
     public static final int EQUIP_SLOT_X = 62;
-    public static final int EQUIP_SLOT_Y = 94;
+    public static final int EQUIP_SLOT_Y = 104;
     public static final int GATHER_SLOT_X = 98;
-    public static final int GATHER_SLOT_Y = 94;
-    public static final int PLAYER_INV_Y = 120;
+    public static final int GATHER_SLOT_Y = 104;
+    public static final int PLAYER_INV_Y = 130;
 
     private final Container container = new SimpleContainer(2);
     private final Player owner;

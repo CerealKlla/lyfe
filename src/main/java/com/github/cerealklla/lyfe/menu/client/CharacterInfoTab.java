@@ -73,6 +73,7 @@ public final class CharacterInfoTab implements NuclyusMenu {
 
         double maxHealth = attributeValue(player, Attributes.MAX_HEALTH);
         double maxAbsorption = attributeValue(player, Attributes.MAX_ABSORPTION);
+        double healthRegen = attributeValue(player, ModAttributes.HEALTH_REGEN);
         double swimSpeedBonus = attributeValue(player, NeoForgeMod.SWIM_SPEED);
         int survivalistLevel = Lyfe.getLevel(player, Skills.SURVIVALIST_ID);
         int swimmerLevel = Lyfe.getLevel(player, Skills.SWIMMER_ID);
@@ -83,7 +84,9 @@ public final class CharacterInfoTab implements NuclyusMenu {
                 new Stat("Max Health", formatHearts(maxHealth),
                         Component.literal("The most health you can have, shown in hearts. Grows with your Heartiness skill and any equipped gem/rune bonuses.")),
                 new Stat("Absorption", formatHearts(maxAbsorption),
-                        Component.literal("The highest amount of extra 'shield' hearts you can have at once, on top of your normal health. Not an amount you currently have -- something still has to grant it, like a potion or totem."))));
+                        Component.literal("The highest amount of extra 'shield' hearts you can have at once, on top of your normal health. Not an amount you currently have -- something still has to grant it, like a potion or totem.")),
+                new Stat("Health Regen", String.format(Locale.ROOT, "+%.1f per second", healthRegen),
+                        Component.literal("How quickly you heal naturally from food, at your best (well-fed and hurt). Can be boosted by equipped gear/Rune bonuses."))));
 
         Section survival = new Section("Survival", List.of(
                 new Stat("Food Capacity", maxHunger + " points",

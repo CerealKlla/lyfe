@@ -102,6 +102,9 @@ public final class AllayBottleScreen extends AbstractContainerScreen<AllayBottle
         double manaRegen = allay.getAttributeValue(ModAttributes.MANA_REGEN);
         graphics.text(font, String.format(Locale.ROOT, "Mana Regen: +%.1f/s", manaRegen),
                 10, STATS_TOP_Y + STATS_LINE_HEIGHT * 2, TEXT_COLOR, false);
+        double healthRegen = allay.getAttributeValue(ModAttributes.HEALTH_REGEN);
+        graphics.text(font, String.format(Locale.ROOT, "Health Regen: +%.1f/s", healthRegen),
+                10, STATS_TOP_Y + STATS_LINE_HEIGHT * 3, TEXT_COLOR, false);
     }
 
     /** {@code null} if no Allay is currently summoned, or it's no longer loaded (gone out of render distance, despawned, etc.). */

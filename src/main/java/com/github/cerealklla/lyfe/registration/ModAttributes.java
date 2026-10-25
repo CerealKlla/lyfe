@@ -46,6 +46,17 @@ public final class ModAttributes {
     public static final DeferredHolder<Attribute, Attribute> MANA_REGEN = ATTRIBUTES.register(
             "mana_regen", () -> new RangedAttribute("attribute.name.lyfe.mana_regen", 0.0, 0.0, 1000.0).setSyncable(true));
 
+    /**
+     * Health Regen (added 2026-10-25, explicit user request after the Character Info / Allay stat
+     * screens were shown missing it): the live hp/sec rate driving {@code hunger.HungerListener}'s
+     * vanilla-mirrored natural regen, in the same "a real Attribute everything reads live, gear/Runes
+     * can bonus it" shape {@code MANA_REGEN} already established. Base default ({@code
+     * hunger.HungerConstants#BASELINE_HEALTH_REGEN}, 0.8) reproduces today's already-tuned regen
+     * exactly -- see that constant's own doc for the scale-factor math both heal branches use.
+     */
+    public static final DeferredHolder<Attribute, Attribute> HEALTH_REGEN = ATTRIBUTES.register(
+            "health_regen", () -> new RangedAttribute("attribute.name.lyfe.health_regen", 0.8, 0.0, 1000.0).setSyncable(true));
+
     public static final DeferredHolder<Attribute, Attribute> MAGIC_FIND = ATTRIBUTES.register(
             "magic_find", () -> new RangedAttribute("attribute.name.lyfe.magic_find", 0.0, 0.0, 1000.0).setSyncable(true));
 
@@ -90,6 +101,7 @@ public final class ModAttributes {
             event.add(entityType, MAGIC_FIND);
             event.add(entityType, GOLD_FIND);
             event.add(entityType, CASTING_SPEED);
+            event.add(entityType, HEALTH_REGEN);
         }
     }
 }

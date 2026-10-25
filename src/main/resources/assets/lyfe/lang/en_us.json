@@ -1,6 +1,7 @@
 {
   "attribute.name.lyfe.max_mana": "Max Mana",
   "attribute.name.lyfe.mana_regen": "Mana Regeneration",
+  "attribute.name.lyfe.health_regen": "Health Regeneration",
   "attribute.name.lyfe.magic_find": "Magic Find",
   "attribute.name.lyfe.gold_find": "Gold Find",
   "effect.lyfe.rapid_recovery": "Rapid Recovery",

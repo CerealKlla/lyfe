@@ -32,8 +32,16 @@ final class HungerConstants {
     // own FoodConstants value (6.0F); HEAL_AMOUNT replaces what vanilla hardcodes as a bare literal
     // 1.0F directly in FoodData#tick's non-saturated branch (named here instead, matching this
     // class's own "every real number gets a name" convention).
+    //
+    // 2026-10-25: both are now *baseline* values only -- HungerListener scales them live by
+    // (ModAttributes.HEALTH_REGEN's current value / BASELINE_HEALTH_REGEN), so a fresh player with
+    // no gear/Runes reproduces these exact numbers (scale == 1.0), and a future Health Regen gear
+    // roll raises both heal paths proportionally instead of needing its own separate mechanic.
     static final float EXHAUSTION_HEAL = 2.4F; // was vanilla FoodConstants.EXHAUSTION_HEAL (6.0F)
     static final float HEAL_AMOUNT = 0.4F; // was vanilla's own hardcoded 1.0F (half a heart) per tick
+
+    /** The {@code ModAttributes.HEALTH_REGEN} value (hp/sec, the saturated-path's effective rate) that reproduces {@link #EXHAUSTION_HEAL}/{@link #HEAL_AMOUNT} exactly -- see their own doc above. */
+    static final float BASELINE_HEALTH_REGEN = 0.8F;
 
     // Real report, 2026-10-19 (reported twice): "food drops at normal pace until 3 icons, then sits
     // there forever... I could sprint for hours and never die." Root cause confirmed, not a bug in

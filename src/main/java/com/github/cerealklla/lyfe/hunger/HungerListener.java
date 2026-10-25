@@ -9,6 +9,7 @@ import java.util.UUID;
 import com.github.cerealklla.lyfe.api.Lyfe;
 import com.github.cerealklla.lyfe.cook.FoodClassification;
 import com.github.cerealklla.lyfe.registration.ModAttachments;
+import com.github.cerealklla.lyfe.registration.ModAttributes;
 import com.github.cerealklla.lyfe.skill.Skills;
 
 import net.minecraft.core.component.DataComponents;
@@ -124,7 +125,9 @@ public final class HungerListener {
         if (naturalRegen && hunger.getTrueSaturation() > 0.0F && player.isHurt() && hunger.getTrueHunger() >= currentMax) {
             timer++;
             if (timer >= HungerConstants.HEALTH_TICK_COUNT_SATURATED) {
-                float spent = Math.min(hunger.getTrueSaturation(), HungerConstants.EXHAUSTION_HEAL);
+                // Scaled by the live Health Regen attribute -- see HungerConstants#BASELINE_HEALTH_REGEN's doc.
+                float scale = healthRegenScale(player);
+                float spent = Math.min(hunger.getTrueSaturation(), HungerConstants.EXHAUSTION_HEAL * scale);
                 player.heal(spent / 6.0F);
                 hunger.spendSaturation(spent);
                 timer = 0;
@@ -132,7 +135,7 @@ public final class HungerListener {
         } else if (naturalRegen && hunger.getTrueHunger() >= HungerConstants.HEAL_LEVEL && player.isHurt()) {
             timer++;
             if (timer >= HungerConstants.HEALTH_TICK_COUNT) {
-                player.heal(HungerConstants.HEAL_AMOUNT);
+                player.heal(HungerConstants.HEAL_AMOUNT * healthRegenScale(player));
                 timer = 0;
             }
         } else if (hunger.getTrueHunger() <= HungerConstants.STARVE_LEVEL) {
@@ -150,6 +153,11 @@ public final class HungerListener {
         }
 
         tickTimers.put(playerId, timer);
+    }
+
+    /** How much faster than today's tuned baseline the player should currently heal, per {@code ModAttributes.HEALTH_REGEN}. */
+    private static float healthRegenScale(ServerPlayer player) {
+        return (float) (player.getAttributeValue(ModAttributes.HEALTH_REGEN) / HungerConstants.BASELINE_HEALTH_REGEN);
     }
 
     /**

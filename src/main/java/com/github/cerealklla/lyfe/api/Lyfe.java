@@ -427,6 +427,17 @@ public final class Lyfe {
         return stack.getItem() instanceof com.github.cerealklla.lyfe.magician.NatureStaffItem;
     }
 
+    /** Whether {@code stack} is an Allay in a Bottle or Summoning Stone -- {@code bridge.LyfeSummoningBridge}'s own entry point, see {@code summoning.GuardCompanionSupport}'s own doc. */
+    public static boolean isCompanionItem(net.minecraft.world.item.ItemStack stack) {
+        return com.github.cerealklla.lyfe.summoning.GuardCompanionSupport.isCompanionItem(stack);
+    }
+
+    /** Guard-held companion upkeep (summon once, re-summon once off cooldown after death) -- see {@code summoning.GuardCompanionSupport#tick}'s own doc for the full behavior. */
+    public static void tickGuardCompanion(net.minecraft.server.level.ServerLevel level, net.minecraft.world.item.ItemStack stack,
+            java.util.UUID ownerId, double x, double y, double z, float yRot) {
+        com.github.cerealklla.lyfe.summoning.GuardCompanionSupport.tick(level, stack, ownerId, x, y, z, yRot);
+    }
+
     /**
      * Attempts to cast Spark of Life from {@code caster} (any {@code LivingEntity} -- a player or,
      * per the explicit "very important" NPC-casting requirement, an AI-controlled mob). Returns
