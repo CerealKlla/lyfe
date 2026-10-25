@@ -43,7 +43,9 @@ public final class MagicianListener {
     private static final Identifier MANA_REGEN_MODIFIER_ID = Identifier.fromNamespaceAndPath(LyfeMod.MODID, "magician_mana_regen");
 
     private static final int MAX_MANA_PER_LEVEL = 10;
-    private static final int MANA_REGEN_PER_LEVEL = 1;
+    // Cut 1 -> 0.4, 2026-10-24 (explicit user spec: "Health Regen and Mana Regen across all mods is
+    // just too high... reduce it all by 60% everywhere").
+    private static final double MANA_REGEN_PER_LEVEL = 0.4;
 
     @SubscribeEvent
     public void onPlayerTick(PlayerTickEvent.Post event) {
@@ -131,7 +133,7 @@ public final class MagicianListener {
         }
         return List.of(
                 "+" + (level * MAX_MANA_PER_LEVEL) + " Max Mana",
-                "+" + (level * MANA_REGEN_PER_LEVEL) + " Mana Regen per second"
+                "+" + String.format(java.util.Locale.ROOT, "%.1f", level * MANA_REGEN_PER_LEVEL) + " Mana Regen per second"
         );
     }
 }

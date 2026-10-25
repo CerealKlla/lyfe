@@ -16,7 +16,12 @@ import net.minecraft.network.codec.StreamCodec;
  */
 public enum FocusStatType {
     MAX_MANA("Max Mana", 10, 10, 50, 80),
-    MANA_REGEN("Mana Regen", 1, 1, 3, 5),
+    // Cut 60%, 2026-10-24 (explicit user spec: "Health Regen and Mana Regen across all mods is just
+    // too high... reduce it all by 60% everywhere") -- was (1, 1, 3, 5). Note T2's own range now
+    // rounds to a flat 0 via roll()'s existing whole-number rounding (unchanged behavior, applies
+    // identically to every stat here) -- a real, accepted consequence of the cut at this tier, not
+    // treated as a bug to special-case around.
+    MANA_REGEN("Mana Regen", 0.4, 0.4, 1.2, 2.0),
     FASTER_CASTING_RATE("Faster Casting Rate", 5, 5, 8, 12),
     MAX_HEALTH("Max Health", 1, 1, 2, 3),
     MAGIC_FIND("Magic Find", 2, 5, 5, 10),

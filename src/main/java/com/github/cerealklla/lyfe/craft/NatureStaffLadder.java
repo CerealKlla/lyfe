@@ -134,10 +134,15 @@ public final class NatureStaffLadder {
         return tier * 10;
     }
 
-    /** Mana Regen bonus granted while held in the mainhand -- linear, T1=1 through T5=5. */
-    public static int manaRegenBonus(int tier) {
+    /**
+     * Mana Regen bonus granted while held in the mainhand -- linear, T1=0.4 through T5=2.0 (was a
+     * flat T1=1 through T5=5 whole-number scale; cut 60%, 2026-10-24, explicit user spec: "Health
+     * Regen and Mana Regen across all mods is just too high... reduce it all by 60% everywhere").
+     * Fractional on purpose -- rounding this to a whole number first would zero out T1 entirely.
+     */
+    public static double manaRegenBonus(int tier) {
         requireValidTier(tier);
-        return tier;
+        return tier * 0.4;
     }
 
     private static void requireValidTier(int tier) {

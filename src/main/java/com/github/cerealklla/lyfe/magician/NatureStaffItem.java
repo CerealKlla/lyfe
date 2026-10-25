@@ -72,7 +72,10 @@ public final class NatureStaffItem extends Item {
         Identifier manaRegenId = Identifier.fromNamespaceAndPath(LyfeMod.MODID, "nature_staff_mana_regen");
         double scale = 1.0 + qualityScore / 100.0;
         int scaledMaxMana = (int) Math.round(NatureStaffLadder.maxManaBonus(tier) * scale);
-        int scaledManaRegen = (int) Math.round(NatureStaffLadder.manaRegenBonus(tier) * scale);
+        // Kept fractional (not rounded to a whole number), 2026-10-24 -- manaRegenBonus's own values
+        // are fractional now (60% cut, see that method's own doc), and rounding this to int first
+        // would zero out T1 entirely even before Quality scaling is applied.
+        double scaledManaRegen = NatureStaffLadder.manaRegenBonus(tier) * scale;
         return ItemAttributeModifiers.builder()
                 .add(Attributes.ATTACK_DAMAGE,
                         new AttributeModifier(Item.BASE_ATTACK_DAMAGE_ID,
