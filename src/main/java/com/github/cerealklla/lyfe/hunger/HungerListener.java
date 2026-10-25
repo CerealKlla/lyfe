@@ -132,7 +132,7 @@ public final class HungerListener {
         } else if (naturalRegen && hunger.getTrueHunger() >= HungerConstants.HEAL_LEVEL && player.isHurt()) {
             timer++;
             if (timer >= HungerConstants.HEALTH_TICK_COUNT) {
-                player.heal(1.0F);
+                player.heal(HungerConstants.HEAL_AMOUNT);
                 timer = 0;
             }
         } else if (hunger.getTrueHunger() <= HungerConstants.STARVE_LEVEL) {

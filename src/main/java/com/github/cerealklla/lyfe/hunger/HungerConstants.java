@@ -24,7 +24,16 @@ final class HungerConstants {
     static final int STARVE_LEVEL = 0; // vanilla FoodConstants.STARVE_LEVEL
     static final int HEALTH_TICK_COUNT = 80; // vanilla FoodConstants.HEALTH_TICK_COUNT
     static final int HEALTH_TICK_COUNT_SATURATED = 10; // vanilla FoodConstants.HEALTH_TICK_COUNT_SATURATED
-    static final float EXHAUSTION_HEAL = 6.0F; // vanilla FoodConstants.EXHAUSTION_HEAL
+
+    // Both cut 60% (-> 0.4x), 2026-10-24 -- explicit user report: "Vanilla is healing you from
+    // having a full stomach. That heal rate seems too high; I am not wearing any armor at all and
+    // basically am [im]mortal." Event *frequency* (the two HEALTH_TICK_COUNT* constants above) is
+    // left untouched -- only how much each regen tick actually heals. EXHAUSTION_HEAL was vanilla's
+    // own FoodConstants value (6.0F); HEAL_AMOUNT replaces what vanilla hardcodes as a bare literal
+    // 1.0F directly in FoodData#tick's non-saturated branch (named here instead, matching this
+    // class's own "every real number gets a name" convention).
+    static final float EXHAUSTION_HEAL = 2.4F; // was vanilla FoodConstants.EXHAUSTION_HEAL (6.0F)
+    static final float HEAL_AMOUNT = 0.4F; // was vanilla's own hardcoded 1.0F (half a heart) per tick
 
     // Real report, 2026-10-19 (reported twice): "food drops at normal pace until 3 icons, then sits
     // there forever... I could sprint for hours and never die." Root cause confirmed, not a bug in
