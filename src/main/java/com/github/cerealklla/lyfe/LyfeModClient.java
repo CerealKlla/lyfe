@@ -256,6 +256,10 @@ public class LyfeModClient {
         // Design doc Section 5: same reasoning, replaces vanilla's hardcoded 10-bubble air bar with
         // one that can show up to 30 as Swimmer levels.
         event.replaceLayer(VanillaGuiLayers.AIR_LEVEL, new SwimmerOverlay());
+        // Real live-test bug, 2026-10-26 (Caryvan Wagon/Carriage health system) -- vanilla's own
+        // mount-health layer renders at the same position as the custom food bar above; see
+        // MountHealthOverlay's own doc for the full real-source writeup.
+        event.replaceLayer(VanillaGuiLayers.VEHICLE_HEALTH, new com.github.cerealklla.lyfe.client.MountHealthOverlay());
         // Disables vanilla's sleep fade-to-black entirely (2026-10-03 user request) -- there's no
         // removeLayer, so a true no-op replacement is the way to disable a vanilla layer outright,
         // same mechanism as the two replacements above. Requested alongside rest.BedRestListener's
