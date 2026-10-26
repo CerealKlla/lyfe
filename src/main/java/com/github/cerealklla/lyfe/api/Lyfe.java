@@ -439,6 +439,48 @@ public final class Lyfe {
     }
 
     /**
+     * Whether {@code stack} is specifically a Summoning Stone (a bound *mount*), not the broader
+     * {@link #isCompanionItem} set which also includes the Allay Bottle -- for Caryvan's Phase 2
+     * mount-slot mechanic (2026-10-25), which only ever wants a rideable/pullable mount, never a
+     * gathering Allay.
+     */
+    public static boolean isMountSummoningStone(net.minecraft.world.item.ItemStack stack) {
+        return stack.getItem() instanceof com.github.cerealklla.lyfe.summoning.SummoningStoneItem;
+    }
+
+    /**
+     * Whether {@code stack} is specifically an Allay in a Bottle, not the broader {@link
+     * #isCompanionItem} set which also includes a Summoning Stone -- the mirror-image predicate of
+     * {@link #isMountSummoningStone}, added 2026-10-26 for Caryvan's own real Companion inventory
+     * slots (design-document.md §8 point 6), which only ever want a non-mount companion, never a
+     * rideable/pullable mount.
+     */
+    public static boolean isAllayBottleItem(net.minecraft.world.item.ItemStack stack) {
+        return stack.getItem() instanceof com.github.cerealklla.lyfe.summoning.AllayBottleItem;
+    }
+
+    /**
+     * The UUID of {@code stack}'s currently-summoned Allay, if any is out right now -- the mirror-
+     * image accessor of {@link #getSummonedMountId}, same "caller still needs to resolve this
+     * against a real {@code ServerLevel}" caveat.
+     */
+    public static java.util.Optional<java.util.UUID> getSummonedAllayId(net.minecraft.world.item.ItemStack stack) {
+        com.github.cerealklla.lyfe.summoning.AllayBottleData data = stack.get(com.github.cerealklla.lyfe.registration.ModItems.ALLAY_BOTTLE_DATA.get());
+        return data == null ? java.util.Optional.empty() : data.summonedAllayId();
+    }
+
+    /**
+     * The UUID of {@code stack}'s currently-summoned mount, if any is out right now -- the caller
+     * still needs to resolve this against a real {@code ServerLevel} (e.g. {@code
+     * ServerLevel#getEntity}) to get a live reference, since a dead/despawned mount's id can briefly
+     * linger here until the next {@link #tickGuardCompanion} call notices and clears it.
+     */
+    public static java.util.Optional<java.util.UUID> getSummonedMountId(net.minecraft.world.item.ItemStack stack) {
+        com.github.cerealklla.lyfe.summoning.SummoningStoneData data = stack.get(com.github.cerealklla.lyfe.registration.ModItems.SUMMONING_STONE_DATA.get());
+        return data == null ? java.util.Optional.empty() : data.summonedMountId();
+    }
+
+    /**
      * Attempts to cast Spark of Life from {@code caster} (any {@code LivingEntity} -- a player or,
      * per the explicit "very important" NPC-casting requirement, an AI-controlled mob). Returns
      * whether it actually fired (false on insufficient mana or still on cooldown) -- the caller

@@ -44,9 +44,32 @@ public final class AllayBottleItem extends Item {
         super(properties);
     }
 
+    /**
+     * Real user report, 2026-10-26: this always showed the same static two lines regardless of
+     * cooldown/summoned state -- the exact same gap {@link SummoningStoneItem#appendHoverText} was
+     * already fixed for (2026-10-25), just never ported over here. Now reads {@link AllayBottleData}
+     * directly, same as that fix, with one real difference reflected in the text: right-click on an
+     * already-summoned Allay **dispels** it (a real, useful action -- see {@link #use}'s own dispel
+     * branch), unlike a Summoning Stone's "already summoned" case, which just refuses.
+     */
     @Override
     public void appendHoverText(ItemStack stack, TooltipContext context, TooltipDisplay display, Consumer<Component> builder, TooltipFlag tooltipFlag) {
-        builder.accept(Component.literal("Right-click: Summon or dispel the bound Allay").withStyle(ChatFormatting.AQUA));
+        AllayBottleData data = stack.get(ModItems.ALLAY_BOTTLE_DATA.get());
+        if (data != null) {
+            long now = System.currentTimeMillis();
+            if (data.summonedAllayId().isPresent()) {
+                builder.accept(Component.literal("Right-click: Dispel the summoned Allay").withStyle(ChatFormatting.AQUA));
+                builder.accept(Component.literal("Shift+Right-click: Configure").withStyle(ChatFormatting.AQUA));
+                return;
+            }
+            if (data.onCooldown(now)) {
+                long secondsLeft = (data.cooldownEndEpochMillis() - now) / 1000L + 1L;
+                builder.accept(Component.literal("Recovering (" + secondsLeft + "s left)").withStyle(ChatFormatting.RED));
+                builder.accept(Component.literal("Shift+Right-click: Configure").withStyle(ChatFormatting.AQUA));
+                return;
+            }
+        }
+        builder.accept(Component.literal("Right-click: Summon the bound Allay").withStyle(ChatFormatting.AQUA));
         builder.accept(Component.literal("Shift+Right-click: Configure").withStyle(ChatFormatting.AQUA));
     }
 

@@ -198,8 +198,16 @@ public class LyfeMod {
         // was replaced with a Dev Kyt contribution (/kyt getDev) the same day, but as of 2026-10-05
         // every item that contribution ever listed now has a real crafting recipe of its own (see
         // decisions.md's full remove-by-remove history) -- Research Bench and Fish Cleaning Station,
-        // the last two, just gained theirs. With nothing left to contribute, this mod no longer
-        // registers a Dev Kyt contribution at all.
+        // the last two, just gained theirs.
+
+        // Re-added 2026-10-25, explicit user request -- a ready-to-use Summoning Stone, already
+        // bound to a synthetic tamed/saddled horse, so testing Caryvan's new animal-drawn carts
+        // doesn't require first manually taming/saddling/binding a real one. See
+        // summoning.DevSummoningStoneContribution's own doc.
+        if (ModList.get().isLoaded("kyt")) {
+            com.github.cerealklla.kyt.api.Kyt.registerDevKytContribution(
+                    com.github.cerealklla.lyfe.summoning.DevSummoningStoneContribution::build);
+        }
 
         // Shop auto-seeding (design doc Section 19.9, 2026-10-05) -- registers this mod's own Zone
         // Types' Shop catalogs (Armorer/Blacksmith/Grocer/Restaurant) with Settlemynts' open

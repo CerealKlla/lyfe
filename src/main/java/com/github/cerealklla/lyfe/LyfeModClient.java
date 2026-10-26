@@ -29,6 +29,7 @@ import com.github.cerealklla.lyfe.recallcinite.client.ClientRecallciniteState;
 import com.github.cerealklla.lyfe.recallcinite.client.RecallciniteBindConfirmScreen;
 import com.github.cerealklla.lyfe.recallcinite.client.RecallciniteChannelOverlay;
 import com.github.cerealklla.lyfe.recallcinite.client.RecallciniteHotbarCooldownOverlay;
+import com.github.cerealklla.lyfe.summoning.client.SummoningStoneCooldownDecorator;
 import com.github.cerealklla.lyfe.skill.Skills;
 import com.github.cerealklla.lyfe.client.FloatingIconRenderer;
 import com.github.cerealklla.lyfe.cook.CookingStructureBlockEntity;
@@ -90,6 +91,7 @@ import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 import net.neoforged.neoforge.client.event.RegisterClientTooltipComponentFactoriesEvent;
 import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
+import net.neoforged.neoforge.client.event.RegisterItemDecorationsEvent;
 import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
 import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
 import net.neoforged.neoforge.client.event.RegisterRenderPipelinesEvent;
@@ -261,6 +263,17 @@ public class LyfeModClient {
         // every resume -- see that class's doc for the full story.
         event.replaceLayer(VanillaGuiLayers.SLEEP_OVERLAY, (graphics, deltaTracker) -> {
         });
+    }
+
+    /**
+     * Real user report, 2026-10-25: "even in my inventory it's not visually wiping" -- see {@code
+     * summoning.client.SummoningStoneCooldownDecorator}'s own doc for why vanilla's real cooldown
+     * overlay never renders for this item on its own, and why the generic {@link IItemDecorator}
+     * hook (works in any inventory screen, not just the hotbar) is the real fix.
+     */
+    @SubscribeEvent
+    static void onRegisterItemDecorations(RegisterItemDecorationsEvent event) {
+        event.register(ModItems.SUMMONING_STONE.get(), new SummoningStoneCooldownDecorator());
     }
 
     // Catch Bag needs its own pounds-based progress bar, not vanilla's item-count-based one -- see

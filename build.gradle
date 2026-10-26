@@ -169,8 +169,11 @@ dependencies {
     // Same optional-soft-dependency shape as Cartographyr/Yconomics above, added 2026-10-02 so
     // LyfeMod can contribute its own custom debug items (Research Bench, Crafting Mat, Tinker
     // Bench, Crafting Table, Engineer's Bench) into Kyt's mod-managed "Dev" Kyt via
-    // api.Kyt#registerDevKytContribution, gated behind ModList.get().isLoaded("kyt"). Kyt itself
-    // deliberately has zero sibling-mod dependencies ("Kyt stands alone") -- this dependency only
+    // api.Kyt#registerDevKytContribution, gated behind ModList.get().isLoaded("kyt") -- as of
+    // 2026-10-05 every one of those gained a real crafting recipe and this contribution was
+    // removed, then re-added 2026-10-25 for a ready-bound Summoning Stone (see
+    // summoning.DevSummoningStoneContribution). Kyt itself deliberately has zero sibling-mod
+    // dependencies ("Kyt stands alone") -- this dependency only
     // ever points the other way.
     compileOnly files("../Kyt/build/libs/kyt-${kyt_version}.jar")
 

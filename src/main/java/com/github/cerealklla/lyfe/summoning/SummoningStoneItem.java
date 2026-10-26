@@ -41,8 +41,28 @@ public final class SummoningStoneItem extends Item {
         super(properties);
     }
 
+    /**
+     * Real user report, 2026-10-25: "it may be even better to create a custom event..." (the
+     * broader cooldown architecture suggestion) came after noticing the tooltip said nothing about
+     * cooldown state at all -- it always showed the same "right-click to summon" line regardless of
+     * whether that would actually work. Now reads {@link SummoningStoneData} directly (same real
+     * data {@link #use} itself checks) so the tooltip matches the item's actual current state.
+     */
     @Override
     public void appendHoverText(ItemStack stack, TooltipContext context, TooltipDisplay display, Consumer<Component> builder, TooltipFlag tooltipFlag) {
+        SummoningStoneData data = stack.get(ModItems.SUMMONING_STONE_DATA.get());
+        if (data != null) {
+            long now = System.currentTimeMillis();
+            if (data.summonedMountId().isPresent()) {
+                builder.accept(Component.literal("Already summoned").withStyle(ChatFormatting.GRAY));
+                return;
+            }
+            if (data.onCooldown(now)) {
+                long secondsLeft = (data.cooldownEndEpochMillis() - now) / 1000L + 1L;
+                builder.accept(Component.literal("Recharging (" + secondsLeft + "s left)").withStyle(ChatFormatting.RED));
+                return;
+            }
+        }
         builder.accept(Component.literal("Right-click: Summon the bound mount").withStyle(ChatFormatting.AQUA));
     }
 

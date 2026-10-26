@@ -77,6 +77,20 @@ public record SummoningStoneData(CompoundTag savedState, long cooldownEndEpochMi
         return currentEpochMillis < cooldownEndEpochMillis;
     }
 
+    /**
+     * Fraction of the current cooldown still remaining (1.0 = just started, 0.0 = finished/no
+     * cooldown) -- for the tooltip/inventory-slot cooldown display. Unlike {@code
+     * recallcinite.RecallciniteData}'s own version of this method, this doesn't need its own
+     * separately-tracked "total duration" field -- {@link SummoningStoneItem#COOLDOWN_MILLIS} is a
+     * single fixed constant, never variable per-stone.
+     */
+    public float cooldownFractionRemaining(long currentEpochMillis) {
+        if (!onCooldown(currentEpochMillis)) {
+            return 0.0F;
+        }
+        return (float) Math.clamp((double) (cooldownEndEpochMillis - currentEpochMillis) / SummoningStoneItem.COOLDOWN_MILLIS, 0.0, 1.0);
+    }
+
     public SummoningStoneData withSavedState(CompoundTag newState) {
         return new SummoningStoneData(newState, cooldownEndEpochMillis, summonedMountId);
     }
