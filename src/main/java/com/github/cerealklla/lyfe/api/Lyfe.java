@@ -481,6 +481,52 @@ public final class Lyfe {
     }
 
     /**
+     * Properly despawns {@code stack}'s currently-summoned mount, if any -- recaptures its live state
+     * back into the stack and clears {@code summonedMountId}, exactly like {@code
+     * summoning.SummoningDistanceTicker}'s own "walked too far away" despawn already does, and
+     * deliberately untouched cooldown-wise. Added 2026-10-26 for Caryvan's Mount slots: real user
+     * report, "removing a summon stone from the wagon is killing it and putting it on cooldown" --
+     * {@code entity.discard()}'d directly by the wagon's own stale-claim cleanup the instant the item
+     * left its slot, leaving the item (now elsewhere, out of the wagon's reach) with a dangling
+     * {@code summonedMountId} pointing at nothing -- the next time anything (a Guard/wagon re-tick, a
+     * future re-placement) noticed, {@code summoning.GuardCompanionSupport#tick}'s own "entity gone ->
+     * must have died" logic has no other branch, so it always imposes the 5-minute cooldown
+     * regardless of why the entity is actually gone. The real fix is for the *removal itself* to
+     * leave the stack in an already-clean "nothing summoned" state before it ever leaves Caryvan's
+     * hands, the same way a voluntary dispel already does -- see {@code menu.MountSlot#onTake}.
+     */
+    public static void despawnMountCleanly(net.minecraft.server.level.ServerLevel level, net.minecraft.world.item.ItemStack stack) {
+        com.github.cerealklla.lyfe.summoning.SummoningStoneData data = stack.get(com.github.cerealklla.lyfe.registration.ModItems.SUMMONING_STONE_DATA.get());
+        if (data == null || data.summonedMountId().isEmpty()) {
+            return;
+        }
+        net.minecraft.world.entity.Entity mount = level.getEntity(data.summonedMountId().get());
+        com.github.cerealklla.lyfe.summoning.SummoningStoneData updated = data.withSummonedMountId(java.util.Optional.empty());
+        if (mount != null) {
+            updated = updated.withSavedState(com.github.cerealklla.lyfe.summoning.SummoningStoneData.capture(mount, level));
+            mount.ejectPassengers();
+            mount.discard();
+        }
+        stack.set(com.github.cerealklla.lyfe.registration.ModItems.SUMMONING_STONE_DATA.get(), updated);
+    }
+
+    /** Mirror-image of {@link #despawnMountCleanly}, for a Companion slot's bound Allay instead of a Summoning Stone's bound mount. */
+    public static void despawnCompanionCleanly(net.minecraft.server.level.ServerLevel level, net.minecraft.world.item.ItemStack stack) {
+        com.github.cerealklla.lyfe.summoning.AllayBottleData data = stack.get(com.github.cerealklla.lyfe.registration.ModItems.ALLAY_BOTTLE_DATA.get());
+        if (data == null || data.summonedAllayId().isEmpty()) {
+            return;
+        }
+        net.minecraft.world.entity.Entity allay = level.getEntity(data.summonedAllayId().get());
+        com.github.cerealklla.lyfe.summoning.AllayBottleData updated = data.withSummonedAllayId(java.util.Optional.empty());
+        if (allay != null) {
+            updated = updated.withSavedState(com.github.cerealklla.lyfe.summoning.AllayCapture.capture(allay, level));
+            allay.ejectPassengers();
+            allay.discard();
+        }
+        stack.set(com.github.cerealklla.lyfe.registration.ModItems.ALLAY_BOTTLE_DATA.get(), updated);
+    }
+
+    /**
      * Attempts to cast Spark of Life from {@code caster} (any {@code LivingEntity} -- a player or,
      * per the explicit "very important" NPC-casting requirement, an AI-controlled mob). Returns
      * whether it actually fired (false on insufficient mana or still on cooldown) -- the caller
