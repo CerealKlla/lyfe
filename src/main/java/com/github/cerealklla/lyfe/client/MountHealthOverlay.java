@@ -29,6 +29,30 @@ import net.neoforged.neoforge.client.gui.GuiLayer;
  * <p>Registered via {@code LyfeModClient#onRegisterGuiLayers}'s {@code replaceLayer(
  * VanillaGuiLayers.VEHICLE_HEALTH, ...)} -- same mechanism {@code HungerOverlay}/{@code
  * SwimmerOverlay} already use to replace a vanilla bar outright.
+ *
+ * <p><b>Real bug found and fixed, 2026-10-26</b> -- a live-test screenshot of a player sitting in a
+ * Wagon with zero horses hitched (so this was never about a horse's randomized 15-30 HP range at
+ * all) showed Nuclyus's own real stat bar reading ~15-20% while this overlay showed ~90% full, same
+ * entity, same instant. Hand-derived the exact mismatch from vanilla's own real heart math (which
+ * this class originally ported verbatim from {@code Gui#extractVehicleHealth}/
+ * {@code getVehicleMaxHearts}): that formula hardcodes 2 HP per heart, capped at 30 hearts -- a
+ * 60 HP display window, sized for vanilla's own mount range. A Wagon's real base Max HP is 100 (a
+ * Carriage's is 150), far past that window -- so at a real ~18/100 HP (18%), the FIRST, most visible
+ * row of 10 hearts (each worth only 2 HP under the old formula) was already 9/10 full on its own
+ * (18 HP fills 9 of that row's 2-HP hearts), while the 2 further rows (representing HP ranges this
+ * entity's own health bar can reach but vanilla's hardcoded cap was never built to show) sat empty
+ * out of view -- reading as "nearly full" while the entity was nearly dead. Confirmed by hand
+ * substituting the Wagon's own real numbers into the formula, not just re-trusting the original,
+ * faithful-to-vanilla port (which was correctly verified against SMALL, horse-range health pools
+ * only, never actually tested against this entity).
+ *
+ * <p>Fixed by scaling how much HP each heart represents to the ridden entity's own real
+ * {@code getMaxHealth()}, instead of a hardcoded 2 -- see {@link #render}'s own inline doc. For any
+ * mount at or under the vanilla 60 HP window (every real vanilla horse/camel/etc., always 15-30 HP)
+ * this resolves to exactly 2 HP per heart, identical to vanilla's own original behavior, byte for
+ * byte. Only a pool genuinely exceeding that window (a Wagon/Carriage) now scales down per heart
+ * instead of silently truncating -- guaranteeing the displayed fill fraction always matches the
+ * real current/max ratio, regardless of how large the mount's real Max HP is.
  */
 public final class MountHealthOverlay implements GuiLayer {
 
@@ -45,6 +69,10 @@ public final class MountHealthOverlay implements GuiLayer {
     // food bar in the first place).
     private static final int MARGIN_RIGHT = 10;
     private static final int MARGIN_BOTTOM = 10;
+    // Same hard cap vanilla's own getVehicleMaxHearts uses (30 hearts) -- kept identical so every
+    // real vanilla mount (always <= 60 HP) renders byte-for-byte the same as before this fix; only a
+    // pool that genuinely exceeds 60 HP (Wagon/Carriage) actually triggers the new per-heart scaling.
+    private static final int MAX_HEARTS = 30;
 
     @Override
     public void render(final GuiGraphicsExtractor guiGraphics, final DeltaTracker deltaTracker) {
@@ -56,34 +84,40 @@ public final class MountHealthOverlay implements GuiLayer {
         if (!(vehicle instanceof LivingEntity livingVehicle) || !livingVehicle.showVehicleHealth()) {
             return;
         }
-        // Same formula/cap as vanilla's own Gui#getVehicleMaxHearts -- (maxHealth + 0.5) / 2, capped
-        // at 30 hearts (60 HP). A Wagon (100 HP)/Carriage (150 HP) both exceed this and simply render
-        // a full 3/4-row grid, same as vanilla already does for anything else that large.
-        int hearts = Math.min((int) (livingVehicle.getMaxHealth() + 0.5F) / 2, 30);
-        if (hearts <= 0) {
+        final float maxHealth = livingVehicle.getMaxHealth();
+        if (maxHealth <= 0.0F) {
             return;
         }
-        final int currentHealth = (int) Math.ceil(livingVehicle.getHealth());
+        // Real bug fix, 2026-10-26: vanilla's own hardcoded "2 HP per heart" assumption (see this
+        // class's own top-level doc) only holds while maxHealth/2 doesn't exceed MAX_HEARTS -- for
+        // anything bigger (a Wagon/Carriage), each heart now represents a proportionally larger slice
+        // of the real max health instead, so the number of hearts filled always matches the real
+        // current/max fraction exactly, regardless of how large maxHealth is.
+        final int hearts = Math.min(Math.max(1, (int) Math.ceil(maxHealth / 2.0F)), MAX_HEARTS);
+        final float healthPerHeart = maxHealth / hearts;
+        final float currentHealth = livingVehicle.getHealth();
 
         final int xRight = guiGraphics.guiWidth() - MARGIN_RIGHT;
         final int yBase = guiGraphics.guiHeight() - MARGIN_BOTTOM;
 
-        int baseHealth = 0;
+        int heartsRemaining = hearts;
+        int heartIndex = 0;
         int row = 0;
-        while (hearts > 0) {
-            final int rowHearts = Math.min(hearts, ICONS_PER_ROW);
-            hearts -= rowHearts;
+        while (heartsRemaining > 0) {
+            final int rowHearts = Math.min(heartsRemaining, ICONS_PER_ROW);
+            heartsRemaining -= rowHearts;
             final int y = yBase - row * ROW_SPACING;
             for (int i = 0; i < rowHearts; i++) {
                 final int x = xRight - i * ICON_SPACING - ICON_SIZE;
                 guiGraphics.blitSprite(RenderPipelines.GUI_TEXTURED, HEART_VEHICLE_CONTAINER_SPRITE, x, y, ICON_SIZE, ICON_SIZE);
-                if (i * 2 + 1 + baseHealth < currentHealth) {
+                final float heartFloor = heartIndex * healthPerHeart;
+                if (currentHealth >= heartFloor + healthPerHeart) {
                     guiGraphics.blitSprite(RenderPipelines.GUI_TEXTURED, HEART_VEHICLE_FULL_SPRITE, x, y, ICON_SIZE, ICON_SIZE);
-                } else if (i * 2 + 1 + baseHealth == currentHealth) {
+                } else if (currentHealth >= heartFloor + healthPerHeart / 2.0F) {
                     guiGraphics.blitSprite(RenderPipelines.GUI_TEXTURED, HEART_VEHICLE_HALF_SPRITE, x, y, ICON_SIZE, ICON_SIZE);
                 }
+                heartIndex++;
             }
-            baseHealth += 20;
             row++;
         }
     }
