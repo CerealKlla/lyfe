@@ -527,6 +527,30 @@ public final class Lyfe {
     }
 
     /**
+     * Whether {@code stack}'s bound mount/companion is genuinely dead right now -- i.e. its own
+     * stored {@link com.github.cerealklla.lyfe.summoning.SummoningStoneData}/{@link
+     * com.github.cerealklla.lyfe.summoning.AllayBottleData#onCooldown} says so. Added 2026-10-26 for
+     * Caryvan's Wagon/Carriage "cargo locked until every companion/stone is actually dead" access
+     * gate -- the real, already-existing signal for "dead" in this mod (set naturally by {@code
+     * GuardCompanionSupport#tick}'s own "entity gone -> must have died" branch whenever a bound mount/
+     * Allay is killed out in the world, completely independent of any menu interaction, so there's no
+     * circularity in gating a menu open on this). Dispatches on whichever data component {@code
+     * stack} actually carries (mount stone vs. Allay Bottle); returns {@code false} for an empty
+     * stack or one with no stored data at all (nothing bound -- never "dead," just never summoned).
+     */
+    public static boolean isOnCooldown(net.minecraft.world.item.ItemStack stack, long nowEpochMillis) {
+        if (isMountSummoningStone(stack)) {
+            com.github.cerealklla.lyfe.summoning.SummoningStoneData data = stack.get(com.github.cerealklla.lyfe.registration.ModItems.SUMMONING_STONE_DATA.get());
+            return data != null && data.onCooldown(nowEpochMillis);
+        }
+        if (isAllayBottleItem(stack)) {
+            com.github.cerealklla.lyfe.summoning.AllayBottleData data = stack.get(com.github.cerealklla.lyfe.registration.ModItems.ALLAY_BOTTLE_DATA.get());
+            return data != null && data.onCooldown(nowEpochMillis);
+        }
+        return false;
+    }
+
+    /**
      * Attempts to cast Spark of Life from {@code caster} (any {@code LivingEntity} -- a player or,
      * per the explicit "very important" NPC-casting requirement, an AI-controlled mob). Returns
      * whether it actually fired (false on insufficient mana or still on cooldown) -- the caller
