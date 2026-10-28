@@ -40,6 +40,11 @@ public final class ServerRecipeStore {
         return STORE.all();
     }
 
+    /** Bumped on {@link #reroll} -- lets a downstream consumer cache {@link #all} safely. See {@code PersistedServerStore#generation}'s own doc. */
+    public static int generation() {
+        return STORE.generation();
+    }
+
     public static void loadOrGenerate(MinecraftServer server) {
         STORE.loadOrGenerate(server);
     }
