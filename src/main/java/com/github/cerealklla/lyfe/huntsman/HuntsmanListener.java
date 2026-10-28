@@ -57,7 +57,9 @@ public final class HuntsmanListener {
     // Identifier-based soft-reference to Settlemynts entities elsewhere (minimap.ClientGhostMarkerOutlines).
     private static final Identifier SETTLEMYNTS_GUARD = Identifier.fromNamespaceAndPath("settlemynts", "guard");
 
-    private static boolean isExcludedFromHuntsman(LivingEntity victim) {
+    // Widened from private, 2026-10-28, so HuntsmanLootBonusListener (same package) can reuse this
+    // exact "who counts as a real Huntsman kill" rule instead of duplicating it.
+    static boolean isExcludedFromHuntsman(LivingEntity victim) {
         if (victim instanceof Villager) {
             return true;
         }

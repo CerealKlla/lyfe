@@ -39,7 +39,11 @@ public final class FishingConstants {
     // weight range reserved as the "upper band" a lucky-spot catch rolls from instead of the full range.
     public static final double LUCKY_SPOT_BONUS_LOOT_BUMP = 0.15;
     public static final double LUCKY_SPOT_UPPER_BAND = 0.25;
-    public static final int LUCKY_SPOT_RADIUS = 10;
+    // Real distance band, 2026-10-28 (explicit user request) -- replaces the old single RADIUS
+    // (a 0-10 square scatter, which could land right next to the player) with an actual 5-12 block
+    // distance from the player, picked via FishermanListener#pickLuckySpot's own random-angle sample.
+    public static final int LUCKY_SPOT_MIN_DISTANCE = 5;
+    public static final int LUCKY_SPOT_MAX_DISTANCE = 12;
 
     // Sunken Treasure Bag (E): 5% base, +3% every 5 levels past level 30.
     public static final double SUNKEN_TREASURE_BASE_CHANCE = 0.05;

@@ -310,8 +310,13 @@ public final class FishermanListener {
         RandomSource random = level.getRandom();
         BlockPos origin = player.blockPosition();
         for (int attempt = 0; attempt < 20; attempt++) {
-            int dx = random.nextInt(FishingConstants.LUCKY_SPOT_RADIUS * 2 + 1) - FishingConstants.LUCKY_SPOT_RADIUS;
-            int dz = random.nextInt(FishingConstants.LUCKY_SPOT_RADIUS * 2 + 1) - FishingConstants.LUCKY_SPOT_RADIUS;
+            // Real distance band (not a square scatter) -- random angle + random radius in
+            // [MIN_DISTANCE, MAX_DISTANCE], 2026-10-28 explicit user request.
+            double angle = random.nextDouble() * Math.PI * 2.0;
+            double distance = FishingConstants.LUCKY_SPOT_MIN_DISTANCE
+                    + random.nextDouble() * (FishingConstants.LUCKY_SPOT_MAX_DISTANCE - FishingConstants.LUCKY_SPOT_MIN_DISTANCE);
+            int dx = (int) Math.round(Math.cos(angle) * distance);
+            int dz = (int) Math.round(Math.sin(angle) * distance);
             BlockPos candidate = origin.offset(dx, 0, dz);
             BlockPos surface = level.getHeightmapPos(net.minecraft.world.level.levelgen.Heightmap.Types.WORLD_SURFACE, candidate);
             BlockPos waterPos = surface.below();

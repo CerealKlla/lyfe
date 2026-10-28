@@ -9,8 +9,10 @@ import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.monster.Enemy;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.throwableitemprojectile.ThrowableItemProjectile;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -112,6 +114,11 @@ public final class SparkOfLifeProjectile extends ThrowableItemProjectile {
         return entity instanceof Enemy;
     }
 
+    /** Real Player or real Mob only -- see {@link #onHitEntity}'s own 2026-10-28 doc. */
+    private static boolean isValidHealTarget(LivingEntity entity) {
+        return entity instanceof Player || entity instanceof Mob;
+    }
+
     /**
      * Real root cause of a live server performance incident, 2026-10-21: this class only ever
      * discarded itself on a hit *entity* (see {@link #onHitEntity}) -- the base {@code
@@ -143,7 +150,12 @@ public final class SparkOfLifeProjectile extends ThrowableItemProjectile {
         boolean targetHostile = hostile(target);
 
         if (casterHostile == targetHostile) {
-            boolean healedAnything = healAlly(target);
+            // Real bug fix, 2026-10-28: guards (and the direct hit-path here) were healing
+            // Caryvan's Wagon/Carriage entities -- real LivingEntity subclasses with real HP as of
+            // this session's HP/repair system, but not actual combatants. Only a Player or a real
+            // Mob is a sensible heal target; see GuardSpellCastGoal's own identical fix on the
+            // Settlemynts side for the targeting-side half of this.
+            boolean healedAnything = isValidHealTarget(target) && healAlly(target);
             if (healedAnything && owner instanceof ServerPlayer player) {
                 // Spell Proficiency (per-spell cost/cooldown reduction, AND -- as of 2026-10-21 --
                 // the sole source of Magician's own level, see MagicianListener's class doc) is

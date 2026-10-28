@@ -25,6 +25,7 @@ import com.github.cerealklla.lyfe.gathering.SaplingAutoReplant;
 import com.github.cerealklla.lyfe.heartiness.HeartinessListener;
 import com.github.cerealklla.lyfe.hunger.HungerListener;
 import com.github.cerealklla.lyfe.huntsman.HuntsmanListener;
+import com.github.cerealklla.lyfe.huntsman.HuntsmanLootBonusListener;
 import com.github.cerealklla.lyfe.huntsman.QuarryKnowledgeProgressPayload;
 import com.github.cerealklla.lyfe.huntsman.client.ClientHuntsmanBarState;
 import com.github.cerealklla.lyfe.location.ClientLocationState;
@@ -146,6 +147,8 @@ public class LyfeMod {
         NeoForge.EVENT_BUS.register(new CombatSkillListener());
         NeoForge.EVENT_BUS.register(new AssistTracker());
         NeoForge.EVENT_BUS.register(new HuntsmanListener());
+        // Huntsman's first real level-based perk, 2026-10-28 -- see that class's own doc.
+        NeoForge.EVENT_BUS.register(new HuntsmanLootBonusListener());
         NeoForge.EVENT_BUS.register(new ExcavatorListener());
         NeoForge.EVENT_BUS.register(new ProficiencyDurabilityListener());
         NeoForge.EVENT_BUS.register(new PassiveDurabilityResearchListener());
