@@ -89,19 +89,28 @@ public final class ModAttributes {
      */
     private static final double ALLAY_BASE_MANA_REGEN = 1.0;
 
+    /**
+     * A bound Allay's own base Health Regen, lowered from the shared {@link #HEALTH_REGEN} default
+     * (0.8) -- explicit user report, 2026-10-28: "they are all but invincible right now." Same
+     * per-type-override shape {@link #ALLAY_BASE_MANA_REGEN} already established -- every other
+     * entity type keeps the attribute's own unmodified default.
+     */
+    private static final double ALLAY_BASE_HEALTH_REGEN = 0.2;
+
     /** Mod-bus listener, registered in {@code LyfeMod}'s constructor -- see class doc for why this iterates every registered type instead of a fixed list. */
     public static void onEntityAttributeModification(EntityAttributeModificationEvent event) {
         for (var entityType : event.getTypes()) {
             event.add(entityType, MAX_MANA);
             if (entityType == net.minecraft.world.entity.EntityType.ALLAY) {
                 event.add(entityType, MANA_REGEN, ALLAY_BASE_MANA_REGEN);
+                event.add(entityType, HEALTH_REGEN, ALLAY_BASE_HEALTH_REGEN);
             } else {
                 event.add(entityType, MANA_REGEN);
+                event.add(entityType, HEALTH_REGEN);
             }
             event.add(entityType, MAGIC_FIND);
             event.add(entityType, GOLD_FIND);
             event.add(entityType, CASTING_SPEED);
-            event.add(entityType, HEALTH_REGEN);
         }
     }
 }
