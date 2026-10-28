@@ -224,6 +224,15 @@ public class LyfeMod {
     private void commonSetup(FMLCommonSetupEvent event) {
         LOGGER.info("Lyfe common setup");
         com.github.cerealklla.nuclyus.statbar.StatBarRegistry.register(new com.github.cerealklla.lyfe.mana.ManaStatBarProvider());
+        // Real design correction, 2026-10-28 -- see BoStaffClassification's own doc: Nature Staff is
+        // the first (not the only) Bo Staff-classified weapon. Tiers match NatureStaffLadder's own
+        // 1-5 Stone-Diamond numbering exactly, already on the same universal scale ToolTierUnlocks
+        // uses -- no conversion needed.
+        com.github.cerealklla.lyfe.magician.BoStaffClassification.register(com.github.cerealklla.lyfe.registration.ModItems.NATURE_STAFF_T1.get(), 1);
+        com.github.cerealklla.lyfe.magician.BoStaffClassification.register(com.github.cerealklla.lyfe.registration.ModItems.NATURE_STAFF_T2.get(), 2);
+        com.github.cerealklla.lyfe.magician.BoStaffClassification.register(com.github.cerealklla.lyfe.registration.ModItems.NATURE_STAFF_T3.get(), 3);
+        com.github.cerealklla.lyfe.magician.BoStaffClassification.register(com.github.cerealklla.lyfe.registration.ModItems.NATURE_STAFF_T4.get(), 4);
+        com.github.cerealklla.lyfe.magician.BoStaffClassification.register(com.github.cerealklla.lyfe.registration.ModItems.NATURE_STAFF_T5.get(), 5);
     }
 
     // Registered unconditionally (not gated on Cartographyr being loaded): harmless to register

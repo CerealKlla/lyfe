@@ -75,6 +75,13 @@ public final class HuntsmanLootBonusListener {
         }
     }
 
+    /** K-menu benefit line, 2026-10-28 -- real gap found live: this skill's own menu entry still said "no bonuses yet" after this perk shipped. Same live-current-value convention every other skill's benefit text already follows. */
+    public static List<String> benefitLines(int level) {
+        Tier tier = tierFor(level);
+        return List.of("Chance to duplicate a kill's own drop: " + tier.rolls() + " roll" + (tier.rolls() == 1 ? "" : "s")
+                + " at " + Math.round(tier.chancePerRoll() * 100) + "% each");
+    }
+
     private static Tier tierFor(int huntsmanLevel) {
         for (Tier tier : TIERS) {
             if (huntsmanLevel >= tier.minLevel()) {

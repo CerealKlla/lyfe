@@ -109,11 +109,14 @@ public final class SkillBenefits {
             return com.github.cerealklla.lyfe.recallcinite.RecallcraftPerks.benefitLines(level);
         }
         if (id.equals(Skills.HUNTSMAN_ID)) {
-            // "No rewards for the Huntsman skill itself yet" -- explicit user spec. The real combat
-            // bonus (+0.5 damage/level) lives on per-mob-type Quarry Knowledge, a separate tracked
-            // value this generic single-level screen has no slot for -- same reasoning as Historian's
-            // own placeholder line above.
-            return List.of("No bonuses yet -- see your per-mob-type Quarry Knowledge for its own damage bonus");
+            // Real gap fixed, 2026-10-28: this still said "no bonuses" after HuntsmanLootBonusListener
+            // shipped Huntsman's first real level-based perk. The per-mob-type damage bonus is still a
+            // separate tracked value (Quarry Knowledge) this generic single-level screen has no slot
+            // for -- both lines shown together.
+            java.util.List<String> lines = new java.util.ArrayList<>();
+            lines.addAll(com.github.cerealklla.lyfe.huntsman.HuntsmanLootBonusListener.benefitLines(level));
+            lines.add("See your per-mob-type Quarry Knowledge for its own damage bonus");
+            return lines;
         }
         if (id.equals(Skills.SOCKETEER_ID)) {
             return com.github.cerealklla.lyfe.socket.SocketeerConstants.benefitLines(level);
@@ -122,7 +125,10 @@ public final class SkillBenefits {
             return MagicianListener.benefitLines(level);
         }
         if (id.equals(Skills.BO_ID)) {
-            return List.of("No bonuses of its own yet -- a pure progress counter, same as Huntsman.");
+            // Real design correction, 2026-10-28 -- see BoSkillListener/BoStaffClassification's own
+            // doc: Bo is the same shape as Swordsman/Axeman/Pikeman (a weapon-category proficiency
+            // skill), not a Magician-adjacent spell-progress counter.
+            return List.of("Unlocked Bo Staff tier: " + com.github.cerealklla.lyfe.craft.ToolTierUnlocks.unlockedTierName(level));
         }
         return List.of();
     }

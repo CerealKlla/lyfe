@@ -80,6 +80,21 @@ public final class ProficiencyDurabilityListener {
         if (weaponData == null) {
             return;
         }
+        // Bo Staff, added 2026-10-28 (explicit user design change -- "the Bo Staff skill should
+        // behave the same as other weapons... now that Magician exists" the original "don't penalize
+        // spellcasting" carve-out is no longer needed, since Magician now owns spell proficiency
+        // separately). Melee-only, same scope every other weapon here already has: a direct hit has
+        // getDirectEntity() == getEntity() (both the attacking player); Spark of Life's own hit uses
+        // an indirect magic source where they differ (direct = the projectile, causing = the player)
+        // -- confirmed against the real decompiled DamageSource (no isIndirect() exists in this
+        // version to just call directly).
+        if (event.getSource().getDirectEntity() == attacker
+                && com.github.cerealklla.lyfe.magician.BoStaffClassification.isBoStaff(weapon.getItem())) {
+            int tier = com.github.cerealklla.lyfe.magician.BoStaffClassification.tierOf(weapon.getItem());
+            int level = Lyfe.getLevel(attacker, Skills.BO_ID);
+            applyExtra(attacker, weapon, EquipmentSlot.MAINHAND, tier, level, weaponData.itemDamagePerAttack());
+            return;
+        }
         for (EquipmentTierLadder.ToolType toolType : EquipmentTierLadder.ToolType.values()) {
             int tier = EquipmentTierLadder.tierOfItem(toolType, weapon.getItem());
             if (tier < 0) {

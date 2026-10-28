@@ -89,9 +89,11 @@ public record SkillCopy(Item icon, String xpSource, String summary) {
             Map.entry(Skills.MAGICIAN_ID, new SkillCopy(ModItems.NATURE_STAFF_T3.get(),
                     "Sum of your Spell Proficiency levels (per spell, tracked separately)",
                     "Raises your Max Mana (+10/level) and Mana Regen (+1 per second/level).")),
+            // Real design correction, 2026-10-28: Bo Staff is a weapon CLASSIFICATION (like Sword/
+            // Axe/Spear), not specifically Nature Staff -- see BoStaffClassification's own doc.
             Map.entry(Skills.BO_ID, new SkillCopy(ModItems.NATURE_STAFF_T3.get(),
-                    "Hitting a living entity with a Nature Staff, losing durability",
-                    "No bonuses of its own yet -- a pure progress counter, same as Huntsman."))
+                    "Meleeing with a Bo Staff-classified weapon (any blunt staff -- Nature Staff today, more in the future), losing durability",
+                    "Same as Swordsman/Axeman/Pikeman -- raises your proficiency with Bo Staff-classified weapons as you level."))
     );
 
     public static SkillCopy get(SkillId id) {
