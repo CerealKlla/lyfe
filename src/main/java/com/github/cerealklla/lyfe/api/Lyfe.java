@@ -573,6 +573,19 @@ public final class Lyfe {
         return data != null && data.grantedSpellId().isPresent();
     }
 
+    /**
+     * Whether {@code caster} casting Spark of Life could affect {@code target} at all right now --
+     * i.e. at least one of its effects' ally/enemy relationship matches AND isn't tag-blocked for
+     * that target (e.g. a Caryvan Wagon blocks both of Spark of Life's effects). Cached per caster/
+     * target pair (see {@code magician.SpellTargetCache}) so an AI goal re-checking the same nearby
+     * target every tick doesn't redo the work -- mainly so AI stops repeatedly attempting a spell
+     * against a target it can never affect.
+     */
+    public static boolean canSpellAffectEntity(net.minecraft.world.entity.LivingEntity caster, net.minecraft.world.entity.LivingEntity target) {
+        return com.github.cerealklla.lyfe.magician.SpellTargetCache.canSpellAffectEntity(
+                caster, com.github.cerealklla.lyfe.magician.Spells.SPARK_OF_LIFE, target);
+    }
+
     /** Whether {@code caster} could cast Spark of Life right now without actually casting it -- lets an NPC AI goal decide "heal/ranged vs. melee fallback" without a wasted cast attempt. */
     public static boolean canCastSparkOfLife(net.minecraft.world.entity.LivingEntity caster) {
         if (!(caster.level() instanceof net.minecraft.world.level.Level level)) {

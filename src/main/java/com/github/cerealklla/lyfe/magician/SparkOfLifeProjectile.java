@@ -1,18 +1,14 @@
 package com.github.cerealklla.lyfe.magician;
 
+import com.github.cerealklla.lyfe.combat.TagEffectivenessTable;
 import com.github.cerealklla.lyfe.registration.ModEntities;
 
 import net.minecraft.core.particles.DustParticleOptions;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.damagesource.DamageSource;
-import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.Mob;
-import net.minecraft.world.entity.ai.attributes.Attributes;
-import net.minecraft.world.entity.monster.Enemy;
-import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.throwableitemprojectile.ThrowableItemProjectile;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -46,10 +42,9 @@ import net.minecraft.world.phys.HitResult;
  * <p><b>Ally/enemy resolution is alignment-symmetric</b> (explicit user answer, 2026-10-20: "for
  * now, non-hostile. Will expand in future with player party system... I could see Pillagers
  * spawning with these and wanting to heal their fellow pillagers") -- a target is an ally of the
- * caster whenever both are hostile, or both are non-hostile ({@link Enemy}, the same shared
- * hostility marker this suite's {@code guardhouse.GuardSightGoal} already uses). A caster with no
- * owner at all (shouldn't normally happen -- every cast comes from {@code SparkOfLifeCasting}
- * with a real caster) is treated as non-hostile.
+ * caster whenever both are hostile, or both are non-hostile, per {@link SpellTargeting}'s own
+ * canonical check (the same shared hostility marker this suite's {@code guardhouse.GuardSightGoal}
+ * already uses).
  */
 public final class SparkOfLifeProjectile extends ThrowableItemProjectile {
 
@@ -57,7 +52,6 @@ public final class SparkOfLifeProjectile extends ThrowableItemProjectile {
     // speed, reused by SparkOfLifeCasting (see its own doc) to compute a fixed per-cast damage
     // value, the same ballpark a real unenchanted bow deals at that Tier's own launch speed.
     public static final double BASE_DAMAGE = 2.0;
-    private static final float HEAL_AMOUNT = 2.0F; // 1 heart
 
     // Real report, 2026-10-22: "spells should not lose damage as they fly, it's a spell not a
     // projectile." Previously recomputed from getDeltaMovement().length() at the moment of impact,
@@ -110,15 +104,6 @@ public final class SparkOfLifeProjectile extends ThrowableItemProjectile {
         }
     }
 
-    private static boolean hostile(Entity entity) {
-        return entity instanceof Enemy;
-    }
-
-    /** Real Player or real Mob only -- see {@link #onHitEntity}'s own 2026-10-28 doc. */
-    private static boolean isValidHealTarget(LivingEntity entity) {
-        return entity instanceof Player || entity instanceof Mob;
-    }
-
     /**
      * Real root cause of a live server performance incident, 2026-10-21: this class only ever
      * discarded itself on a hit *entity* (see {@link #onHitEntity}) -- the base {@code
@@ -139,69 +124,50 @@ public final class SparkOfLifeProjectile extends ThrowableItemProjectile {
         }
     }
 
+    /**
+     * Iterates {@link Spells#SPARK_OF_LIFE}'s effects (design doc Section 24's generic Spell/
+     * SpellEffect model, replacing this class's original hardcoded ally/enemy + heal/damage
+     * branches one-for-one) -- applies whichever effect's {@link SpellEffect.TargetList} matches
+     * the caster/target relationship AND isn't tag-blocked for this target (e.g. a non-organic
+     * entity blocks {@code heal_organic}/{@code damage_organic}). If nothing applied at all and the
+     * caster is a real player, sends chat feedback naming whichever effect would have applied by
+     * relationship but got tag-blocked (e.g. "Wagon cannot be healed.").
+     */
     @Override
     protected void onHitEntity(EntityHitResult hitResult) {
-        if (!(hitResult.getEntity() instanceof LivingEntity target)) {
+        if (!(hitResult.getEntity() instanceof LivingEntity target) || !(getOwner() instanceof LivingEntity caster)) {
             discard();
             return;
         }
-        Entity owner = getOwner();
-        boolean casterHostile = owner != null && hostile(owner);
-        boolean targetHostile = hostile(target);
 
-        if (casterHostile == targetHostile) {
-            // Real bug fix, 2026-10-28: guards (and the direct hit-path here) were healing
-            // Caryvan's Wagon/Carriage entities -- real LivingEntity subclasses with real HP as of
-            // this session's HP/repair system, but not actual combatants. Only a Player or a real
-            // Mob is a sensible heal target; see GuardSpellCastGoal's own identical fix on the
-            // Settlemynts side for the targeting-side half of this.
-            boolean healedAnything = isValidHealTarget(target) && healAlly(target);
-            if (healedAnything && owner instanceof ServerPlayer player) {
+        boolean appliedAnything = false;
+        SpellEffect blockedEffect = null;
+        for (SpellEffect effect : Spells.SPARK_OF_LIFE.effects()) {
+            if (!SpellTargeting.matches(effect.targetList(), caster, target)) {
+                continue;
+            }
+            if (TagEffectivenessTable.multiplierFor(effect.combinedTags(), target) <= 0.0F) {
+                blockedEffect = effect;
+                continue;
+            }
+            boolean effective = effect.apply(caster, target, fixedDamage);
+            if (effective) {
+                appliedAnything = true;
                 // Spell Proficiency (per-spell cost/cooldown reduction, AND -- as of 2026-10-21 --
                 // the sole source of Magician's own level, see MagicianListener's class doc) is
                 // heal/overheal-only -- explicit user spec: "Spark of Life Proficiency gain when
                 // specifically hitting Spark of Life on a target and that target actually being
-                // healed/overhealed."
-                MagicianListener.grantProgress(player, SpellIds.SPARK_OF_LIFE, SpellProficiencyCurve.PROGRESS_PER_CAST);
+                // healed/overhealed." Damaging an enemy grants nothing toward it.
+                if (effect == SpellEffects.HEAL_ORGANIC_ALLY_LIFE && caster instanceof ServerPlayer player) {
+                    MagicianListener.grantProgress(player, SpellIds.SPARK_OF_LIFE, SpellProficiencyCurve.PROGRESS_PER_CAST);
+                }
             }
-        } else {
-            DamageSource damageSource = damageSources().indirectMagic(this, owner);
-            // Damaging an enemy grants nothing toward Spell Proficiency (and therefore nothing
-            // toward Magician either, since Magician's level is now purely the sum of Proficiency
-            // levels) -- explicit user spec, see the heal branch above. hurtOrSimulate is still used
-            // (not a plain hurt) purely for the "did this actually do anything" semantics, consistent
-            // with the rest of this class, even though nothing currently reads its result here.
-            target.hurtOrSimulate(damageSource, fixedDamage);
+        }
+
+        if (!appliedAnything && blockedEffect != null && caster instanceof ServerPlayer player) {
+            player.sendSystemMessage(Component.literal(
+                    target.getDisplayName().getString() + " cannot be " + blockedEffect.feedbackVerb() + "."));
         }
         discard();
-    }
-
-    /**
-     * Heals {@code target} 1 heart, overflowing into Absorption past full health (explicit spec) --
-     * returns whether anything actually happened, since "surpassing max absorption with no effect"
-     * must NOT grant Spell Proficiency (see {@code SparkOfLifeProjectile#onHitEntity}'s caller).
-     */
-    private boolean healAlly(LivingEntity target) {
-        float remaining = HEAL_AMOUNT;
-        boolean effective = false;
-
-        float missingHealth = target.getMaxHealth() - target.getHealth();
-        if (missingHealth > 0.0F) {
-            float toHeal = Math.min(remaining, missingHealth);
-            target.heal(toHeal);
-            remaining -= toHeal;
-            effective = true;
-        }
-        if (remaining > 0.0F) {
-            double maxAbsorption = target.getAttributeValue(Attributes.MAX_ABSORPTION);
-            float currentAbsorption = target.getAbsorptionAmount();
-            double room = maxAbsorption - currentAbsorption;
-            if (room > 0.0) {
-                float toAdd = (float) Math.min(room, remaining);
-                target.setAbsorptionAmount(currentAbsorption + toAdd);
-                effective = true;
-            }
-        }
-        return effective;
     }
 }

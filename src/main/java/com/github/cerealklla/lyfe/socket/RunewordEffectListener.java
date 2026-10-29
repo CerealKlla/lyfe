@@ -3,6 +3,7 @@ package com.github.cerealklla.lyfe.socket;
 import java.util.List;
 
 import com.github.cerealklla.lyfe.api.Lyfe;
+import com.github.cerealklla.lyfe.combat.TaggedEffectDamage;
 import com.github.cerealklla.lyfe.gathering.GatheringSkill;
 import com.github.cerealklla.lyfe.registration.ModItems;
 
@@ -70,13 +71,13 @@ public final class RunewordEffectListener {
                 }
                 for (Player ally : level.players()) {
                     if (ally.distanceToSqr(victim) <= effect.radius() * effect.radius()) {
-                        ally.heal((float) effect.magnitude());
+                        TaggedEffectDamage.receiveHeal(ally, effect.combinedTags(), (float) effect.magnitude());
                     }
                 }
             }
             case ON_HIT_DAMAGE_PROC -> {
                 if (roll(level, effect.chance())) {
-                    victim.hurtServer(level, level.damageSources().generic(), (float) effect.magnitude());
+                    TaggedEffectDamage.receiveDamage(victim, level.damageSources().generic(), effect.combinedTags(), (float) effect.magnitude());
                 }
             }
             case ON_HIT_SLOW_TARGET -> {
@@ -86,7 +87,7 @@ public final class RunewordEffectListener {
             }
             case ON_HIT_LIFESTEAL_BURST -> {
                 if (roll(level, effect.chance())) {
-                    attacker.heal((float) (damageDealt * effect.magnitude()));
+                    TaggedEffectDamage.receiveHeal(attacker, effect.combinedTags(), (float) (damageDealt * effect.magnitude()));
                 }
             }
             case ON_HIT_IGNITE -> {
@@ -110,12 +111,12 @@ public final class RunewordEffectListener {
         switch (effect.type()) {
             case ON_DAMAGED_REFLECT -> {
                 if (roll(level, effect.chance()) && attackerEntity instanceof LivingEntity attacker) {
-                    attacker.hurtServer(level, level.damageSources().generic(), (float) (amount * effect.magnitude()));
+                    TaggedEffectDamage.receiveDamage(attacker, level.damageSources().generic(), effect.combinedTags(), (float) (amount * effect.magnitude()));
                 }
             }
             case ON_DAMAGED_HEAL -> {
                 if (roll(level, effect.chance())) {
-                    victim.heal((float) effect.magnitude());
+                    TaggedEffectDamage.receiveHeal(victim, effect.combinedTags(), (float) effect.magnitude());
                 }
             }
             case ON_DAMAGED_SPEED_BURST -> {
@@ -154,7 +155,7 @@ public final class RunewordEffectListener {
                     for (LivingEntity nearby : level.getEntitiesOfClass(LivingEntity.class,
                             event.getEntity().getBoundingBox().inflate(effect.radius()))) {
                         if (nearby != event.getEntity() && nearby instanceof net.minecraft.world.entity.monster.Enemy) {
-                            nearby.hurtServer(level, level.damageSources().generic(), (float) effect.magnitude());
+                            TaggedEffectDamage.receiveDamage(nearby, level.damageSources().generic(), effect.combinedTags(), (float) effect.magnitude());
                         }
                     }
                 }
@@ -231,7 +232,7 @@ public final class RunewordEffectListener {
                 continue;
             }
             switch (effect.type()) {
-                case PERIODIC_SELF_REGEN -> player.heal((float) effect.magnitude());
+                case PERIODIC_SELF_REGEN -> TaggedEffectDamage.receiveHeal(player, effect.combinedTags(), (float) effect.magnitude());
                 case PERIODIC_AREA_BUFF_ALLIES -> {
                     if (player.level() instanceof ServerLevel level) {
                         for (Player ally : level.players()) {

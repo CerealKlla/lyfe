@@ -3,6 +3,7 @@ package com.github.cerealklla.lyfe.summoning;
 import java.lang.reflect.Field;
 
 import com.github.cerealklla.lyfe.api.Lyfe;
+import com.github.cerealklla.lyfe.magician.SpellTargetCache;
 import com.github.cerealklla.lyfe.registration.ModAttachments;
 
 import net.minecraft.world.InteractionHand;
@@ -54,6 +55,11 @@ public final class AllayGoalInjectionListener {
 
     /** Called again by {@code AllayBottleMenu#removed()} any time the Equip slot actually changes, so a later re-summon isn't the only time this is re-evaluated. */
     public static void reassessSpellGoal(Allay allay) {
+        // The Equip slot changing is exactly "this caster's available spells changed" (today, the
+        // only spell source is a mainhand Nature Staff/offhand Focus) -- invalidate the cached
+        // canSpellAffectEntity results so a stale "can't affect this target" doesn't linger if a
+        // newly-equipped spell item would actually change the answer.
+        SpellTargetCache.invalidate(allay);
         GoalSelector goals = goalSelector(allay);
         goals.removeAllGoals(goal -> goal instanceof AllaySpellCastGoal || goal instanceof MeleeAttackGoal
                 || goal instanceof AllayBowAttackGoal || goal instanceof AllayCrossbowAttackGoal);

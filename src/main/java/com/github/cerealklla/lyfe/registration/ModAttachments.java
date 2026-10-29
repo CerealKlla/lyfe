@@ -214,6 +214,14 @@ public final class ModAttachments {
             () -> AttachmentType.builder(holder -> new SpellCooldowns()).build()
     );
 
+    // In-memory only, same reasoning as SPELL_COOLDOWNS above -- a per-caster cache of
+    // canSpellAffectEntity results, never needs to survive a save/reload or be visible
+    // client-side. Attached to any LivingEntity, not just Player -- see magician.SpellTargetCache.
+    public static final Supplier<AttachmentType<com.github.cerealklla.lyfe.magician.SpellTargetCache>> SPELL_TARGET_CACHE = ATTACHMENT_TYPES.register(
+            "spell_target_cache",
+            () -> AttachmentType.builder(holder -> new com.github.cerealklla.lyfe.magician.SpellTargetCache()).build()
+    );
+
     // Summoning Stone (design doc Section 26) -- a back-reference on a summoned mount to the player
     // who summoned it, see summoning.SummonedMountOwner's own doc. Persisted (a summon surviving a
     // restart should still be attributable). Synced (added 2026-10-21, real bug fix) -- its mere

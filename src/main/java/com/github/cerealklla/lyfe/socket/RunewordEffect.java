@@ -1,5 +1,8 @@
 package com.github.cerealklla.lyfe.socket;
 
+import java.util.HashSet;
+import java.util.Set;
+
 /**
  * One generic, data-driven Runeword proc (explicit user spec: "Runewords should provide very cool
  * benefits, not simple stat improvements... I'd like to avoid two totally different Runewords having
@@ -10,13 +13,41 @@ package com.github.cerealklla.lyfe.socket;
  * once, shared by every Runeword that uses it. Distinctness between Runewords comes from varying
  * BOTH the primitive type and its parameters across the 60 entries, not just the numbers.
  *
+ * <p>{@code effectTags}/{@code spellAffinities} let a heal/damage-dealing Runeword primitive opt
+ * into the same {@code combat.TagEffectivenessTable} rules {@code magician.SpellEffect} uses (hard
+ * blocks via a 0% entry, weakness/resistance via an affinity, e.g. a future lightning-proc Runeword
+ * tagged {@code life} doing bonus damage to undead) -- see {@link #combinedTags}. Both default to
+ * empty via the secondary constructor below, so none of {@link RunewordCatalog}'s existing entries
+ * need to change; an empty set multiplies to 100% (no effect on the original behavior).
+ *
  * @param chance       0.0-1.0 trigger chance where applicable (ignored by always-on types like {@code LOW_HEALTH_DAMAGE_REDUCTION}/periodic ones)
  * @param magnitude    the primary numeric payload -- meaning depends on {@link Type}, documented per case
  * @param radius       blocks, for area-effect types; 0 if not applicable
  * @param durationTicks effect duration/interval in ticks; 0 if not applicable
  * @param secondary    a second numeric payload for types that need one (e.g. health-threshold fraction); 0 if not applicable
+ * @param effectTags   {@code combat.TagEffectivenessTable} tags for this effect's own category; empty if untagged
+ * @param spellAffinities {@code combat.TagEffectivenessTable} tags for this effect's magic school/affinity; empty if untagged
  */
-public record RunewordEffect(Type type, double chance, double magnitude, double radius, int durationTicks, double secondary) {
+public record RunewordEffect(Type type, double chance, double magnitude, double radius, int durationTicks,
+                              double secondary, Set<String> effectTags, Set<String> spellAffinities) {
+
+    /** Untagged -- the shape every one of {@link RunewordCatalog}'s existing 60 entries already calls. */
+    public RunewordEffect(Type type, double chance, double magnitude, double radius, int durationTicks, double secondary) {
+        this(type, chance, magnitude, radius, durationTicks, secondary, Set.of(), Set.of());
+    }
+
+    /** {@code effectTags} and {@code spellAffinities} combined -- both tag sources feed the same {@code combat.TagEffectivenessTable} lookup. */
+    public Set<String> combinedTags() {
+        if (spellAffinities.isEmpty()) {
+            return effectTags;
+        }
+        if (effectTags.isEmpty()) {
+            return spellAffinities;
+        }
+        Set<String> combined = new HashSet<>(effectTags);
+        combined.addAll(spellAffinities);
+        return combined;
+    }
 
     public enum Type {
         /** Weapon. On hitting a living entity: {@code chance} to heal every ally within {@code radius} blocks of the target for {@code magnitude} HP. */

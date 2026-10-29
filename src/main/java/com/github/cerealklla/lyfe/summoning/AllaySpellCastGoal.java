@@ -5,6 +5,8 @@ import java.util.EnumSet;
 import java.util.List;
 
 import com.github.cerealklla.lyfe.api.Lyfe;
+import com.github.cerealklla.lyfe.magician.SpellTargetCache;
+import com.github.cerealklla.lyfe.magician.Spells;
 
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
@@ -125,7 +127,10 @@ public final class AllaySpellCastGoal extends Goal {
     /** Whatever {@link AllayCombatEventListener} most recently pushed onto {@link Allay#setTarget} -- see this class's own doc. */
     private LivingEntity resolveAttackTarget() {
         LivingEntity target = allay.getTarget();
-        return target != null && target.isAlive() ? target : null;
+        if (target == null || !target.isAlive() || !SpellTargetCache.canSpellAffectEntity(allay, Spells.SPARK_OF_LIFE, target)) {
+            return null;
+        }
+        return target;
     }
 
     private void engage(LivingEntity target) {
@@ -157,7 +162,8 @@ public final class AllaySpellCastGoal extends Goal {
     private LivingEntity findInjuredAlly(float healthFraction) {
         AABB scanBox = allay.getBoundingBox().inflate(HEAL_SCAN_RADIUS);
         List<LivingEntity> candidates = allay.level().getEntitiesOfClass(LivingEntity.class, scanBox,
-                e -> e != allay && e.isAlive() && isRealAlly(e) && e.getHealth() < e.getMaxHealth() * healthFraction);
+                e -> e != allay && e.isAlive() && isRealAlly(e) && e.getHealth() < e.getMaxHealth() * healthFraction
+                        && SpellTargetCache.canSpellAffectEntity(allay, Spells.SPARK_OF_LIFE, e));
         return candidates.stream().min(Comparator.comparingDouble(e -> e.getHealth() / e.getMaxHealth())).orElse(null);
     }
 
