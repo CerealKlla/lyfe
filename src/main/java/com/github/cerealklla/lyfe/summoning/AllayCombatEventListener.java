@@ -7,6 +7,8 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.animal.allay.Allay;
+import net.minecraft.world.entity.monster.Enemy;
+import net.minecraft.world.entity.player.Player;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
 import net.minecraft.world.phys.AABB;
@@ -44,12 +46,24 @@ public final class AllayCombatEventListener {
         LivingEntity victim = event.getEntity();
         LivingEntity attacker = event.getSource().getEntity() instanceof LivingEntity living ? living : null;
 
-        if (attacker instanceof ServerPlayer player && victim != player) {
+        if (attacker instanceof ServerPlayer player && victim != player && isValidAllayTarget(victim)) {
             targetOwnedAllays(player, victim);
         }
-        if (victim instanceof ServerPlayer player && attacker != null && attacker != player) {
+        if (victim instanceof ServerPlayer player && attacker != null && attacker != player && isValidAllayTarget(attacker)) {
             targetOwnedAllays(player, attacker);
         }
+    }
+
+    // Real report, 2026-10-28: a player testing Caryvan's Wagon (its HP/broken-wheel mechanic
+    // needs a real LivingEntity, see that mod's own AbstractDamageableDrawnEntity) by hitting their
+    // own wagon got their Allay to "help" by also attacking it -- this listener had zero type
+    // filtering at all, unlike Settlemynts' GuardSightGoal, which already restricts its own targets
+    // to `instanceof Enemy` for the identical reason (a LivingEntity subclass isn't automatically a
+    // real combat target). Mirrors that same rule here, widened to also allow Player (PvP defense,
+    // which Enemy alone wouldn't cover) -- excludes vehicles, villagers, animals, and any other
+    // non-hostile LivingEntity a player might accidentally or deliberately hit.
+    private static boolean isValidAllayTarget(final LivingEntity entity) {
+        return entity instanceof Enemy || entity instanceof Player;
     }
 
     private void targetOwnedAllays(ServerPlayer player, LivingEntity target) {
