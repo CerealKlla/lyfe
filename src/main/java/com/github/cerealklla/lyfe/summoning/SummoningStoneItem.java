@@ -1,5 +1,6 @@
 package com.github.cerealklla.lyfe.summoning;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
 
@@ -8,6 +9,9 @@ import com.github.cerealklla.lyfe.registration.ModAttachments;
 import com.github.cerealklla.lyfe.registration.ModItems;
 
 import net.minecraft.ChatFormatting;
+import net.minecraft.core.Holder;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.NbtOps;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -17,6 +21,9 @@ import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.ai.attributes.Attribute;
+import net.minecraft.world.entity.ai.attributes.AttributeInstance;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -52,6 +59,7 @@ public final class SummoningStoneItem extends Item {
     public void appendHoverText(ItemStack stack, TooltipContext context, TooltipDisplay display, Consumer<Component> builder, TooltipFlag tooltipFlag) {
         SummoningStoneData data = stack.get(ModItems.SUMMONING_STONE_DATA.get());
         if (data != null) {
+            appendBoundStats(data.savedState(), builder);
             long now = System.currentTimeMillis();
             if (data.summonedMountId().isPresent()) {
                 builder.accept(Component.literal("Already summoned").withStyle(ChatFormatting.GRAY));
@@ -64,6 +72,39 @@ public final class SummoningStoneItem extends Item {
             }
         }
         builder.accept(Component.literal("Right-click: Summon the bound mount").withStyle(ChatFormatting.AQUA));
+    }
+
+    /**
+     * Real user request, 2026-10-29: "I'd also like the tooltip for the Summoning Stone to clearly
+     * list the stats for the entity bound to it: Movement speed, Jump strength, Max health" -- came
+     * right after confirming horses roll randomized values for exactly these three attributes on
+     * spawn, so a Summoning Stone's tooltip is the natural place to see what you actually captured
+     * without having to re-summon and compare. Reads the real saved {@code "attributes"} list {@link
+     * SummoningStoneData#capture} already writes (vanilla's own {@code LivingEntity#addAdditionalSaveData}
+     * shape, {@code AttributeInstance.Packed.LIST_CODEC}) rather than spawning anything -- no live
+     * entity needed just to read its base attribute values.
+     */
+    private static void appendBoundStats(CompoundTag savedState, Consumer<Component> builder) {
+        List<AttributeInstance.Packed> packed = AttributeInstance.Packed.LIST_CODEC
+                .parse(NbtOps.INSTANCE, savedState.getListOrEmpty("attributes"))
+                .result().orElse(List.of());
+        if (packed.isEmpty()) {
+            return;
+        }
+        appendStat(builder, packed, Attributes.MOVEMENT_SPEED, "Movement Speed", 3);
+        appendStat(builder, packed, Attributes.JUMP_STRENGTH, "Jump Strength", 3);
+        appendStat(builder, packed, Attributes.MAX_HEALTH, "Max Health", 1);
+    }
+
+    private static void appendStat(Consumer<Component> builder, List<AttributeInstance.Packed> packed,
+            Holder<Attribute> attribute, String label, int decimals) {
+        for (AttributeInstance.Packed entry : packed) {
+            if (entry.attribute().value() == attribute.value()) {
+                builder.accept(Component.literal(label + ": " + String.format("%." + decimals + "f", entry.baseValue()))
+                        .withStyle(ChatFormatting.GREEN));
+                return;
+            }
+        }
     }
 
     @Override
