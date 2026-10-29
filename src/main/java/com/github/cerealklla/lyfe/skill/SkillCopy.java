@@ -82,7 +82,7 @@ public record SkillCopy(Item icon, String xpSource, String summary) {
                     "Reduces the Totem's bind/recall cooldown, up to 20% at max level.")),
             Map.entry(Skills.HUNTSMAN_ID, new SkillCopy(Items.BOW,
                     "A Quarry Knowledge level increasing (fighting mobs, tracked per mob type)",
-                    "No bonuses of its own yet -- see your per-mob-type Quarry Knowledge for its real combat bonus.")),
+                    "A scaling chance to duplicate a kill's own drop (up to 3 rolls at 35% each) -- see your per-mob-type Quarry Knowledge for its own damage bonus.")),
             Map.entry(Skills.SOCKETEER_ID, new SkillCopy(ModItems.DIAMOND_DIE_GRINDER.get(),
                     "Spending Die Grinder/Pry Bar durability socketing or extracting",
                     "Better Socketing/Extracting odds -- more full-progress results, fewer wasted attempts, higher extraction success.")),
@@ -92,7 +92,7 @@ public record SkillCopy(Item icon, String xpSource, String summary) {
             // Real design correction, 2026-10-28: Bo Staff is a weapon CLASSIFICATION (like Sword/
             // Axe/Spear), not specifically Nature Staff -- see BoStaffClassification's own doc.
             Map.entry(Skills.BO_ID, new SkillCopy(ModItems.NATURE_STAFF_T3.get(),
-                    "Meleeing with a Bo Staff-classified weapon (any blunt staff -- Nature Staff today, more in the future), losing durability",
+                    "Meleeing with a Bo Staff-classified weapon (any blunt staff -- Nature Staff today, more in the future)",
                     "Same as Swordsman/Axeman/Pikeman -- raises your proficiency with Bo Staff-classified weapons as you level."))
     );
 
