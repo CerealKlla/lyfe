@@ -3,13 +3,12 @@ package com.github.cerealklla.lyfe.summoning;
 import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.List;
-import java.util.UUID;
 
 import com.github.cerealklla.lyfe.api.Lyfe;
-import com.github.cerealklla.lyfe.registration.ModAttachments;
 
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.animal.allay.Allay;
 import net.minecraft.world.entity.ai.goal.Goal;
 import net.minecraft.world.entity.monster.Enemy;
@@ -160,28 +159,16 @@ public final class AllaySpellCastGoal extends Goal {
         return candidates.stream().min(Comparator.comparingDouble(e -> e.getHealth() / e.getMaxHealth())).orElse(null);
     }
 
-    // Real report, 2026-10-28: "my allay is still trying to heal my wagon" -- `!(e instanceof
-    // Enemy)` is the same too-permissive shape AllayCombatEventListener's own attack-target filter
-    // had (see that class's own fix, same day): Caryvan's Wagon is a real LivingEntity (needs one for
-    // its HP/broken-wheel mechanic) but obviously isn't a combat ally, and neither is a wild animal,
-    // a Settlemynts worker NPC, or another player's own pet. "Ally" now means specifically this
-    // Allay's own owning player, or another summoned Allay bound to that same player -- matches what
-    // a bound combat companion should actually be defending, not just "not visibly hostile."
+    // Real report, 2026-10-28: "my allay is still trying to heal my wagon." Explicit user
+    // correction, same day: a first attempt here narrowed "ally" down to just the Allay's own owner
+    // or another owned Allay, which was overreach -- wild animals, Settlemynts NPCs, etc. must still
+    // be healable exactly as before, only a Wagon specifically needed excluding. Back to `!(e
+    // instanceof Enemy)`, plus the same Mob-or-Player requirement AllayCombatEventListener's own
+    // fix uses: Caryvan's cart entities are the one real oddity in this suite that extend
+    // LivingEntity directly without going through Mob (needed for real HP), so requiring
+    // Mob-or-Player excludes exactly that shape (and ArmorStand, an equally sensible exclusion) with
+    // no Caryvan dependency needed.
     private boolean isRealAlly(LivingEntity candidate) {
-        var ownerData = allay.getExistingData(ModAttachments.SUMMONED_ALLAY_OWNER);
-        if (ownerData.isEmpty()) {
-            return false;
-        }
-        UUID ownerId = ownerData.get().playerId();
-        if (candidate instanceof Player player) {
-            return player.getUUID().equals(ownerId);
-        }
-        if (candidate instanceof Allay otherAllay) {
-            return otherAllay.getExistingData(ModAttachments.SUMMONED_ALLAY_OWNER)
-                    .map(com.github.cerealklla.lyfe.summoning.SummonedAllayOwner::playerId)
-                    .map(ownerId::equals)
-                    .orElse(false);
-        }
-        return false;
+        return !(candidate instanceof Enemy) && (candidate instanceof Mob || candidate instanceof Player);
     }
 }

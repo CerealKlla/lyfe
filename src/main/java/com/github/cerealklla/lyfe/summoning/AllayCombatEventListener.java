@@ -6,8 +6,8 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.animal.allay.Allay;
-import net.minecraft.world.entity.monster.Enemy;
 import net.minecraft.world.entity.player.Player;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
@@ -54,16 +54,19 @@ public final class AllayCombatEventListener {
         }
     }
 
-    // Real report, 2026-10-28: a player testing Caryvan's Wagon (its HP/broken-wheel mechanic
-    // needs a real LivingEntity, see that mod's own AbstractDamageableDrawnEntity) by hitting their
-    // own wagon got their Allay to "help" by also attacking it -- this listener had zero type
-    // filtering at all, unlike Settlemynts' GuardSightGoal, which already restricts its own targets
-    // to `instanceof Enemy` for the identical reason (a LivingEntity subclass isn't automatically a
-    // real combat target). Mirrors that same rule here, widened to also allow Player (PvP defense,
-    // which Enemy alone wouldn't cover) -- excludes vehicles, villagers, animals, and any other
-    // non-hostile LivingEntity a player might accidentally or deliberately hit.
+    // Real report, 2026-10-28: a player testing Caryvan's Wagon (its HP/broken-wheel mechanic needs
+    // a real LivingEntity, see that mod's own AbstractDamageableDrawnEntity) by hitting their own
+    // wagon got their Allay to "help" by also attacking it. Explicit user correction, same day: this
+    // should ONLY exclude a Wagon specifically, not redefine what an Allay can target in general
+    // (wild animals, NPCs, etc. must still work exactly as before). Caryvan's cart entities are the
+    // one real oddity in this suite that extends LivingEntity directly without going through Mob
+    // (needed for real HP, see that class's own doc) -- every genuine creature (animal, monster,
+    // villager, Settlemynts' own custom NPCs) extends Mob, and a real player is covered separately.
+    // Requiring Mob-or-Player excludes exactly that shape (also catches ArmorStand, itself a
+    // LivingEntity-direct oddity and equally not a sensible combat target) with no Caryvan
+    // dependency needed at all -- everything else behaves identically to before this fix.
     private static boolean isValidAllayTarget(final LivingEntity entity) {
-        return entity instanceof Enemy || entity instanceof Player;
+        return entity instanceof Mob || entity instanceof Player;
     }
 
     private void targetOwnedAllays(ServerPlayer player, LivingEntity target) {
