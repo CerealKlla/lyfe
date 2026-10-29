@@ -2,13 +2,15 @@ package com.github.cerealklla.lyfe.summoning;
 
 import com.github.cerealklla.lyfe.registration.ModAttachments;
 
+import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.tags.TagKey;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.animal.allay.Allay;
-import net.minecraft.world.entity.player.Player;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
 import net.minecraft.world.phys.AABB;
@@ -56,17 +58,17 @@ public final class AllayCombatEventListener {
 
     // Real report, 2026-10-28: a player testing Caryvan's Wagon (its HP/broken-wheel mechanic needs
     // a real LivingEntity, see that mod's own AbstractDamageableDrawnEntity) by hitting their own
-    // wagon got their Allay to "help" by also attacking it. Explicit user correction, same day: this
-    // should ONLY exclude a Wagon specifically, not redefine what an Allay can target in general
-    // (wild animals, NPCs, etc. must still work exactly as before). Caryvan's cart entities are the
-    // one real oddity in this suite that extends LivingEntity directly without going through Mob
-    // (needed for real HP, see that class's own doc) -- every genuine creature (animal, monster,
-    // villager, Settlemynts' own custom NPCs) extends Mob, and a real player is covered separately.
-    // Requiring Mob-or-Player excludes exactly that shape (also catches ArmorStand, itself a
-    // LivingEntity-direct oddity and equally not a sensible combat target) with no Caryvan
-    // dependency needed at all -- everything else behaves identically to before this fix.
+    // wagon got their Allay to "help" by also attacking it. Two real corrections landed on top of
+    // the first attempt (a structural "Mob or Player" guess): the user wanted ONLY Wagon excluded,
+    // nothing else redefined -- then asked for a real cross-mod entity-type tag instead of a
+    // structural heuristic, so Caryvan (or any future mod) can explicitly opt an entity out without
+    // Lyfe needing to guess from its class shape or take a compile dependency. Caryvan tags its own
+    // `wagon` entity type `caryvan:non_organic`; this just checks that tag directly.
+    private static final TagKey<EntityType<?>> NON_ORGANIC =
+            TagKey.create(Registries.ENTITY_TYPE, Identifier.fromNamespaceAndPath("caryvan", "non_organic"));
+
     private static boolean isValidAllayTarget(final LivingEntity entity) {
-        return entity instanceof Mob || entity instanceof Player;
+        return !entity.getType().builtInRegistryHolder().is(NON_ORGANIC);
     }
 
     private void targetOwnedAllays(ServerPlayer player, LivingEntity target) {
