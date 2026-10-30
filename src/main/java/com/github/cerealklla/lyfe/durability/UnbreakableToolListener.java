@@ -34,6 +34,14 @@ public final class UnbreakableToolListener {
         if (!(event.getSource().getEntity() instanceof ServerPlayer attacker) || event.getAmount() <= 0) {
             return;
         }
+        // Real bug fix, 2026-10-30 -- this class's own doc already claimed "scoped to melee only,"
+        // but never actually checked that; it zeroed ANY damage from a player source, including an
+        // indirect spell hit (e.g. Spark of Life), as long as the player's current mainhand weapon
+        // happened to be at zero durability -- explicit user report: "Duarbility 0 = no damage only
+        // for melee." Same getDirectEntity() check craft.ProficiencyDurabilityListener already uses.
+        if (event.getSource().getDirectEntity() != attacker) {
+            return;
+        }
         ItemStack weapon = attacker.getMainHandItem();
         if (UnbreakableConstants.isAtZero(weapon)) {
             event.setAmount(0.0f);

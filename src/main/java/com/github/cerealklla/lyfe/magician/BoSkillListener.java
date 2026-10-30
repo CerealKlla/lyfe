@@ -42,6 +42,14 @@ public final class BoSkillListener {
         if (!(event.getSource().getEntity() instanceof ServerPlayer attacker) || victim == attacker) {
             return;
         }
+        // Melee only, explicit user spec, 2026-10-30: "Bo xp is melee only." A direct hit has
+        // getDirectEntity() == getEntity() (both the attacking player); Spark of Life's own hit is
+        // an indirect magic source where they now correctly differ (direct = the real projectile,
+        // causing = the player -- see SpellEffects' own doc for the matching root fix), same check
+        // craft.ProficiencyDurabilityListener's own Bo-Staff branch already uses.
+        if (event.getSource().getDirectEntity() != attacker) {
+            return;
+        }
         ItemStack weapon = attacker.getMainHandItem();
         // Same real bug CombatSkillListener's own doc describes: a "broken" weapon (durability
         // clamped at maxDamage - 1 by Unbreakable Equipment, never truly destroyed) keeps landing

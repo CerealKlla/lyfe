@@ -150,7 +150,7 @@ public final class SparkOfLifeProjectile extends ThrowableItemProjectile {
                 blockedEffect = effect;
                 continue;
             }
-            boolean effective = effect.apply(caster, target, fixedDamage);
+            boolean effective = effect.apply(caster, target, fixedDamage, this);
             if (effective) {
                 appliedAnything = true;
                 // Spell Proficiency (per-spell cost/cooldown reduction, AND -- as of 2026-10-21 --

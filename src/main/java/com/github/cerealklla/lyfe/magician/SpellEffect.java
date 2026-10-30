@@ -3,6 +3,7 @@ package com.github.cerealklla.lyfe.magician;
 import java.util.HashSet;
 import java.util.Set;
 
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 
 /**
@@ -19,8 +20,16 @@ public final class SpellEffect {
 
     @FunctionalInterface
     public interface EffectAction {
-        /** Returns whether anything actually happened (for progress/feedback gating). */
-        boolean apply(SpellEffect self, LivingEntity caster, LivingEntity target, float magnitude);
+        /**
+         * Returns whether anything actually happened (for progress/feedback gating). {@code
+         * directCause} is the real projectile that hit -- NOT the caster -- so a built {@link
+         * net.minecraft.world.damagesource.DamageSource}'s own direct entity correctly differs from
+         * the caster (see {@link SpellEffects#DAMAGE_ENEMY_ORGANIC_LIFE}'s own doc for the real bug
+         * this fixes: every "was this a genuine melee hit" check elsewhere in this codebase keys off
+         * {@code DamageSource#getDirectEntity() == attacker}, which a same-caster direct entity would
+         * wrongly satisfy for a spell hit too).
+         */
+        boolean apply(SpellEffect self, LivingEntity caster, LivingEntity target, float magnitude, Entity directCause);
     }
 
     public enum TargetList {
@@ -79,7 +88,7 @@ public final class SpellEffect {
     }
 
     /** Applies this effect's code block; returns whether anything actually happened. */
-    public boolean apply(LivingEntity caster, LivingEntity target, float magnitude) {
-        return action.apply(this, caster, target, magnitude);
+    public boolean apply(LivingEntity caster, LivingEntity target, float magnitude, Entity directCause) {
+        return action.apply(this, caster, target, magnitude, directCause);
     }
 }
