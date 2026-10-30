@@ -122,7 +122,16 @@ public final class SummoningStoneItem extends Item {
         }
 
         if (data.summonedMountId().isPresent()) {
-            Entity existing = serverLevel.getEntity(data.summonedMountId().get());
+            // Real bug fix, 2026-10-30 -- see SummonDimensionChangeListener's own doc for the full
+            // incident this is part of. serverLevel.getEntity(id) only ever searches the PLAYER's
+            // own current dimension; if the summoned mount is actually still alive in a *different*
+            // one (e.g. the player walked through a portal without it, or re-clicked before the
+            // dimension-change despawn's own deferred tick ran), this used to read as "nothing
+            // there" and silently fall through to summoning a brand-new mount on top of the still-
+            // live original -- a direct, immediate duplication path, independent of any ticker/event
+            // timing. Searching every loaded dimension (SummoningDistanceTicker#resolveTracked)
+            // finds it regardless of which one it's actually in.
+            Entity existing = SummoningDistanceTicker.resolveTracked(serverLevel.getServer(), data.summonedMountId().get());
             if (existing != null && existing.isAlive()) {
                 player.sendSystemMessage(Component.literal("That mount is already summoned."));
                 return InteractionResult.FAIL;

@@ -54,7 +54,10 @@ public final class GuardCompanionSupport {
             return;
         }
         if (data.summonedAllayId().isPresent()) {
-            Entity existing = level.getEntity(data.summonedAllayId().get());
+            // Dimension-scoped getEntity bug, same as SummoningStoneItem/AllayBottleItem's own
+            // 2026-10-30 fix -- a Guard holding this can itself cross dimensions
+            // (GuardReturnToDimensionGoal), leaving its companion behind in a different one.
+            Entity existing = SummoningDistanceTicker.resolveTracked(level.getServer(), data.summonedAllayId().get());
             if (existing instanceof Allay allay && allay.isAlive()) {
                 return;
             }
@@ -83,7 +86,10 @@ public final class GuardCompanionSupport {
             return;
         }
         if (data.summonedMountId().isPresent()) {
-            Entity existing = level.getEntity(data.summonedMountId().get());
+            // Dimension-scoped getEntity bug, same as SummoningStoneItem/AllayBottleItem's own
+            // 2026-10-30 fix -- a Guard holding this can itself cross dimensions
+            // (GuardReturnToDimensionGoal), leaving its companion behind in a different one.
+            Entity existing = SummoningDistanceTicker.resolveTracked(level.getServer(), data.summonedMountId().get());
             if (existing != null && existing.isAlive()) {
                 return;
             }
