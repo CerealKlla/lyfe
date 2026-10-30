@@ -66,12 +66,13 @@ public final class DevSummoningStoneContribution {
         }
         horse.setTamed(true);
         horse.setItemSlot(EquipmentSlot.SADDLE, new ItemStack(Items.SADDLE));
-        horse.setCustomName(Component.literal("Dev Test Horse"));
+        String name = "Dev Test Horse";
+        horse.setCustomName(Component.literal(name));
 
         CompoundTag savedState = SummoningStoneData.capture(horse, level);
 
         ItemStack stone = new ItemStack(ModItems.SUMMONING_STONE.get());
-        stone.set(ModItems.SUMMONING_STONE_DATA.get(), new SummoningStoneData(savedState, 0L, Optional.empty()));
+        stone.set(ModItems.SUMMONING_STONE_DATA.get(), new SummoningStoneData(savedState, 0L, Optional.empty(), name));
         return stone;
     }
 }

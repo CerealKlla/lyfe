@@ -72,7 +72,7 @@ public final class MountBindListener {
         mount.discard();
 
         ItemStack stone = new ItemStack(ModItems.SUMMONING_STONE.get());
-        stone.set(ModItems.SUMMONING_STONE_DATA.get(), new SummoningStoneData(savedState, 0L, Optional.empty()));
+        stone.set(ModItems.SUMMONING_STONE_DATA.get(), new SummoningStoneData(savedState, 0L, Optional.empty(), name));
         if (!player.getInventory().add(stone)) {
             player.drop(stone, false);
         }

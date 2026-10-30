@@ -62,7 +62,7 @@ public final class SummoningStoneItem extends Item {
             appendBoundStats(data.savedState(), builder);
             long now = System.currentTimeMillis();
             if (data.summonedMountId().isPresent()) {
-                builder.accept(Component.literal("Already summoned").withStyle(ChatFormatting.GRAY));
+                builder.accept(Component.literal(data.displayName() + " is already summoned").withStyle(ChatFormatting.GRAY));
                 return;
             }
             if (data.onCooldown(now)) {
@@ -71,7 +71,8 @@ public final class SummoningStoneItem extends Item {
                 return;
             }
         }
-        builder.accept(Component.literal("Right-click: Summon the bound mount").withStyle(ChatFormatting.AQUA));
+        builder.accept(Component.literal("Right-click: Summon " + (data != null ? data.displayName() : "the bound mount"))
+                .withStyle(ChatFormatting.AQUA));
     }
 
     /**
@@ -133,7 +134,7 @@ public final class SummoningStoneItem extends Item {
             // finds it regardless of which one it's actually in.
             Entity existing = SummoningDistanceTicker.resolveTracked(serverLevel.getServer(), data.summonedMountId().get());
             if (existing != null && existing.isAlive()) {
-                player.sendSystemMessage(Component.literal("That mount is already summoned."));
+                player.sendSystemMessage(Component.literal(data.displayName() + " is already summoned."));
                 return InteractionResult.FAIL;
             }
         }

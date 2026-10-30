@@ -58,7 +58,7 @@ public final class AllayBottleItem extends Item {
         if (data != null) {
             long now = System.currentTimeMillis();
             if (data.summonedAllayId().isPresent()) {
-                builder.accept(Component.literal("Right-click: Dispel the summoned Allay").withStyle(ChatFormatting.AQUA));
+                builder.accept(Component.literal("Right-click: Dispel " + data.displayName()).withStyle(ChatFormatting.AQUA));
                 builder.accept(Component.literal("Shift+Right-click: Configure").withStyle(ChatFormatting.AQUA));
                 return;
             }
@@ -69,7 +69,8 @@ public final class AllayBottleItem extends Item {
                 return;
             }
         }
-        builder.accept(Component.literal("Right-click: Summon the bound Allay").withStyle(ChatFormatting.AQUA));
+        builder.accept(Component.literal("Right-click: Summon " + (data != null ? data.displayName() : "the bound Allay"))
+                .withStyle(ChatFormatting.AQUA));
         builder.accept(Component.literal("Shift+Right-click: Configure").withStyle(ChatFormatting.AQUA));
     }
 

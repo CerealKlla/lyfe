@@ -25,7 +25,8 @@ import com.github.cerealklla.lyfe.LyfeMod;
  * a death-triggered cooldown must be anchored to real elapsed time, not game ticks, or it reads as
  * "paused" across a restart), and the currently-summoned mount's own UUID (if one is out right now).
  */
-public record SummoningStoneData(CompoundTag savedState, long cooldownEndEpochMillis, Optional<UUID> summonedMountId) {
+public record SummoningStoneData(CompoundTag savedState, long cooldownEndEpochMillis, Optional<UUID> summonedMountId,
+                                  String displayName) {
 
     /**
      * Captures {@code mount}'s complete state for later re-spawning via {@code
@@ -64,13 +65,15 @@ public record SummoningStoneData(CompoundTag savedState, long cooldownEndEpochMi
     public static final Codec<SummoningStoneData> CODEC = RecordCodecBuilder.create(i -> i.group(
             CompoundTag.CODEC.fieldOf("saved_state").forGetter(SummoningStoneData::savedState),
             Codec.LONG.optionalFieldOf("cooldown_end_epoch_millis", 0L).forGetter(SummoningStoneData::cooldownEndEpochMillis),
-            UUIDUtil.CODEC.optionalFieldOf("summoned_mount_id").forGetter(SummoningStoneData::summonedMountId)
+            UUIDUtil.CODEC.optionalFieldOf("summoned_mount_id").forGetter(SummoningStoneData::summonedMountId),
+            Codec.STRING.optionalFieldOf("display_name", "mount").forGetter(SummoningStoneData::displayName)
     ).apply(i, SummoningStoneData::new));
 
     public static final StreamCodec<RegistryFriendlyByteBuf, SummoningStoneData> STREAM_CODEC = StreamCodec.composite(
             ByteBufCodecs.COMPOUND_TAG, SummoningStoneData::savedState,
             ByteBufCodecs.VAR_LONG, SummoningStoneData::cooldownEndEpochMillis,
             ByteBufCodecs.optional(UUIDUtil.STREAM_CODEC), SummoningStoneData::summonedMountId,
+            ByteBufCodecs.STRING_UTF8, SummoningStoneData::displayName,
             SummoningStoneData::new);
 
     public boolean onCooldown(long currentEpochMillis) {
@@ -92,14 +95,18 @@ public record SummoningStoneData(CompoundTag savedState, long cooldownEndEpochMi
     }
 
     public SummoningStoneData withSavedState(CompoundTag newState) {
-        return new SummoningStoneData(newState, cooldownEndEpochMillis, summonedMountId);
+        return new SummoningStoneData(newState, cooldownEndEpochMillis, summonedMountId, displayName);
     }
 
     public SummoningStoneData withSummonedMountId(Optional<UUID> id) {
-        return new SummoningStoneData(savedState, cooldownEndEpochMillis, id);
+        return new SummoningStoneData(savedState, cooldownEndEpochMillis, id, displayName);
     }
 
     public SummoningStoneData withCooldownEndEpochMillis(long end) {
-        return new SummoningStoneData(savedState, end, summonedMountId);
+        return new SummoningStoneData(savedState, end, summonedMountId, displayName);
+    }
+
+    public SummoningStoneData withDisplayName(String newName) {
+        return new SummoningStoneData(savedState, cooldownEndEpochMillis, summonedMountId, newName);
     }
 }
