@@ -55,6 +55,18 @@ final class RepairableItem {
         if (rangedTier >= 0) {
             return new TierInfo(rangedTier, false);
         }
+        // Nature Staff (added 2026-10-30, real report: a Gold-tier staff showed "Needs: 2x Iron..."
+        // in the Repair GUI) -- craft.NatureStaffLadder is its own separate small ladder (no vanilla
+        // item exists to resolve via EquipmentTierLadder's material-prefix scheme), so it was never
+        // checked here at all and silently fell all the way through to the generic off-ladder Iron
+        // Ingot fallback, same bucket as a shield/trident/elytra. Its own tier numbers (1=Stone
+        // through 5=Diamond) line up exactly with EquipmentTierLadder's numbering, so no new material
+        // table is needed -- just resolving the real tier here is enough for RepairMaterials to pick
+        // the matching real material (Stone/Copper/Iron/Gold/Diamond) automatically.
+        int natureStaffTier = com.github.cerealklla.lyfe.craft.NatureStaffLadder.tierOfItem(itemId);
+        if (natureStaffTier >= 0) {
+            return new TierInfo(natureStaffTier, false);
+        }
         return TierInfo.GENERIC;
     }
 }
