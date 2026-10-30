@@ -83,11 +83,12 @@ public final class ModAttributes {
      * A bound Allay's own base Mana Regen (explicit user request, 2026-10-23, right after the real
      * "why does the Allay never seem to get mana back?" fix -- see {@code magician.NatureStaffItem}'s
      * own doc) -- every other entity's base stays the attribute's own default (0.0, requires a
-     * Nature Staff/Focus/skill bonus to regen at all); an Allay regens a flat 1/second on its own,
-     * on top of whatever a held Nature Staff/Focus adds. Explicitly exempted from the 2026-10-24
-     * Mana Regen 60% cut applied everywhere else -- "Allay's base mana regen is fine."
+     * Nature Staff/Focus/skill bonus to regen at all); an Allay regens a flat amount per second on
+     * its own, on top of whatever a held Nature Staff/Focus adds. Originally 1.0, explicitly
+     * exempted from the 2026-10-24 Mana Regen 60% cut applied everywhere else ("Allay's base mana
+     * regen is fine") -- lowered directly to 0.1, explicit user request, 2026-10-30.
      */
-    private static final double ALLAY_BASE_MANA_REGEN = 1.0;
+    private static final double ALLAY_BASE_MANA_REGEN = 0.1;
 
     /**
      * A bound Allay's own base Health Regen, lowered from the shared {@link #HEALTH_REGEN} default
