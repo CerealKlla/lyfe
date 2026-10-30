@@ -313,6 +313,22 @@ public class LyfeModClient {
         for (String line : wordWrap(def.description(), RUNEWORD_DESCRIPTION_WRAP_CHARS)) {
             tooltip.add(Component.literal(line).withStyle(net.minecraft.ChatFormatting.GREEN));
         }
+        // Real report, 2026-10-30: nothing on the tooltip said this Runeword only ever matches on a
+        // Weapon/Armor/Tool socket (RunewordDefinition#category, already hard-enforced by
+        // ServerRunewordStore#definitionsFor -- the same Rune sequence socketed into the wrong
+        // category simply never matches at all), so a player could easily socket the right runes
+        // into the wrong item and see nothing happen with no clue why. Appended as its own line
+        // rather than folded into the description text itself, since every RunewordCatalog entry's
+        // description already reads naturally without it.
+        tooltip.add(Component.literal(categoryLabel(def.category()) + " Only").withStyle(net.minecraft.ChatFormatting.DARK_GRAY));
+    }
+
+    private static String categoryLabel(com.github.cerealklla.lyfe.socket.EquipmentCategory category) {
+        return switch (category) {
+            case WEAPON -> "Main Hand Weapon";
+            case ARMOR -> "Armor";
+            case TOOL -> "Tool";
+        };
     }
 
     private static List<String> wordWrap(String text, int maxCharsPerLine) {
