@@ -495,15 +495,33 @@ public final class Lyfe {
      * leave the stack in an already-clean "nothing summoned" state before it ever leaves Caryvan's
      * hands, the same way a voluntary dispel already does -- see {@code menu.MountSlot#onTake}.
      */
+    /**
+     * Real bug fix, 2026-10-30 -- live report: "it's not letting me summon my allay," traced to the
+     * bottle's {@code saved_state} ending up a genuinely empty NBT tag after "moving it into and out
+     * of a wagon companion slot a few times." This method (and {@link #despawnCompanionCleanly})
+     * used a plain dimension-scoped {@code level.getEntity(id)} lookup with no {@code isAlive()}
+     * check -- the exact bug class already found and fixed everywhere else in the summoning system
+     * tonight (see {@code summoning.SummonDimensionChangeListener}'s own doc for the fullest
+     * write-up), just never caught here too. Now searches every loaded dimension via {@code
+     * summoning.SummoningDistanceTicker#resolveTracked} and requires {@code isAlive()} before ever
+     * trusting a capture. Also never lets an empty/invalid capture overwrite a real saved state --
+     * {@code EntityType#loadEntityRecursive} needs a real {@code "id"} key to resolve anything from,
+     * so a capture missing one is treated as a failed capture and the existing saved state is kept
+     * instead, closing off this whole symptom regardless of the exact mechanism that produced it.
+     */
     public static void despawnMountCleanly(net.minecraft.server.level.ServerLevel level, net.minecraft.world.item.ItemStack stack) {
         com.github.cerealklla.lyfe.summoning.SummoningStoneData data = stack.get(com.github.cerealklla.lyfe.registration.ModItems.SUMMONING_STONE_DATA.get());
         if (data == null || data.summonedMountId().isEmpty()) {
             return;
         }
-        net.minecraft.world.entity.Entity mount = level.getEntity(data.summonedMountId().get());
+        net.minecraft.world.entity.Entity mount = com.github.cerealklla.lyfe.summoning.SummoningDistanceTicker.resolveTracked(
+                level.getServer(), data.summonedMountId().get());
         com.github.cerealklla.lyfe.summoning.SummoningStoneData updated = data.withSummonedMountId(java.util.Optional.empty());
-        if (mount != null) {
-            updated = updated.withSavedState(com.github.cerealklla.lyfe.summoning.SummoningStoneData.capture(mount, level));
+        if (mount != null && mount.isAlive()) {
+            net.minecraft.nbt.CompoundTag captured = com.github.cerealklla.lyfe.summoning.SummoningStoneData.capture(mount, level);
+            if (captured.contains("id")) {
+                updated = updated.withSavedState(captured);
+            }
             mount.ejectPassengers();
             mount.discard();
         }
@@ -516,10 +534,14 @@ public final class Lyfe {
         if (data == null || data.summonedAllayId().isEmpty()) {
             return;
         }
-        net.minecraft.world.entity.Entity allay = level.getEntity(data.summonedAllayId().get());
+        net.minecraft.world.entity.Entity allay = com.github.cerealklla.lyfe.summoning.SummoningDistanceTicker.resolveTracked(
+                level.getServer(), data.summonedAllayId().get());
         com.github.cerealklla.lyfe.summoning.AllayBottleData updated = data.withSummonedAllayId(java.util.Optional.empty());
-        if (allay != null) {
-            updated = updated.withSavedState(com.github.cerealklla.lyfe.summoning.AllayCapture.capture(allay, level));
+        if (allay != null && allay.isAlive()) {
+            net.minecraft.nbt.CompoundTag captured = com.github.cerealklla.lyfe.summoning.AllayCapture.capture(allay, level);
+            if (captured.contains("id")) {
+                updated = updated.withSavedState(captured);
+            }
             allay.ejectPassengers();
             allay.discard();
         }

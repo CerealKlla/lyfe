@@ -76,12 +76,13 @@ public final class SummoningDistanceTicker {
     /**
      * {@code null} if genuinely not found in any loaded dimension -- distinct from "found, but in a
      * different dimension than {@code expectedLevel}," which the caller must check separately
-     * before applying a distance comparison. Package-visible -- {@link SummonDimensionChangeListener}
-     * needs this identical all-dimensions search too (a ridden mount actually *follows* its rider
-     * through a portal, as a freshly re-created entity with the same UUID in the *new* dimension --
-     * see that class's own doc).
+     * before applying a distance comparison. Public -- {@link SummonDimensionChangeListener} needs
+     * this identical all-dimensions search too (a ridden mount actually *follows* its rider through
+     * a portal, as a freshly re-created entity with the same UUID in the *new* dimension -- see that
+     * class's own doc), and so does {@code api.Lyfe#despawnMountCleanly}/{@code
+     * #despawnCompanionCleanly} (2026-10-30 fix, same bug class).
      */
-    static Entity resolveTracked(MinecraftServer server, UUID id) {
+    public static Entity resolveTracked(MinecraftServer server, UUID id) {
         for (ServerLevel candidate : server.getAllLevels()) {
             Entity found = candidate.getEntity(id);
             if (found != null) {
