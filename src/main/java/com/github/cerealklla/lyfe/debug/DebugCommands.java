@@ -29,19 +29,27 @@ import com.github.cerealklla.lyfe.knowledge.SignListener;
 import com.github.cerealklla.lyfe.craft.GeneratedRecipe;
 import com.github.cerealklla.lyfe.craft.ServerRecipeStore;
 import com.github.cerealklla.lyfe.registration.ModAttachments;
+import com.github.cerealklla.lyfe.registration.ModItems;
 import com.github.cerealklla.lyfe.research.PlayerResearch;
 import com.github.cerealklla.lyfe.research.ResearchNoteItem;
 import com.github.cerealklla.lyfe.skill.SkillId;
 import com.github.cerealklla.lyfe.skill.SkillRegistry;
 import com.github.cerealklla.lyfe.skill.Skills;
+import com.github.cerealklla.lyfe.summoning.AllayBottleData;
+import com.github.cerealklla.lyfe.summoning.AllayBottleItem;
+import com.github.cerealklla.lyfe.summoning.AllayCapture;
 
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.EntityArgument;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.EntitySpawnReason;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.animal.allay.Allay;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.fml.ModList;
 
@@ -187,7 +195,9 @@ public final class DebugCommands {
                         .then(Commands.argument("target", EntityArgument.player())
                                 .executes(context -> learnAllFoodRecipes(context.getSource(), EntityArgument.getPlayer(context, "target")))))
                 .then(Commands.literal("rerollfoodrecipes")
-                        .executes(context -> rerollFoodRecipes(context.getSource()))));
+                        .executes(context -> rerollFoodRecipes(context.getSource())))
+                .then(Commands.literal("fixallaybottle")
+                        .executes(context -> fixAllayBottle(context.getSource(), context.getSource().getPlayerOrException()))));
     }
 
     private static int addXp(CommandSourceStack source, ServerPlayer target, String skillIdValue, int amount) {
@@ -390,6 +400,40 @@ public final class DebugCommands {
     private static int rerollFoodRecipes(CommandSourceStack source) {
         ServerFoodRecipeStore.reroll(source.getServer());
         source.sendSuccess(() -> Component.literal("Rerolled every cooking recipe."), true);
+        return 1;
+    }
+
+    /**
+     * One-time repair for an Allay in a Bottle whose {@code saved_state} is empty/invalid (e.g. from
+     * an earlier dupe-fix round's buggy capture, real live report 2026-10-30: "it's not letting me
+     * summon my allay" -- {@code AllayBottleItem#use} silently fails {@code
+     * EntityType#loadEntityRecursive} against an empty tag, "Something went wrong summoning that
+     * Allay"). Spawns a throwaway template Allay purely to re-capture a valid state via the same
+     * {@code AllayCapture#capture} every real bind/dispel already uses, injects it into the held
+     * bottle, and discards the template -- preserves the bottle's own name/equip/gather/cooldown,
+     * only replaces the broken template. One-time manual fix per this suite's own established
+     * convention, not a standing repair system.
+     */
+    private static int fixAllayBottle(CommandSourceStack source, ServerPlayer target) {
+        ItemStack main = target.getMainHandItem();
+        ItemStack bottle = main.getItem() instanceof AllayBottleItem ? main : target.getOffhandItem();
+        if (!(bottle.getItem() instanceof AllayBottleItem) || !(bottle.get(ModItems.ALLAY_BOTTLE_DATA.get()) instanceof AllayBottleData data)) {
+            source.sendFailure(Component.literal("Not holding an Allay in a Bottle."));
+            return 0;
+        }
+        if (!(target.level() instanceof ServerLevel level)) {
+            return 0;
+        }
+        Allay template = EntityType.ALLAY.create(level, EntitySpawnReason.COMMAND);
+        if (template == null) {
+            source.sendFailure(Component.literal("Couldn't create a template Allay."));
+            return 0;
+        }
+        CompoundTag freshState = AllayCapture.capture(template, level);
+        template.discard();
+        bottle.set(ModItems.ALLAY_BOTTLE_DATA.get(), data.withSavedState(freshState));
+        String name = data.displayName();
+        source.sendSuccess(() -> Component.literal("Repaired " + name + "'s saved state -- try summoning again."), true);
         return 1;
     }
 }
