@@ -40,12 +40,16 @@ public final class RunewordEffectListener {
         if (!(event.getEntity().level() instanceof ServerLevel level) || event.getAmount() <= 0) {
             return;
         }
-        // Attacker side: the attacker's own mainhand weapon/tool.
+        // Attacker side: both hands -- a chance-on-hit Weapon/Tool Runeword procs the same
+        // regardless of which hand it's actually held in (explicit user spec, 2026-10-30: no
+        // main-hand/off-hand distinction for Runeword purposes, unlike vanilla's own mainhand-only
+        // attack animation/damage-source semantics, which this deliberately does not mirror).
         if (event.getSource().getEntity() instanceof ServerPlayer attacker) {
-            ItemStack weapon = attacker.getMainHandItem();
-            RunewordDefinition active = activeRuneword(weapon);
-            if (active != null) {
-                applyOnHit(active.effect(), level, attacker, event.getEntity(), event.getAmount());
+            for (ItemStack weapon : List.of(attacker.getMainHandItem(), attacker.getOffhandItem())) {
+                RunewordDefinition active = activeRuneword(weapon);
+                if (active != null) {
+                    applyOnHit(active.effect(), level, attacker, event.getEntity(), event.getAmount());
+                }
             }
         }
         // Victim side: every armor piece the damaged entity is wearing.

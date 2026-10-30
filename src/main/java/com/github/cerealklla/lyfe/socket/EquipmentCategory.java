@@ -24,10 +24,15 @@ public enum EquipmentCategory {
      * tooltip) and {@code menu.client.RuneCodexTab} (the "Runewords Discovered" Codex screen) --
      * previously only added to the former, missed the latter, which is why a fix that looked
      * complete from one screen wasn't actually showing up on the other.
+     *
+     * <p>{@code WEAPON} reads plain "Weapon," not "Main Hand Weapon" (corrected same day) -- the
+     * Rune/Gem system deliberately has no main-hand/off-hand distinction at all (see {@link
+     * RunewordEffectListener#onIncomingDamage}, which now checks both hands for a chance-on-hit
+     * proc), so a label implying one was actively misleading.
      */
     public String displayLabel() {
         return switch (this) {
-            case WEAPON -> "Main Hand Weapon";
+            case WEAPON -> "Weapon";
             case ARMOR -> "Armor";
             case TOOL -> "Tool";
         };
