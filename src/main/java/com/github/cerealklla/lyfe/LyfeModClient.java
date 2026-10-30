@@ -320,15 +320,7 @@ public class LyfeModClient {
         // into the wrong item and see nothing happen with no clue why. Appended as its own line
         // rather than folded into the description text itself, since every RunewordCatalog entry's
         // description already reads naturally without it.
-        tooltip.add(Component.literal(categoryLabel(def.category()) + " Only").withStyle(net.minecraft.ChatFormatting.DARK_GRAY));
-    }
-
-    private static String categoryLabel(com.github.cerealklla.lyfe.socket.EquipmentCategory category) {
-        return switch (category) {
-            case WEAPON -> "Main Hand Weapon";
-            case ARMOR -> "Armor";
-            case TOOL -> "Tool";
-        };
+        tooltip.add(Component.literal(def.category().displayLabel() + " Only").withStyle(net.minecraft.ChatFormatting.DARK_GRAY));
     }
 
     private static List<String> wordWrap(String text, int maxCharsPerLine) {

@@ -203,6 +203,13 @@ public final class RuneCodexTab implements NuclyusMenu {
                 }
                 y += ROW_HEIGHT;
             }
+            // Same "which item type this needs" disclosure as the item's own hover tooltip
+            // (LyfeModClient#onSocketTooltip) -- shared via EquipmentCategory#displayLabel so the
+            // two screens can't drift apart again.
+            if (y + ROW_HEIGHT >= top && y <= bottom) {
+                graphics.text(font, Component.literal(def.category().displayLabel() + " Only"), left, y, DIM_COLOR, false);
+            }
+            y += ROW_HEIGHT;
         }
     }
 
