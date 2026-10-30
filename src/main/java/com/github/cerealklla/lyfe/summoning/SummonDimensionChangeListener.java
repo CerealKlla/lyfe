@@ -74,6 +74,13 @@ public final class SummonDimensionChangeListener {
     public void onChangedDimension(PlayerEvent.PlayerChangedDimensionEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {
             pendingPlayerIds.add(player.getUUID());
+            // Temporary diagnostic (2026-10-30, live report: "I observed 2 allays and horses next
+            // to me" after riding/walking through a portal) -- logs the exact moment this fires and
+            // what it saw, to catch a possible race rather than guess further. Remove once the real
+            // cause is confirmed and fixed.
+            com.github.cerealklla.lyfe.LyfeMod.LOGGER.info(
+                    "[LagDiagnostics] SummonDimensionChangeListener: {} changed dimension {} -> {}, queued for next-tick despawn check",
+                    player.getName().getString(), event.getFrom().identifier(), event.getTo().identifier());
         }
     }
 
@@ -106,11 +113,18 @@ public final class SummonDimensionChangeListener {
         if (data == null || data.summonedMountId().isEmpty()) {
             return;
         }
-        Entity mount = SummoningDistanceTicker.resolveTracked(server, data.summonedMountId().get());
+        UUID id = data.summonedMountId().get();
+        Entity mount = SummoningDistanceTicker.resolveTracked(server, id);
         if (mount == null || !mount.isAlive() || !(mount.level() instanceof ServerLevel mountLevel)) {
+            com.github.cerealklla.lyfe.LyfeMod.LOGGER.info(
+                    "[LagDiagnostics] SummonDimensionChangeListener.despawnMount: id {} not resolvable/alive (found={}) -- just clearing the binding",
+                    id, mount);
             stack.set(ModItems.SUMMONING_STONE_DATA.get(), data.withSummonedMountId(Optional.empty()));
             return;
         }
+        com.github.cerealklla.lyfe.LyfeMod.LOGGER.info(
+                "[LagDiagnostics] SummonDimensionChangeListener.despawnMount: discarding mount {} (id {}) in {} at {}",
+                mount, id, mountLevel.dimension().identifier(), mount.position());
         SummoningStoneData updated = data.withSavedState(SummoningStoneData.capture(mount, mountLevel)).withSummonedMountId(Optional.empty());
         stack.set(ModItems.SUMMONING_STONE_DATA.get(), updated);
         mount.ejectPassengers();
@@ -122,11 +136,18 @@ public final class SummonDimensionChangeListener {
         if (data == null || data.summonedAllayId().isEmpty()) {
             return;
         }
-        Entity allay = SummoningDistanceTicker.resolveTracked(server, data.summonedAllayId().get());
+        UUID id = data.summonedAllayId().get();
+        Entity allay = SummoningDistanceTicker.resolveTracked(server, id);
         if (allay == null || !allay.isAlive() || !(allay.level() instanceof ServerLevel allayLevel)) {
+            com.github.cerealklla.lyfe.LyfeMod.LOGGER.info(
+                    "[LagDiagnostics] SummonDimensionChangeListener.despawnAllay: id {} not resolvable/alive (found={}) -- just clearing the binding",
+                    id, allay);
             stack.set(ModItems.ALLAY_BOTTLE_DATA.get(), data.withSummonedAllayId(Optional.empty()));
             return;
         }
+        com.github.cerealklla.lyfe.LyfeMod.LOGGER.info(
+                "[LagDiagnostics] SummonDimensionChangeListener.despawnAllay: discarding allay {} (id {}) in {} at {}",
+                allay, id, allayLevel.dimension().identifier(), allay.position());
         AllayBottleData updated = data.withSavedState(SummoningStoneData.capture(allay, allayLevel)).withSummonedAllayId(Optional.empty());
         stack.set(ModItems.ALLAY_BOTTLE_DATA.get(), updated);
         allay.ejectPassengers();
