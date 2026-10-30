@@ -94,6 +94,26 @@ public final class FocusItem extends Item {
         return Component.literal(tierName + " Focus (" + data.variant().displayName() + ")");
     }
 
+    /**
+     * Real report, 2026-10-30: socketing Runes/Gems into a Focus never showed up in its tooltip at
+     * all, neither as individual stat lines nor (when a full Runeword sequence matched) the Runeword
+     * name. Root cause: {@code craft.CraftingStructureMenu#attemptCraft} hides vanilla's own
+     * automatic {@code DataComponents.ATTRIBUTE_MODIFIERS} tooltip section for every crafted Focus
+     * (2026-10-21, to stop the base roll from double-printing once in vanilla's generic format and
+     * again in this method's own friendlier one) -- but that hid socket-derived modifiers too, since
+     * they live on the exact same component, and this method never read {@link
+     * com.github.cerealklla.lyfe.socket.SocketData} at all to begin with. Now manually renders each
+     * filled socket's own {@link com.github.cerealklla.lyfe.socket.GemCatalog}/{@link
+     * com.github.cerealklla.lyfe.socket.RuneCatalog} stat line -- skipped whenever a Runeword is
+     * active ({@code socket.SocketApplier} adds no individual socket modifiers in that case, same
+     * "Runewords override entirely" rule every other socketable item follows). The active Runeword's
+     * own name/description line is unaffected by any of this -- {@code LyfeModClient#onSocketTooltip}
+     * is a separate, item-agnostic {@code ItemTooltipEvent} hook that already runs for every item
+     * regardless of its own {@code appendHoverText}, reading {@code ModItems#ACTIVE_RUNEWORD_NAME}
+     * directly; if it's still not showing after this fix, the inserted sequence genuinely isn't the
+     * server's real rolled sequence for any Weapon Runeword (order-sensitive, server-randomized), not
+     * a display bug.
+     */
     @Override
     public void appendHoverText(ItemStack stack, TooltipContext context, TooltipDisplay display, Consumer<Component> builder, TooltipFlag tooltipFlag) {
         FocusData data = dataOf(stack);
@@ -109,6 +129,34 @@ public final class FocusItem extends Item {
             builder.accept(Component.literal("Shift+Right-click: Cast Spark of Life").withStyle(ChatFormatting.AQUA));
             builder.accept(Component.literal("Fires a bolt of light -- heals an ally or damages an enemy on hit.").withStyle(ChatFormatting.GRAY));
         }
+        if (!stack.has(ModItems.ACTIVE_RUNEWORD_NAME.get())) {
+            com.github.cerealklla.lyfe.socket.SocketData socketData =
+                    stack.getOrDefault(ModItems.SOCKET_DATA.get(), com.github.cerealklla.lyfe.socket.SocketData.EMPTY);
+            for (com.github.cerealklla.lyfe.socket.SocketSlot slot : socketData.sockets()) {
+                switch (slot.kind()) {
+                    case GEM -> {
+                        com.github.cerealklla.lyfe.socket.GemCatalog.StatEntry entry =
+                                com.github.cerealklla.lyfe.socket.GemCatalog.entryFor(slot.gemType().orElseThrow(),
+                                        com.github.cerealklla.lyfe.socket.EquipmentCategory.WEAPON);
+                        double amount = entry.amountFor(slot.gemQuality().orElseThrow());
+                        builder.accept(socketStatLine(amount, entry.shortLabel()));
+                    }
+                    case RUNE -> {
+                        com.github.cerealklla.lyfe.socket.RuneCatalog.RuneStat stat =
+                                com.github.cerealklla.lyfe.socket.RuneCatalog.of(slot.runeId().orElseThrow());
+                        builder.accept(socketStatLine(stat.amount(), stat.shortLabel()));
+                    }
+                    case EMPTY -> {
+                        // Nothing to show.
+                    }
+                }
+            }
+        }
+    }
+
+    private static Component socketStatLine(double amount, String shortLabel) {
+        String sign = amount >= 0 ? "+" : "";
+        return Component.literal(sign + amount + " " + shortLabel).withStyle(ChatFormatting.BLUE);
     }
 
     /** Only when sneaking (explicit spec: "the spell is cast by shift+right click") -- a plain right-click does nothing, leaving the hand free for whatever else vanilla would do with it. */
