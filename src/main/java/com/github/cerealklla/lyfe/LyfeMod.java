@@ -168,6 +168,7 @@ public class LyfeMod {
         NeoForge.EVENT_BUS.register(new com.github.cerealklla.lyfe.magician.BoSkillListener());
         NeoForge.EVENT_BUS.register(new com.github.cerealklla.lyfe.summoning.SummoningDistanceTicker());
         NeoForge.EVENT_BUS.register(new com.github.cerealklla.lyfe.summoning.SummonedMountDeathListener());
+        NeoForge.EVENT_BUS.register(new com.github.cerealklla.lyfe.summoning.SummonDimensionChangeListener());
         NeoForge.EVENT_BUS.addListener((LootTableLoadEvent event) -> RuneLootInjector.onLootTableLoad(event));
         NeoForge.EVENT_BUS.addListener((LootTableLoadEvent event) -> PreSocketedGearInjector.onLootTableLoad(event));
         NeoForge.EVENT_BUS.addListener((RegisterCommandsEvent event) -> DebugCommands.register(event.getDispatcher()));
