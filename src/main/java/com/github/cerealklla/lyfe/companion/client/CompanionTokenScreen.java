@@ -29,6 +29,11 @@ import net.minecraft.world.entity.player.Inventory;
  * fit six slot labels without bleeding into each other, and the panel's vertical rows (title, rename,
  * stats, slot labels, slots, inventory) now each get their own real gap, mirroring the layout
  * {@code AllayBottleScreen} was already fixed to use on 2026-10-24.
+ *
+ * <p><b>Mount slot, same day</b> -- "add 1 more slot on the companion where you are allowed to equip
+ * a summon stone, which the companion can use to mount and ride around." A 7th slot on its own row
+ * below the 6 equipment slots, see {@link CompanionTokenMenu#MOUNT_SLOT_X}'s own doc. The actual
+ * summon-and-mount behavior is driven by {@code CompanionMountTicker}, not this screen.
  */
 public final class CompanionTokenScreen extends AbstractContainerScreen<CompanionTokenMenu> {
 
@@ -84,6 +89,7 @@ public final class CompanionTokenScreen extends AbstractContainerScreen<Companio
             int x = CompanionTokenMenu.SLOT_X_START + i * CompanionTokenMenu.SLOT_SPACING;
             graphics.text(font, SLOT_LABELS[i], x - 2, CompanionTokenMenu.SLOT_Y - 10, TEXT_COLOR, false);
         }
+        graphics.text(font, "Mount", CompanionTokenMenu.MOUNT_SLOT_X - 2, CompanionTokenMenu.MOUNT_SLOT_Y - 10, TEXT_COLOR, false);
     }
 
     private void extractStats(GuiGraphicsExtractor graphics) {

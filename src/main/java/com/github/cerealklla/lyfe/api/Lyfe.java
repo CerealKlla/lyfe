@@ -439,6 +439,21 @@ public final class Lyfe {
     }
 
     /**
+     * {@code companion}'s owning player, if {@link com.github.cerealklla.lyfe.companion.SummonedCompanionOwner}
+     * is actually set on it -- lets Settlemynts' own {@code tavern.CompanionFollowPlayerGoal} resolve
+     * who a summoned Tavern Companion should follow without needing to know this attachment type
+     * exists at all, same facade discipline as every other cross-mod call site in this suite.
+     * {@code hasData} is checked first since the attachment's own default value is a zero-UUID
+     * sentinel, not a real "no owner" state a caller could mistake for a genuine player.
+     */
+    public static java.util.Optional<java.util.UUID> resolveCompanionOwner(net.minecraft.world.entity.LivingEntity companion) {
+        if (!companion.hasData(com.github.cerealklla.lyfe.registration.ModAttachments.SUMMONED_COMPANION_OWNER)) {
+            return java.util.Optional.empty();
+        }
+        return java.util.Optional.of(companion.getData(com.github.cerealklla.lyfe.registration.ModAttachments.SUMMONED_COMPANION_OWNER).playerId());
+    }
+
+    /**
      * Whether {@code stack} is specifically a Summoning Stone (a bound *mount*), not the broader
      * {@link #isCompanionItem} set which also includes the Allay Bottle -- for Caryvan's Phase 2
      * mount-slot mechanic (2026-10-25), which only ever wants a rideable/pullable mount, never a
@@ -616,7 +631,8 @@ public final class Lyfe {
                 com.github.cerealklla.lyfe.registration.ModItems.COMPANION_TOKEN.get());
         stack.set(com.github.cerealklla.lyfe.registration.ModItems.COMPANION_TOKEN_DATA.get(),
                 new com.github.cerealklla.lyfe.companion.CompanionTokenData(
-                        entityTypeId, equipment, maxHealth, attackDamage, 0L, java.util.Optional.empty(), displayName));
+                        entityTypeId, equipment, maxHealth, attackDamage, 0L, java.util.Optional.empty(), displayName,
+                        net.minecraft.world.item.ItemStack.EMPTY));
         if (!player.getInventory().add(stack)) {
             player.drop(stack, false);
         }

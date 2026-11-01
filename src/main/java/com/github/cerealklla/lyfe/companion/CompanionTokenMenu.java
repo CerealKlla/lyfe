@@ -51,9 +51,17 @@ public final class CompanionTokenMenu extends AbstractContainerMenu {
     public static final int SLOT_X_START = 12;
     public static final int SLOT_Y = 86;
     public static final int SLOT_SPACING = 30;
-    public static final int PLAYER_INV_Y = 120;
+    // The Mount slot (2026-11-01, "add 1 more slot on the companion where you are allowed to equip
+    // a summon stone, which the companion can use to mount and ride around") sits on its own row
+    // below the 6 equipment slots, same "separate row for a different kind of thing" shape as
+    // AllayBottleMenu's own Equip/Gather row sitting below Allay's rename box -- a mount isn't
+    // equipment, so it doesn't share SLOT_ORDER's row.
+    public static final int MOUNT_SLOT_X = SLOT_X_START;
+    public static final int MOUNT_SLOT_Y = SLOT_Y + 30;
+    public static final int MOUNT_SLOT_INDEX = SLOT_ORDER.length;
+    public static final int PLAYER_INV_Y = 150;
 
-    private final Container container = new SimpleContainer(SLOT_ORDER.length);
+    private final Container container = new SimpleContainer(SLOT_ORDER.length + 1);
     private final Player owner;
     private final String currentName;
     private final Optional<UUID> summonedCompanionId;
@@ -70,6 +78,7 @@ public final class CompanionTokenMenu extends AbstractContainerMenu {
                     container.setItem(index, entry.stack().copy());
                 }
             }
+            container.setItem(MOUNT_SLOT_INDEX, data.mountItem().copy());
             this.currentName = data.displayName();
             this.summonedCompanionId = data.summonedCompanionId();
         } else {
@@ -100,6 +109,7 @@ public final class CompanionTokenMenu extends AbstractContainerMenu {
         for (int i = 0; i < SLOT_ORDER.length; i++) {
             addSlot(new NoTokenSlot(container, i, SLOT_X_START + i * SLOT_SPACING, SLOT_Y));
         }
+        addSlot(new MountSlot(container, MOUNT_SLOT_INDEX, MOUNT_SLOT_X, MOUNT_SLOT_Y));
         for (int row = 0; row < 3; row++) {
             for (int col = 0; col < 9; col++) {
                 addSlot(new Slot(inventory, col + row * 9 + 9, 8 + col * 18, PLAYER_INV_Y + row * 18));
@@ -122,6 +132,9 @@ public final class CompanionTokenMenu extends AbstractContainerMenu {
         return ItemStack.EMPTY;
     }
 
+    /** Equipment slots (0..{@code SLOT_ORDER.length - 1}) plus the Mount slot ({@link #MOUNT_SLOT_INDEX}). */
+    private static final int SPECIAL_SLOT_COUNT = MOUNT_SLOT_INDEX + 1;
+
     @Override
     public ItemStack quickMoveStack(Player player, int slotIndex) {
         ItemStack clicked = ItemStack.EMPTY;
@@ -129,11 +142,11 @@ public final class CompanionTokenMenu extends AbstractContainerMenu {
         if (slot != null && slot.hasItem()) {
             ItemStack stack = slot.getItem();
             clicked = stack.copy();
-            if (slotIndex < SLOT_ORDER.length) {
-                if (!moveItemStackTo(stack, SLOT_ORDER.length, slots.size(), true)) {
+            if (slotIndex < SPECIAL_SLOT_COUNT) {
+                if (!moveItemStackTo(stack, SPECIAL_SLOT_COUNT, slots.size(), true)) {
                     return ItemStack.EMPTY;
                 }
-            } else if (!moveItemStackTo(stack, 0, SLOT_ORDER.length, false)) {
+            } else if (!moveItemStackTo(stack, 0, SPECIAL_SLOT_COUNT, false)) {
                 return ItemStack.EMPTY;
             }
             if (stack.isEmpty()) {
@@ -157,7 +170,7 @@ public final class CompanionTokenMenu extends AbstractContainerMenu {
                     newEquipment.add(new CompanionTokenData.EquipmentEntry(SLOT_ORDER[i], stack.copy()));
                 }
             }
-            CompanionTokenData updated = data.withEquipment(newEquipment);
+            CompanionTokenData updated = data.withEquipment(newEquipment).withMountItem(container.getItem(MOUNT_SLOT_INDEX).copy());
             token.set(ModItems.COMPANION_TOKEN_DATA.get(), updated);
 
             if (updated.summonedCompanionId().isPresent() && player.level() instanceof ServerLevel level) {
@@ -170,7 +183,10 @@ public final class CompanionTokenMenu extends AbstractContainerMenu {
             }
             // Already preserved into the token's own data above -- clear the scratch container
             // before clearContainer() below, same dupe-prevention shape as AllayBottleMenu#removed.
-            for (int i = 0; i < SLOT_ORDER.length; i++) {
+            // The Mount slot's own summon/ride is handled by CompanionMountTicker's periodic poll,
+            // not applied live here -- same "poll, don't push" shape SummoningDistanceTicker already
+            // uses for a player's own held Summoning Stone.
+            for (int i = 0; i < SLOT_ORDER.length + 1; i++) {
                 container.setItem(i, ItemStack.EMPTY);
             }
         }
@@ -191,6 +207,18 @@ public final class CompanionTokenMenu extends AbstractContainerMenu {
         @Override
         public boolean mayPlace(ItemStack stack) {
             return !(stack.getItem() instanceof CompanionTokenItem);
+        }
+    }
+
+    /** Only accepts a Summoning Stone (a bound *mount*) -- not an Allay in a Bottle, not the token itself. */
+    private static final class MountSlot extends Slot {
+        MountSlot(Container container, int index, int x, int y) {
+            super(container, index, x, y);
+        }
+
+        @Override
+        public boolean mayPlace(ItemStack stack) {
+            return com.github.cerealklla.lyfe.api.Lyfe.isMountSummoningStone(stack);
         }
     }
 }
