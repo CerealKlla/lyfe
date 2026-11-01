@@ -321,6 +321,13 @@ public class LyfeMod {
                         com.github.cerealklla.lyfe.summoning.AllayBindListener.renameBottle(serverPlayer, payload);
                     }
                 });
+        event.registrar("1").playToServer(com.github.cerealklla.lyfe.companion.RenameCompanionTokenPayload.TYPE,
+                com.github.cerealklla.lyfe.companion.RenameCompanionTokenPayload.STREAM_CODEC,
+                (payload, context) -> {
+                    if (context.player() instanceof ServerPlayer serverPlayer) {
+                        com.github.cerealklla.lyfe.companion.CompanionTokenItem.renameToken(serverPlayer, payload);
+                    }
+                });
 
         // Registered unconditionally, same reasoning as LocationPayload above -- MinimapTracker is
         // only ever constructed (and so only ever actually sends this) when Cartographyr is loaded,

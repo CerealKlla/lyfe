@@ -4,11 +4,15 @@ import java.util.Locale;
 import java.util.UUID;
 
 import com.github.cerealklla.lyfe.companion.CompanionTokenMenu;
+import com.github.cerealklla.lyfe.companion.RenameCompanionTokenPayload;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.protocol.common.ServerboundCustomPayloadPacket;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Inventory;
@@ -17,7 +21,14 @@ import net.minecraft.world.entity.player.Inventory;
  * The Companion Token's Equip GUI real screen -- same "beveled flat panel, no texture file" visual
  * style as {@code summoning.client.AllayBottleScreen}, which this directly mirrors (6 equipment
  * slots in a row instead of an equip/gather pair; a live Health/Attack readout instead of
- * Mana/Mana Regen, since a Tavern Companion has no mana of its own).
+ * Mana/Mana Regen, since a Tavern Companion has no mana of its own; a rename {@link EditBox}/button
+ * baked directly into the screen, same idiom as Allay's own "Rename" -- real user request,
+ * 2026-11-01, "I need to be able to rename these people").
+ *
+ * <p><b>Overlap fix, 2026-11-01</b> (real report: "This UI is overlapping everywhere") -- widened to
+ * fit six slot labels without bleeding into each other, and the panel's vertical rows (title, rename,
+ * stats, slot labels, slots, inventory) now each get their own real gap, mirroring the layout
+ * {@code AllayBottleScreen} was already fixed to use on 2026-10-24.
  */
 public final class CompanionTokenScreen extends AbstractContainerScreen<CompanionTokenMenu> {
 
@@ -31,11 +42,38 @@ public final class CompanionTokenScreen extends AbstractContainerScreen<Companio
 
     private static final String[] SLOT_LABELS = {"Head", "Chest", "Legs", "Feet", "Main", "Off"};
 
+    private EditBox nameBox;
+
     public CompanionTokenScreen(CompanionTokenMenu menu, Inventory inventory, Component title) {
-        super(menu, inventory, title, 176, CompanionTokenMenu.PLAYER_INV_Y + 76 + 6);
+        super(menu, inventory, title, 200, CompanionTokenMenu.PLAYER_INV_Y + 76 + 6);
         this.titleLabelX = 10;
         this.titleLabelY = 8;
         this.inventoryLabelY = CompanionTokenMenu.PLAYER_INV_Y - 10;
+    }
+
+    @Override
+    protected void init() {
+        super.init();
+        int x = (width - imageWidth) / 2;
+        int y = (height - imageHeight) / 2;
+
+        nameBox = addRenderableWidget(new EditBox(font, x + 10, y + 22, 100, 16, Component.literal("Companion name")));
+        nameBox.setMaxLength(32);
+        nameBox.setValue(menu.currentName());
+
+        addRenderableWidget(Button.builder(Component.literal("Rename"), b -> rename())
+                .bounds(x + 130, y + 20, 60, 20).build());
+    }
+
+    private void rename() {
+        String name = nameBox.getValue();
+        if (name.isBlank()) {
+            return;
+        }
+        var connection = Minecraft.getInstance().getConnection();
+        if (connection != null) {
+            connection.send(new ServerboundCustomPayloadPacket(new RenameCompanionTokenPayload(name)));
+        }
     }
 
     @Override

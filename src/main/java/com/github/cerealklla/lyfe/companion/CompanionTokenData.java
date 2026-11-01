@@ -97,4 +97,10 @@ public record CompanionTokenData(Identifier entityTypeId, List<EquipmentEntry> e
     public CompanionTokenData withCooldownEndEpochMillis(long end) {
         return new CompanionTokenData(entityTypeId, equipment, maxHealth, attackDamage, end, summonedCompanionId, displayName);
     }
+
+    /** "Rename" on {@code client.CompanionTokenScreen}, real user request, 2026-11-01. */
+    public CompanionTokenData withDisplayName(String newDisplayName) {
+        return new CompanionTokenData(entityTypeId, equipment, maxHealth, attackDamage,
+                cooldownEndEpochMillis, summonedCompanionId, newDisplayName);
+    }
 }

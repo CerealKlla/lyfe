@@ -39,10 +39,19 @@ public final class CompanionTokenMenu extends AbstractContainerMenu {
             EquipmentSlot.FEET, EquipmentSlot.MAINHAND, EquipmentSlot.OFFHAND,
     };
 
-    public static final int SLOT_X_START = 44;
-    public static final int SLOT_Y = 30;
-    public static final int SLOT_SPACING = 20;
-    public static final int PLAYER_INV_Y = 60;
+    // Real report, 2026-11-01: "This UI is overlapping everywhere" -- the original layout copied
+    // AllayBottleMenu's *pre-2026-10-24* constants (before that menu's own overlap fix moved its
+    // slot row down to make room for a name row + stats block above it), so the title/name row,
+    // stats block, and slot-label row were all crammed into the same ~30px of vertical space here.
+    // Six slot labels ("Head"/"Chest"/"Legs"/"Feet"/"Main"/"Off") also needed wider spacing than two
+    // ("Equip"/"Gather") ever did -- 20px apart let "Chest" (~30px wide) bleed into its neighbors.
+    // Widened the whole panel and pushed the slot row down past a new rename row (see
+    // client.CompanionTokenScreen) and the existing stats block, mirroring AllayBottleMenu's own
+    // fixed layout shape.
+    public static final int SLOT_X_START = 12;
+    public static final int SLOT_Y = 86;
+    public static final int SLOT_SPACING = 30;
+    public static final int PLAYER_INV_Y = 120;
 
     private final Container container = new SimpleContainer(SLOT_ORDER.length);
     private final Player owner;

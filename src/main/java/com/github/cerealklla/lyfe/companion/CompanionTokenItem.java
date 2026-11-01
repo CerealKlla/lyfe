@@ -143,6 +143,23 @@ public final class CompanionTokenItem extends Item {
         }
     }
 
+    /** "Rename" on {@code client.CompanionTokenScreen}. Re-resolves the token from whichever hand the player is actually holding it in -- same discipline as {@link CompanionTokenMenu} itself. */
+    public static void renameToken(ServerPlayer player, RenameCompanionTokenPayload payload) {
+        if (payload.name().isBlank()) {
+            return;
+        }
+        ItemStack main = player.getMainHandItem();
+        ItemStack token = main.getItem() instanceof CompanionTokenItem ? main : player.getOffhandItem();
+        if (!(token.getItem() instanceof CompanionTokenItem) || !(token.get(ModItems.COMPANION_TOKEN_DATA.get()) instanceof CompanionTokenData data)) {
+            return;
+        }
+        token.set(ModItems.COMPANION_TOKEN_DATA.get(), data.withDisplayName(payload.name()));
+        if (data.summonedCompanionId().isPresent() && player.level() instanceof ServerLevel level
+                && level.getEntity(data.summonedCompanionId().get()) instanceof LivingEntity companion && companion.isAlive()) {
+            companion.setCustomName(Component.literal(payload.name()));
+        }
+    }
+
     private void dispel(ServerLevel level, ItemStack stack, CompanionTokenData data, LivingEntity companion) {
         List<CompanionTokenData.EquipmentEntry> equipment = new ArrayList<>();
         for (EquipmentSlot slot : EquipmentSlot.values()) {
