@@ -17,6 +17,9 @@ import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
  * summoning.AllayDeathListener}; no re-capture needed here (its gear/stats are still fully baked
  * into the token's existing {@link CompanionTokenData} fields from the moment it was hired/last
  * dispelled), same reasoning as the Allay case.
+ *
+ * <p>Also cleans up an orphaned Mount, same as {@link CompanionTokenItem#dispel} -- see {@link
+ * CompanionTokenItem#despawnMount} for why a companion's death needs the identical cleanup.
  */
 public final class CompanionDeathListener {
 
@@ -43,7 +46,9 @@ public final class CompanionDeathListener {
             }
             long cooldownEnd = System.currentTimeMillis() + CompanionTokenItem.COOLDOWN_MILLIS;
             stack.set(ModItems.COMPANION_TOKEN_DATA.get(),
-                    data.withSummonedCompanionId(Optional.empty()).withCooldownEndEpochMillis(cooldownEnd));
+                    data.withSummonedCompanionId(Optional.empty())
+                            .withCooldownEndEpochMillis(cooldownEnd)
+                            .withMountItem(CompanionTokenItem.despawnMount(level, data.mountItem())));
             return;
         }
     }

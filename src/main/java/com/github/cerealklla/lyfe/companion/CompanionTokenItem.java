@@ -160,6 +160,34 @@ public final class CompanionTokenItem extends Item {
         }
     }
 
+    /**
+     * Real live-test report, 2026-11-01: "When I put away the companion the horse stayed behind."
+     * Root cause: {@link CompanionMountTicker}'s own ticker only ever drives a token's Mount slot
+     * while {@code data.summonedCompanionId()} is present -- the very first thing both dispel AND a
+     * companion's death used to do was clear that id, so the mount's own death/cooldown bookkeeping
+     * ({@code summoning.GuardCompanionSupport#tick}'s "existing entity gone -> clear id, start
+     * cooldown" self-heal) could never run again for an orphaned mount; it would just stand there
+     * forever. Shared by {@link #dispel} and {@link CompanionDeathListener} -- both end a companion's
+     * life the same way, so both need to clean up its mount the same way.
+     */
+    static ItemStack despawnMount(ServerLevel level, ItemStack mountItem) {
+        if (mountItem.isEmpty()) {
+            return mountItem;
+        }
+        com.github.cerealklla.lyfe.summoning.SummoningStoneData mountData =
+                mountItem.get(ModItems.SUMMONING_STONE_DATA.get());
+        if (mountData == null || mountData.summonedMountId().isEmpty()) {
+            return mountItem;
+        }
+        Entity mount = SummoningDistanceTicker.resolveTracked(level.getServer(), mountData.summonedMountId().get());
+        if (mount != null) {
+            mount.discard();
+        }
+        ItemStack updated = mountItem.copy();
+        updated.set(ModItems.SUMMONING_STONE_DATA.get(), mountData.withSummonedMountId(Optional.empty()));
+        return updated;
+    }
+
     private void dispel(ServerLevel level, ItemStack stack, CompanionTokenData data, LivingEntity companion) {
         List<CompanionTokenData.EquipmentEntry> equipment = new ArrayList<>();
         for (EquipmentSlot slot : EquipmentSlot.values()) {
@@ -171,9 +199,11 @@ public final class CompanionTokenItem extends Item {
         double maxHealth = companion.getAttributeValue(Attributes.MAX_HEALTH);
         double attackDamage = companion.getAttribute(Attributes.ATTACK_DAMAGE) != null
                 ? companion.getAttributeValue(Attributes.ATTACK_DAMAGE) : 0.0;
+
         stack.set(ModItems.COMPANION_TOKEN_DATA.get(), data
                 .withEquipmentAndStats(equipment, maxHealth, attackDamage)
-                .withSummonedCompanionId(Optional.empty()));
+                .withSummonedCompanionId(Optional.empty())
+                .withMountItem(despawnMount(level, data.mountItem())));
         companion.discard();
     }
 }
