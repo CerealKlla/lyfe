@@ -172,6 +172,13 @@ public final class ModItems {
                     .persistent(com.github.cerealklla.lyfe.summoning.AllayBottleData.CODEC)
                     .networkSynchronized(com.github.cerealklla.lyfe.summoning.AllayBottleData.STREAM_CODEC));
 
+    // Tavern Companion Token (Settlemynts' design-document.md Section 17) -- same reasoning as
+    // ALLAY_BOTTLE_DATA above.
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<com.github.cerealklla.lyfe.companion.CompanionTokenData>> COMPANION_TOKEN_DATA =
+            DATA_COMPONENTS.registerComponentType("companion_token_data", builder -> builder
+                    .persistent(com.github.cerealklla.lyfe.companion.CompanionTokenData.CODEC)
+                    .networkSynchronized(com.github.cerealklla.lyfe.companion.CompanionTokenData.STREAM_CODEC));
+
     // Real bug found 2026-10-21 while adding Focus socketing: socket.SocketApplier#recompute used to
     // wholesale-replace DATA_COMPONENTS.ATTRIBUTE_MODIFIERS from socket contents alone, silently
     // destroying a Nature Staff's/crafted armor's/Focus's own crafted-in stat bonuses the moment any
@@ -334,6 +341,15 @@ public final class ModItems {
     public static final DeferredItem<com.github.cerealklla.lyfe.summoning.AllayBottleItem> ALLAY_BOTTLE = ITEMS.register(
             "allay_bottle",
             id -> new com.github.cerealklla.lyfe.summoning.AllayBottleItem(new Item.Properties()
+                    .stacksTo(1)
+                    .setId(ResourceKey.create(Registries.ITEM, id))));
+
+    // Tavern Companion Token (Settlemynts' design-document.md Section 17) -- stacksTo(1), same
+    // reasoning as the Allay Bottle/Summoning Stone above: every token carries genuinely unique
+    // per-instance data (the hired NPC's own captured state).
+    public static final DeferredItem<com.github.cerealklla.lyfe.companion.CompanionTokenItem> COMPANION_TOKEN = ITEMS.register(
+            "companion_token",
+            id -> new com.github.cerealklla.lyfe.companion.CompanionTokenItem(new Item.Properties()
                     .stacksTo(1)
                     .setId(ResourceKey.create(Registries.ITEM, id))));
 

@@ -401,3 +401,19 @@ floating Health/Mana indicators that don't block a future NPC name. `mana.ManaNa
 `api.Lyfe#manaNameplateLine` deleted outright, replaced by `mana.ManaStatBarProvider` registered
 directly with `nuclyus.statbar.StatBarRegistry`. `./gradlew build` green, whole-suite (13 mods)
 rebuild + `runServer` boot-smoke-test clean. **Not yet live-tested.**
+
+**Companion Token built for Settlemynts' new Tavern Plot Type, 2026-10-31** (see
+[context/decisions.md](context/decisions.md)) -- "hiring one of these NPCs will give the player a
+companion summoning token, same concept to how Allays work." New `companion` package:
+`CompanionTokenItem`/`CompanionTokenData` (deliberately *not* carrying Allay in a Bottle's
+equip/gather item pair -- a hired NPC already has real equipment slots, so its gear is captured for
+free as part of its own saved-state NBT), `SummonedCompanionOwner`/`CompanionDeathListener` (direct
+mirrors of the Allay equivalents). New `summoning.EntityCapture`, extracted from `AllayCapture`/
+`SummoningStoneData#capture` (turned out to be exact duplicates of each other -- both now delegate
+here). `SummonDimensionChangeListener` gained a third `despawnCompanion` branch alongside its
+existing mount/Allay ones, so this new summon type gets the same dimension-change dupe protection
+for free. New `api.Lyfe#mintCompanionToken(ServerPlayer, LivingEntity, String)` takes the live hired
+NPC directly and captures it itself, so Settlemynts' own `bridge.LyfeTavernBridge` never duplicates
+that logic. `./gradlew build`/`test` green, whole-suite (14 mods) rebuild + `runServer`
+boot-smoke-test clean. **Not yet live-tested** -- summon/dispel, the death-then-cooldown cycle, and
+the dimension-change despawn path all still need a real playtest.

@@ -103,6 +103,8 @@ public final class SummonDimensionChangeListener {
                     despawnMount(server, stack);
                 } else if (stack.getItem() instanceof AllayBottleItem) {
                     despawnAllay(server, stack);
+                } else if (stack.getItem() instanceof com.github.cerealklla.lyfe.companion.CompanionTokenItem) {
+                    despawnCompanion(server, stack);
                 }
             }
         }
@@ -152,5 +154,24 @@ public final class SummonDimensionChangeListener {
         stack.set(ModItems.ALLAY_BOTTLE_DATA.get(), updated);
         allay.ejectPassengers();
         allay.discard();
+    }
+
+    /** Same shape as {@link #despawnAllay}, for a Tavern Companion Token instead of an Allay Bottle. */
+    private void despawnCompanion(MinecraftServer server, ItemStack stack) {
+        com.github.cerealklla.lyfe.companion.CompanionTokenData data = stack.get(ModItems.COMPANION_TOKEN_DATA.get());
+        if (data == null || data.summonedCompanionId().isEmpty()) {
+            return;
+        }
+        UUID id = data.summonedCompanionId().get();
+        Entity companion = SummoningDistanceTicker.resolveTracked(server, id);
+        if (companion == null || !companion.isAlive() || !(companion.level() instanceof ServerLevel companionLevel)) {
+            stack.set(ModItems.COMPANION_TOKEN_DATA.get(), data.withSummonedCompanionId(Optional.empty()));
+            return;
+        }
+        com.github.cerealklla.lyfe.companion.CompanionTokenData updated =
+                data.withSavedState(EntityCapture.capture(companion, companionLevel)).withSummonedCompanionId(Optional.empty());
+        stack.set(ModItems.COMPANION_TOKEN_DATA.get(), updated);
+        companion.ejectPassengers();
+        companion.discard();
     }
 }

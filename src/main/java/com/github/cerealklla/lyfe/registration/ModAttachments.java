@@ -249,4 +249,13 @@ public final class ModAttachments {
                             .serialize(com.github.cerealklla.lyfe.summoning.SummonedAllayOwner.CODEC)
                             .sync(ByteBufCodecs.fromCodecWithRegistries(com.github.cerealklla.lyfe.summoning.SummonedAllayOwner.CODEC.codec()))
                             .build());
+
+    // Tavern Companion Token (Settlemynts' design-document.md Section 17) -- same "no meaningful
+    // default, every real caller uses setData/getExistingData directly" shape as SUMMONED_ALLAY_OWNER.
+    public static final Supplier<AttachmentType<com.github.cerealklla.lyfe.companion.SummonedCompanionOwner>> SUMMONED_COMPANION_OWNER =
+            ATTACHMENT_TYPES.register("summoned_companion_owner",
+                    () -> AttachmentType.builder(holder -> new com.github.cerealklla.lyfe.companion.SummonedCompanionOwner(new UUID(0L, 0L)))
+                            .serialize(com.github.cerealklla.lyfe.companion.SummonedCompanionOwner.CODEC)
+                            .sync(ByteBufCodecs.fromCodecWithRegistries(com.github.cerealklla.lyfe.companion.SummonedCompanionOwner.CODEC.codec()))
+                            .build());
 }

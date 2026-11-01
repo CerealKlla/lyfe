@@ -569,7 +569,49 @@ public final class Lyfe {
             com.github.cerealklla.lyfe.summoning.AllayBottleData data = stack.get(com.github.cerealklla.lyfe.registration.ModItems.ALLAY_BOTTLE_DATA.get());
             return data != null && data.onCooldown(nowEpochMillis);
         }
+        if (isCompanionToken(stack)) {
+            com.github.cerealklla.lyfe.companion.CompanionTokenData data = stack.get(com.github.cerealklla.lyfe.registration.ModItems.COMPANION_TOKEN_DATA.get());
+            return data != null && data.onCooldown(nowEpochMillis);
+        }
         return false;
+    }
+
+    /**
+     * Whether {@code stack} is specifically a Tavern Companion Token, not the broader {@link
+     * #isCompanionItem} set (which is Guard-companion-specific and doesn't include this item at all
+     * -- see {@code summoning.GuardCompanionSupport}'s own doc). Mirrors {@link #isAllayBottleItem}'s
+     * own parity shape for whichever other mod (e.g. Settlemynts' {@code
+     * plotsign.UnsellableItems}-style checks) needs to recognize this item type specifically.
+     */
+    public static boolean isCompanionToken(net.minecraft.world.item.ItemStack stack) {
+        return stack.getItem() instanceof com.github.cerealklla.lyfe.companion.CompanionTokenItem;
+    }
+
+    /**
+     * Mints a brand-new Tavern Companion Token (Settlemynts' design-document.md Section 17) bound to
+     * a full capture of {@code hiredNpc}'s current live state -- gear included (see {@code
+     * companion.CompanionTokenData}'s own doc for why no separate equip-item fields are needed), via
+     * the same generic {@code summoning.EntityCapture} every other summon type in this mod already
+     * uses -- and hands the new token directly to {@code player} (dropped at their feet if their
+     * inventory is full, same convention as every other "craft/catch something, give it to the
+     * player" call site in this mod). The token starts with nothing summoned and no cooldown, same
+     * as a freshly-bound Allay in a Bottle. Doesn't discard {@code hiredNpc} itself -- the caller
+     * ({@code bridge.LyfeTavernBridge}, Settlemynts' side, the only caller) is responsible for that,
+     * same as every other "pick this entity up into an item" flow in that mod.
+     */
+    public static void mintCompanionToken(net.minecraft.server.level.ServerPlayer player,
+            net.minecraft.world.entity.LivingEntity hiredNpc, String displayName) {
+        if (!(hiredNpc.level() instanceof net.minecraft.server.level.ServerLevel level)) {
+            return;
+        }
+        net.minecraft.nbt.CompoundTag savedState = com.github.cerealklla.lyfe.summoning.EntityCapture.capture(hiredNpc, level);
+        net.minecraft.world.item.ItemStack stack = new net.minecraft.world.item.ItemStack(
+                com.github.cerealklla.lyfe.registration.ModItems.COMPANION_TOKEN.get());
+        stack.set(com.github.cerealklla.lyfe.registration.ModItems.COMPANION_TOKEN_DATA.get(),
+                new com.github.cerealklla.lyfe.companion.CompanionTokenData(savedState, 0L, java.util.Optional.empty(), displayName));
+        if (!player.getInventory().add(stack)) {
+            player.drop(stack, false);
+        }
     }
 
     /**

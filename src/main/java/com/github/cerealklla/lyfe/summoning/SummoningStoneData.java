@@ -12,11 +12,7 @@ import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.level.storage.TagValueOutput;
-
-import com.github.cerealklla.lyfe.LyfeMod;
 
 /**
  * A Summoning Stone's persisted state (design doc Section 26): the bound mount's full captured
@@ -50,16 +46,9 @@ public record SummoningStoneData(CompoundTag savedState, long cooldownEndEpochMi
      * spec's own "a clone of it" framing instead of silently reusing the original mount's UUID.
      */
     public static CompoundTag capture(Entity mount, ServerLevel level) {
-        ProblemReporter.ScopedCollector reporter = new ProblemReporter.ScopedCollector(mount.problemPath(), LyfeMod.LOGGER);
-        try {
-            TagValueOutput output = TagValueOutput.createWithContext(reporter, level.registryAccess());
-            mount.save(output);
-            CompoundTag tag = output.buildResult();
-            tag.remove("UUID");
-            return tag;
-        } finally {
-            reporter.close();
-        }
+        // Extracted to EntityCapture 2026-10-31 -- this was an exact duplicate of AllayCapture's own
+        // version. Kept as its own method so existing call sites don't need touching.
+        return EntityCapture.capture(mount, level);
     }
 
     public static final Codec<SummoningStoneData> CODEC = RecordCodecBuilder.create(i -> i.group(
