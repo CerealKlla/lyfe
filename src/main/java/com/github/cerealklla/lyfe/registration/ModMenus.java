@@ -103,4 +103,11 @@ public final class ModMenus {
             "allay_bottle",
             () -> IMenuTypeExtension.create((windowId, inventory, extraData) ->
                     new com.github.cerealklla.lyfe.summoning.AllayBottleMenu(null, windowId, inventory)));
+
+    // Companion Token's own Equip GUI (2026-10-31, real user request) -- same null-backed shape as
+    // ALLAY_BOTTLE above.
+    public static final DeferredHolder<MenuType<?>, MenuType<com.github.cerealklla.lyfe.companion.CompanionTokenMenu>> COMPANION_TOKEN = MENU_TYPES.register(
+            "companion_token",
+            () -> IMenuTypeExtension.create((windowId, inventory, extraData) ->
+                    new com.github.cerealklla.lyfe.companion.CompanionTokenMenu(null, windowId, inventory)));
 }

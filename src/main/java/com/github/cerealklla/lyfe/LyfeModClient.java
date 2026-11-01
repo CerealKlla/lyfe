@@ -444,6 +444,7 @@ public class LyfeModClient {
         event.register(ModMenus.SOCKETING.get(), SocketingScreen::new);
         event.register(ModMenus.EXTRACTING.get(), ExtractingScreen::new);
         event.register(ModMenus.ALLAY_BOTTLE.get(), com.github.cerealklla.lyfe.summoning.client.AllayBottleScreen::new);
+        event.register(ModMenus.COMPANION_TOKEN.get(), com.github.cerealklla.lyfe.companion.client.CompanionTokenScreen::new);
     }
 
     @SubscribeEvent

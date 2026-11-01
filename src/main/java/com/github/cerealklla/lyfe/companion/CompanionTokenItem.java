@@ -31,8 +31,10 @@ import net.minecraft.world.level.Level;
 /**
  * Tavern Companion Token (Settlemynts' design-document.md Section 17) -- "hiring one of these NPCs
  * will give the player a companion summoning token, same concept to how Allays work." Mirrors {@code
- * summoning.AllayBottleItem}'s right-click summon/dispel shape, minus the Shift+Right-click Equip/
- * Gather GUI -- a Tavern Companion's gear is already fully baked into {@link CompanionTokenData}.
+ * summoning.AllayBottleItem}'s right-click summon/dispel shape, including its Shift+Right-click GUI
+ * -- the first pass left this out on the (wrong, 2026-10-31 real user correction) assumption that a
+ * Tavern Companion's gear needed no separate way to change it after hiring. {@link CompanionTokenMenu}
+ * is the real equivalent, 6 equipment slots instead of Allay's flat equip/gather pair.
  *
  * <p><b>Rebuilt 2026-10-31</b> to resolve the companion's {@code EntityType} by registry id and
  * apply its equipment/attributes/name directly, instead of a captured-NBT {@code
@@ -78,6 +80,14 @@ public final class CompanionTokenItem extends Item {
         CompanionTokenData data = stack.get(ModItems.COMPANION_TOKEN_DATA.get());
         if (data == null) {
             return InteractionResult.FAIL;
+        }
+
+        if (player.isShiftKeyDown()) {
+            serverPlayer.openMenu(new net.minecraft.world.SimpleMenuProvider(
+                    (windowId, inventory, opener) -> new CompanionTokenMenu(
+                            com.github.cerealklla.lyfe.registration.ModMenus.COMPANION_TOKEN.get(), windowId, inventory),
+                    Component.literal(data.displayName())));
+            return InteractionResult.SUCCESS_SERVER;
         }
 
         if (data.summonedCompanionId().isPresent()) {

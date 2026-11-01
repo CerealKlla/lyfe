@@ -84,6 +84,12 @@ public record CompanionTokenData(Identifier entityTypeId, List<EquipmentEntry> e
                 cooldownEndEpochMillis, summonedCompanionId, displayName);
     }
 
+    /** Player-edited gear only (the Equip GUI, see {@code companion.CompanionTokenMenu}) -- stats are untouched. */
+    public CompanionTokenData withEquipment(List<EquipmentEntry> newEquipment) {
+        return new CompanionTokenData(entityTypeId, newEquipment, maxHealth, attackDamage,
+                cooldownEndEpochMillis, summonedCompanionId, displayName);
+    }
+
     public CompanionTokenData withSummonedCompanionId(Optional<UUID> id) {
         return new CompanionTokenData(entityTypeId, equipment, maxHealth, attackDamage, cooldownEndEpochMillis, id, displayName);
     }
