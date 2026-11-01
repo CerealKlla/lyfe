@@ -1,5 +1,6 @@
 package com.github.cerealklla.lyfe.companion;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -7,35 +8,68 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 
 import net.minecraft.core.UUIDUtil;
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.resources.Identifier;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.item.ItemStack;
 
 /**
  * A Tavern Companion Token's persisted state (Settlemynts' design-document.md Section 17, the
  * "companion summoning token, same concept to how Allays work" request) -- near-mirror of {@code
- * summoning.AllayBottleData} (captured snapshot, wall-clock cooldown, the currently-summoned
- * companion's own UUID if one is out right now), but deliberately *without* the equip/gather item
- * pair Allay in a Bottle carries. That pair only exists because a vanilla Allay has no real
- * equipment slots of its own to serialize; a hired Tavern NPC (a {@code
- * com.github.cerealklla.settlemynts.tavern.TavernNpcEntity}, any ordinary {@code LivingEntity} with
- * real armor/offhand/mainhand slots) already carries its full gear as part of {@code savedState}'s
- * own equipment NBT, captured for free by {@link com.github.cerealklla.lyfe.summoning.EntityCapture}
- * -- no separate field needed to satisfy "retained if the NPC dies and given back when it respawns."
+ * summoning.AllayBottleData} (a cooldown and the currently-summoned companion's own UUID if one is
+ * out right now), but carries the companion's gear/stats/display name as plain structured data
+ * instead of a captured {@code Entity#save} NBT blob.
+ *
+ * <p><b>Rebuilt 2026-10-31, same day as the first pass</b> -- the original version captured the
+ * hired NPC's entire live-entity state via {@link com.github.cerealklla.lyfe.summoning.EntityCapture}
+ * (mirroring {@code AllayBottleData}'s own technique), which real play immediately broke: vanilla's
+ * own {@code Entity#save} is a hard no-op (writes nothing at all, not even the type id) for any
+ * entity that {@code isPassenger()} -- and the NPC is always still mounted on its stool's seat at
+ * the exact moment it's hired. The user's own follow-up question cut to the real issue, not just the
+ * bug: nothing about this requires a live {@code Entity} to be serialized at all -- the gear
+ * (already rolled by {@code TavernGearRoller} at spawn) and stats (likewise, {@code
+ * TavernStatRoller}) are already known, ordinary data the instant the NPC exists; a vanilla Allay/
+ * Summoning Stone mount genuinely needs the generic whole-entity-NBT approach (arbitrary, unbounded
+ * vanilla state), but a Tavern Companion's state is exactly these few fields. Minting now reads the
+ * live NPC's current equipment/attributes directly (no save/serialize round-trip, so the
+ * mounted-passenger case was never actually a problem to begin with) and {@link #entityTypeId}
+ * (resolved once via the registry, e.g. {@code settlemynts:tavern_npc}) is all Lyfe needs to spawn
+ * the right kind of entity back -- no compile-time dependency on Settlemynts' own entity class, same
+ * decoupling principle the old NBT-type-id approach already relied on.
  */
-public record CompanionTokenData(CompoundTag savedState, long cooldownEndEpochMillis,
+public record CompanionTokenData(Identifier entityTypeId, List<EquipmentEntry> equipment, double maxHealth,
+                                  double attackDamage, long cooldownEndEpochMillis,
                                   Optional<UUID> summonedCompanionId, String displayName) {
 
+    public record EquipmentEntry(EquipmentSlot slot, ItemStack stack) {
+        public static final Codec<EquipmentEntry> CODEC = RecordCodecBuilder.create(i -> i.group(
+                EquipmentSlot.CODEC.fieldOf("slot").forGetter(EquipmentEntry::slot),
+                ItemStack.CODEC.fieldOf("stack").forGetter(EquipmentEntry::stack)
+        ).apply(i, EquipmentEntry::new));
+
+        public static final StreamCodec<RegistryFriendlyByteBuf, EquipmentEntry> STREAM_CODEC = StreamCodec.composite(
+                EquipmentSlot.STREAM_CODEC, EquipmentEntry::slot,
+                ItemStack.STREAM_CODEC, EquipmentEntry::stack,
+                EquipmentEntry::new);
+    }
+
     public static final Codec<CompanionTokenData> CODEC = RecordCodecBuilder.create(i -> i.group(
-            CompoundTag.CODEC.fieldOf("saved_state").forGetter(CompanionTokenData::savedState),
+            Identifier.CODEC.fieldOf("entity_type_id").forGetter(CompanionTokenData::entityTypeId),
+            EquipmentEntry.CODEC.listOf().fieldOf("equipment").forGetter(CompanionTokenData::equipment),
+            Codec.DOUBLE.fieldOf("max_health").forGetter(CompanionTokenData::maxHealth),
+            Codec.DOUBLE.fieldOf("attack_damage").forGetter(CompanionTokenData::attackDamage),
             Codec.LONG.optionalFieldOf("cooldown_end_epoch_millis", 0L).forGetter(CompanionTokenData::cooldownEndEpochMillis),
             UUIDUtil.CODEC.optionalFieldOf("summoned_companion_id").forGetter(CompanionTokenData::summonedCompanionId),
             Codec.STRING.optionalFieldOf("display_name", "Companion").forGetter(CompanionTokenData::displayName)
     ).apply(i, CompanionTokenData::new));
 
     public static final StreamCodec<RegistryFriendlyByteBuf, CompanionTokenData> STREAM_CODEC = StreamCodec.composite(
-            ByteBufCodecs.COMPOUND_TAG, CompanionTokenData::savedState,
+            Identifier.STREAM_CODEC, CompanionTokenData::entityTypeId,
+            ByteBufCodecs.collection(java.util.ArrayList::new, EquipmentEntry.STREAM_CODEC), CompanionTokenData::equipment,
+            ByteBufCodecs.DOUBLE, CompanionTokenData::maxHealth,
+            ByteBufCodecs.DOUBLE, CompanionTokenData::attackDamage,
             ByteBufCodecs.VAR_LONG, CompanionTokenData::cooldownEndEpochMillis,
             ByteBufCodecs.optional(UUIDUtil.STREAM_CODEC), CompanionTokenData::summonedCompanionId,
             ByteBufCodecs.STRING_UTF8, CompanionTokenData::displayName,
@@ -45,19 +79,16 @@ public record CompanionTokenData(CompoundTag savedState, long cooldownEndEpochMi
         return currentEpochMillis < cooldownEndEpochMillis;
     }
 
-    public CompanionTokenData withSavedState(CompoundTag newState) {
-        return new CompanionTokenData(newState, cooldownEndEpochMillis, summonedCompanionId, displayName);
+    public CompanionTokenData withEquipmentAndStats(List<EquipmentEntry> newEquipment, double newMaxHealth, double newAttackDamage) {
+        return new CompanionTokenData(entityTypeId, newEquipment, newMaxHealth, newAttackDamage,
+                cooldownEndEpochMillis, summonedCompanionId, displayName);
     }
 
     public CompanionTokenData withSummonedCompanionId(Optional<UUID> id) {
-        return new CompanionTokenData(savedState, cooldownEndEpochMillis, id, displayName);
+        return new CompanionTokenData(entityTypeId, equipment, maxHealth, attackDamage, cooldownEndEpochMillis, id, displayName);
     }
 
     public CompanionTokenData withCooldownEndEpochMillis(long end) {
-        return new CompanionTokenData(savedState, end, summonedCompanionId, displayName);
-    }
-
-    public CompanionTokenData withDisplayName(String newName) {
-        return new CompanionTokenData(savedState, cooldownEndEpochMillis, summonedCompanionId, newName);
+        return new CompanionTokenData(entityTypeId, equipment, maxHealth, attackDamage, end, summonedCompanionId, displayName);
     }
 }

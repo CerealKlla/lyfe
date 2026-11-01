@@ -164,12 +164,24 @@ public final class SummonDimensionChangeListener {
         }
         UUID id = data.summonedCompanionId().get();
         Entity companion = SummoningDistanceTicker.resolveTracked(server, id);
-        if (companion == null || !companion.isAlive() || !(companion.level() instanceof ServerLevel companionLevel)) {
+        if (!(companion instanceof net.minecraft.world.entity.LivingEntity livingCompanion) || !companion.isAlive()) {
             stack.set(ModItems.COMPANION_TOKEN_DATA.get(), data.withSummonedCompanionId(Optional.empty()));
             return;
         }
+        // Direct equipment/attribute read, not a captured-NBT round-trip -- see
+        // companion.CompanionTokenData's own doc for why.
+        java.util.List<com.github.cerealklla.lyfe.companion.CompanionTokenData.EquipmentEntry> equipment = new java.util.ArrayList<>();
+        for (net.minecraft.world.entity.EquipmentSlot slot : net.minecraft.world.entity.EquipmentSlot.values()) {
+            ItemStack equipped = livingCompanion.getItemBySlot(slot);
+            if (!equipped.isEmpty()) {
+                equipment.add(new com.github.cerealklla.lyfe.companion.CompanionTokenData.EquipmentEntry(slot, equipped.copy()));
+            }
+        }
+        double maxHealth = livingCompanion.getAttributeValue(net.minecraft.world.entity.ai.attributes.Attributes.MAX_HEALTH);
+        double attackDamage = livingCompanion.getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.ATTACK_DAMAGE) != null
+                ? livingCompanion.getAttributeValue(net.minecraft.world.entity.ai.attributes.Attributes.ATTACK_DAMAGE) : 0.0;
         com.github.cerealklla.lyfe.companion.CompanionTokenData updated =
-                data.withSavedState(EntityCapture.capture(companion, companionLevel)).withSummonedCompanionId(Optional.empty());
+                data.withEquipmentAndStats(equipment, maxHealth, attackDamage).withSummonedCompanionId(Optional.empty());
         stack.set(ModItems.COMPANION_TOKEN_DATA.get(), updated);
         companion.ejectPassengers();
         companion.discard();

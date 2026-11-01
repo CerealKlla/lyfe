@@ -589,26 +589,34 @@ public final class Lyfe {
 
     /**
      * Mints a brand-new Tavern Companion Token (Settlemynts' design-document.md Section 17) bound to
-     * a full capture of {@code hiredNpc}'s current live state -- gear included (see {@code
-     * companion.CompanionTokenData}'s own doc for why no separate equip-item fields are needed), via
-     * the same generic {@code summoning.EntityCapture} every other summon type in this mod already
-     * uses -- and hands the new token directly to {@code player} (dropped at their feet if their
-     * inventory is full, same convention as every other "craft/catch something, give it to the
-     * player" call site in this mod). The token starts with nothing summoned and no cooldown, same
-     * as a freshly-bound Allay in a Bottle. Doesn't discard {@code hiredNpc} itself -- the caller
-     * ({@code bridge.LyfeTavernBridge}, Settlemynts' side, the only caller) is responsible for that,
-     * same as every other "pick this entity up into an item" flow in that mod.
+     * {@code hiredNpc}'s current equipment/stats, read directly (not a captured-NBT round-trip --
+     * see {@code companion.CompanionTokenData}'s own doc for why) -- and hands the new token
+     * directly to {@code player} (dropped at their feet if their inventory is full, same convention
+     * as every other "craft/catch something, give it to the player" call site in this mod). The
+     * token starts with nothing summoned and no cooldown, same as a freshly-bound Allay in a Bottle.
+     * Doesn't discard {@code hiredNpc} itself -- the caller ({@code bridge.LyfeTavernBridge},
+     * Settlemynts' side, the only caller) is responsible for that, same as every other "pick this
+     * entity up into an item" flow in that mod.
      */
     public static void mintCompanionToken(net.minecraft.server.level.ServerPlayer player,
             net.minecraft.world.entity.LivingEntity hiredNpc, String displayName) {
-        if (!(hiredNpc.level() instanceof net.minecraft.server.level.ServerLevel level)) {
-            return;
+        net.minecraft.resources.Identifier entityTypeId = net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getKey(hiredNpc.getType());
+        java.util.List<com.github.cerealklla.lyfe.companion.CompanionTokenData.EquipmentEntry> equipment = new java.util.ArrayList<>();
+        for (net.minecraft.world.entity.EquipmentSlot slot : net.minecraft.world.entity.EquipmentSlot.values()) {
+            net.minecraft.world.item.ItemStack equipped = hiredNpc.getItemBySlot(slot);
+            if (!equipped.isEmpty()) {
+                equipment.add(new com.github.cerealklla.lyfe.companion.CompanionTokenData.EquipmentEntry(slot, equipped.copy()));
+            }
         }
-        net.minecraft.nbt.CompoundTag savedState = com.github.cerealklla.lyfe.summoning.EntityCapture.capture(hiredNpc, level);
+        double maxHealth = hiredNpc.getAttributeValue(net.minecraft.world.entity.ai.attributes.Attributes.MAX_HEALTH);
+        double attackDamage = hiredNpc.getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.ATTACK_DAMAGE) != null
+                ? hiredNpc.getAttributeValue(net.minecraft.world.entity.ai.attributes.Attributes.ATTACK_DAMAGE) : 0.0;
+
         net.minecraft.world.item.ItemStack stack = new net.minecraft.world.item.ItemStack(
                 com.github.cerealklla.lyfe.registration.ModItems.COMPANION_TOKEN.get());
         stack.set(com.github.cerealklla.lyfe.registration.ModItems.COMPANION_TOKEN_DATA.get(),
-                new com.github.cerealklla.lyfe.companion.CompanionTokenData(savedState, 0L, java.util.Optional.empty(), displayName));
+                new com.github.cerealklla.lyfe.companion.CompanionTokenData(
+                        entityTypeId, equipment, maxHealth, attackDamage, 0L, java.util.Optional.empty(), displayName));
         if (!player.getInventory().add(stack)) {
             player.drop(stack, false);
         }

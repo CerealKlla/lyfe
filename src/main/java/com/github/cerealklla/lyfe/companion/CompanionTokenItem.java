@@ -1,24 +1,26 @@
 package com.github.cerealklla.lyfe.companion;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
 
-import com.github.cerealklla.lyfe.LyfeMod;
 import com.github.cerealklla.lyfe.registration.ModItems;
-import com.github.cerealklla.lyfe.summoning.EntityCapture;
 import com.github.cerealklla.lyfe.summoning.SummoningDistanceTicker;
 
 import net.minecraft.ChatFormatting;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -28,10 +30,13 @@ import net.minecraft.world.level.Level;
 
 /**
  * Tavern Companion Token (Settlemynts' design-document.md Section 17) -- "hiring one of these NPCs
- * will give the player a companion summoning token, same concept to how Allays work." Direct mirror
- * of {@code summoning.AllayBottleItem}'s right-click summon/dispel shape, minus the Shift+Right-click
- * Equip/Gather GUI -- a Tavern Companion's gear is already fully baked into its own captured {@code
- * savedState} (see {@link CompanionTokenData}'s own doc), so there's nothing separate to configure.
+ * will give the player a companion summoning token, same concept to how Allays work." Mirrors {@code
+ * summoning.AllayBottleItem}'s right-click summon/dispel shape, minus the Shift+Right-click Equip/
+ * Gather GUI -- a Tavern Companion's gear is already fully baked into {@link CompanionTokenData}.
+ *
+ * <p><b>Rebuilt 2026-10-31</b> to resolve the companion's {@code EntityType} by registry id and
+ * apply its equipment/attributes/name directly, instead of a captured-NBT {@code
+ * EntityType#loadEntityRecursive} round-trip -- see {@link CompanionTokenData}'s own doc for why.
  */
 public final class CompanionTokenItem extends Item {
 
@@ -90,35 +95,57 @@ public final class CompanionTokenItem extends Item {
             return InteractionResult.FAIL;
         }
 
-        ProblemReporter.ScopedCollector reporter = new ProblemReporter.ScopedCollector(player.problemPath(), LyfeMod.LOGGER);
-        Entity spawned;
-        try {
-            spawned = EntityType.loadEntityRecursive(data.savedState(), serverLevel, EntitySpawnReason.MOB_SUMMONED, entity -> {
-                var back = player.getLookAngle().scale(-SUMMON_BACK_OFFSET_BLOCKS);
-                entity.snapTo(player.getX() + back.x, player.getY(), player.getZ() + back.z, player.getYRot(), 0.0F);
-                serverLevel.addFreshEntity(entity);
-                return entity;
-            });
-        } finally {
-            reporter.close();
-        }
-        if (!(spawned instanceof LivingEntity companion)) {
+        EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getOptional(data.entityTypeId()).orElse(null);
+        if (type == null || !(type.create(serverLevel, EntitySpawnReason.MOB_SUMMONED) instanceof LivingEntity companion)) {
             player.sendSystemMessage(Component.literal("Something went wrong summoning " + data.displayName() + "."));
             return InteractionResult.FAIL;
         }
+
+        var back = player.getLookAngle().scale(-SUMMON_BACK_OFFSET_BLOCKS);
+        companion.snapTo(player.getX() + back.x, player.getY(), player.getZ() + back.z, player.getYRot(), 0.0F);
+        applyLoadout(companion, data);
+        serverLevel.addFreshEntity(companion);
         companion.setData(com.github.cerealklla.lyfe.registration.ModAttachments.SUMMONED_COMPANION_OWNER,
                 new SummonedCompanionOwner(player.getUUID()));
-        // Always wins over whatever name happened to be baked into the stale savedState NBT.
         companion.setCustomName(Component.literal(data.displayName()));
 
         stack.set(ModItems.COMPANION_TOKEN_DATA.get(), data.withSummonedCompanionId(Optional.of(companion.getUUID())));
         return InteractionResult.SUCCESS;
     }
 
+    private static void applyLoadout(LivingEntity companion, CompanionTokenData data) {
+        for (CompanionTokenData.EquipmentEntry entry : data.equipment()) {
+            companion.setItemSlot(entry.slot(), entry.stack().copy());
+        }
+        if (companion instanceof net.minecraft.world.entity.Mob mob) {
+            for (EquipmentSlot slot : EquipmentSlot.values()) {
+                mob.setDropChance(slot, 0.0F);
+            }
+        }
+        var maxHealthAttr = companion.getAttribute(Attributes.MAX_HEALTH);
+        if (maxHealthAttr != null) {
+            maxHealthAttr.setBaseValue(data.maxHealth());
+        }
+        companion.setHealth((float) data.maxHealth());
+        var attackAttr = companion.getAttribute(Attributes.ATTACK_DAMAGE);
+        if (attackAttr != null) {
+            attackAttr.setBaseValue(data.attackDamage());
+        }
+    }
+
     private void dispel(ServerLevel level, ItemStack stack, CompanionTokenData data, LivingEntity companion) {
-        var capture = EntityCapture.capture(companion, level);
+        List<CompanionTokenData.EquipmentEntry> equipment = new ArrayList<>();
+        for (EquipmentSlot slot : EquipmentSlot.values()) {
+            ItemStack equipped = companion.getItemBySlot(slot);
+            if (!equipped.isEmpty()) {
+                equipment.add(new CompanionTokenData.EquipmentEntry(slot, equipped.copy()));
+            }
+        }
+        double maxHealth = companion.getAttributeValue(Attributes.MAX_HEALTH);
+        double attackDamage = companion.getAttribute(Attributes.ATTACK_DAMAGE) != null
+                ? companion.getAttributeValue(Attributes.ATTACK_DAMAGE) : 0.0;
         stack.set(ModItems.COMPANION_TOKEN_DATA.get(), data
-                .withSavedState(capture)
+                .withEquipmentAndStats(equipment, maxHealth, attackDamage)
                 .withSummonedCompanionId(Optional.empty()));
         companion.discard();
     }

@@ -14,9 +14,9 @@ import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
 /**
  * Starts a Companion Token's cooldown once its summoned companion dies -- "retained if the NPC
  * dies and given back when it respawns, just like Allays." Direct mirror of {@code
- * summoning.AllayDeathListener}; no re-capture needed here (its gear is still fully baked into the
- * token's existing {@code savedState} from the moment it was hired/last dispelled), same reasoning
- * as the Allay case.
+ * summoning.AllayDeathListener}; no re-capture needed here (its gear/stats are still fully baked
+ * into the token's existing {@link CompanionTokenData} fields from the moment it was hired/last
+ * dispelled), same reasoning as the Allay case.
  */
 public final class CompanionDeathListener {
 
