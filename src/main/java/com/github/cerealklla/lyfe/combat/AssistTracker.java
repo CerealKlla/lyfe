@@ -40,6 +40,18 @@ import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
  * bridge): both resolve a credited id via {@code ServerLevel#getPlayerList().getPlayer(id)} and
  * already null-check before acting, so a non-player id picked up by this widening is silently
  * skipped by them rather than mishandled.
+ *
+ * <p><b>Credit redirected to a companion's owner, 2026-11-02</b> -- real gap found: the widening
+ * above marked an assist under the *companion's own* entity UUID, which every existing consumer
+ * (Huntsman, Myssions) resolves via {@code ServerLevel#getPlayerList().getPlayer(id)} -- always
+ * {@code null} for a non-player id, so a summoned companion's damage silently credited no one at
+ * all, defeating the explicit point of the 2026-10-23 widening for this exact case. Real user spec:
+ * "when a companion does damage to an enemy, automatically add the player who summoned the
+ * companion as a contributor to the death so they get credit." {@link #resolveCreditedId} now
+ * redirects to whichever of the three existing summon-owner attachments ({@code
+ * SUMMONED_ALLAY_OWNER}/{@code SUMMONED_COMPANION_OWNER}/{@code SUMMONED_MOUNT_OWNER}) the attacker
+ * actually carries, falling back to the attacker's own id unchanged for anything that isn't a
+ * player-owned summon (a Guard, or any future minion/mercenary with no owner concept at all).
  */
 public final class AssistTracker {
 
@@ -55,7 +67,27 @@ public final class AssistTracker {
             return;
         }
         long expiry = victim.level().getGameTime() + ASSIST_DURATION_TICKS;
-        victim.getData(ModAttachments.MOB_ASSIST_MARKERS).markAssist(attacker.getUUID(), expiry);
+        victim.getData(ModAttachments.MOB_ASSIST_MARKERS).markAssist(resolveCreditedId(attacker), expiry);
+    }
+
+    /** The id credit should actually go to for a hit from {@code attacker} -- see this class's own 2026-11-02 doc entry. */
+    private static UUID resolveCreditedId(LivingEntity attacker) {
+        if (attacker instanceof Player) {
+            return attacker.getUUID();
+        }
+        var allayOwner = attacker.getExistingData(ModAttachments.SUMMONED_ALLAY_OWNER);
+        if (allayOwner.isPresent()) {
+            return allayOwner.get().playerId();
+        }
+        var companionOwner = attacker.getExistingData(ModAttachments.SUMMONED_COMPANION_OWNER);
+        if (companionOwner.isPresent()) {
+            return companionOwner.get().playerId();
+        }
+        var mountOwner = attacker.getExistingData(ModAttachments.SUMMONED_MOUNT_OWNER);
+        if (mountOwner.isPresent()) {
+            return mountOwner.get().playerId();
+        }
+        return attacker.getUUID();
     }
 
     /**
