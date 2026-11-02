@@ -24,22 +24,14 @@ public class StoolBlock extends Block {
     private static final VoxelShape SHAPE = Block.box(4, 0, 4, 12, 8, 12);
 
     /**
-     * How far above the block's own Y the {@link SeatEntity} mount point sits. Deliberately low, not
-     * "roughly stool-seat height" as this used to say -- real report, 2026-11-01: a rider "floats
-     * over the stool instead of sitting on it." Root cause, confirmed against the real decompiled
-     * vanilla source: {@code HumanoidModel#setupAnim}'s {@code state.isPassenger} branch bends both
-     * legs up to a fixed ~-81-degree angle at the hip regardless of vehicle, the same rotation used
-     * for a horse's saddle -- the entity's own Y position is where the hip pivots from, and the bent
-     * legs then occupy space ABOVE that point, not below it. At the old 0.3 (plus {@link SeatEntity}'s
-     * own 0.2-high {@code EntityAttachment.PASSENGER} fallback point, for 0.5 total), the rider's hip
-     * sat right at the stool's physical top with nothing bridging the gap down to it, reading as
-     * hovering in midair above the stool. Vanilla's own {@code AbstractBoat#rideHeight} (the same
-     * {@code isPassenger} pose, used for a boat seat) sets this to roughly 1/3 of the boat's own
-     * height, deliberately low so the bent legs land near the hull's floor instead of its rim -- 0.0
-     * here (0.2 total with the Seat's own fallback) copies that same ratio for a stool of comparable
-     * size, so the bent-leg pose lands near the seat instead of floating well above it.
+     * How far above the block's own Y the {@link SeatEntity} mount point sits -- roughly stool-seat
+     * height. Back to 0.3 (plus {@link SeatEntity}'s own 0.2-high {@code EntityAttachment.PASSENGER}
+     * fallback point, for 0.5 total -- the stool's own physical top), after a lower value alone was
+     * confirmed live NOT to fix the floating-rider report -- see {@link SeatEntity#shouldRiderSit}'s
+     * own doc for the real fix (disabling vanilla's bent-leg riding pose entirely) and why no height
+     * value could have worked around that pose by itself.
      */
-    public static final double SEAT_HEIGHT = 0.0;
+    public static final double SEAT_HEIGHT = 0.3;
 
     public StoolBlock(Properties properties) {
         super(properties);

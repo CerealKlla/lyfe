@@ -67,4 +67,23 @@ public class SeatEntity extends Display.BlockDisplay {
     public boolean isPickable() {
         return false;
     }
+
+    /**
+     * Real report, 2026-11-01 (with a screenshot): lowering {@link StoolBlock#SEAT_HEIGHT} alone did
+     * NOT fix the floating look -- confirmed live, the rider was still clearly hovering above the
+     * stool with legs bent. Re-checked against {@code net.neoforged.neoforge.common.extensions.
+     * IEntityExtension#shouldRiderSit} (defaults {@code true} for any vehicle) and {@code
+     * HumanoidModel#setupAnim}'s {@code isPassenger} branch again: that branch rotates the ENTIRE leg
+     * (thigh through foot) up from the hip by a fixed ~-81 degrees regardless of seat height -- no
+     * part of the model ever extends back down to the entity's own Y position once that rotation
+     * applies, so there is no seat height that avoids a visible gap; only disabling the pose does.
+     * Overriding this to {@code false} makes the rider stand normally instead (straight legs, feet at
+     * this entity's own Y) -- combined with {@link StoolBlock#SEAT_HEIGHT} putting that Y right at the
+     * stool's physical top, the rider's feet now land directly on the visible stool surface instead of
+     * floating above it.
+     */
+    @Override
+    public boolean shouldRiderSit() {
+        return false;
+    }
 }
