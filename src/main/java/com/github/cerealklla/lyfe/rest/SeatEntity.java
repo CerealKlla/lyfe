@@ -9,6 +9,8 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Display;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.world.phys.AABB;
 
 /**
@@ -27,6 +29,21 @@ import net.minecraft.world.phys.AABB;
  * {@code EntityType#canSerialize()} is false, which otherwise makes sitting a complete, silent no-op.
  */
 public class SeatEntity extends Display.BlockDisplay {
+
+    /**
+     * The real stool block this seat belongs to -- confirmed via RCON against a live NPC's own NBT,
+     * 2026-11-01: a negative {@code StoolBlock#SEAT_HEIGHT} (tried while tuning the floating-rider
+     * report) silently broke sitting entirely, with no visible error -- {@link #tick}'s own
+     * "is the stool still here" check used to derive the block to look at from {@code blockPosition()}
+     * (this entity's own, height-adjustable position, floored), so a negative offset floored to the
+     * block BELOW the real stool instead of the stool itself, failed the check, and self-discarded
+     * (ejecting the rider) within a tick or two of ever mounting -- the rider then just stood normally
+     * on the stool under ordinary gravity, explaining why no bent-leg pose ever showed despite nothing
+     * being wrong with the pose logic itself. Storing the real block position explicitly, set whenever
+     * this seat is created or reused, decouples correctness from {@code SEAT_HEIGHT} entirely -- that
+     * constant can now move freely in either direction without risking this failure mode again.
+     */
+    private BlockPos stoolBlockPos;
 
     public SeatEntity(EntityType<? extends SeatEntity> type, Level level) {
         super(type, level);
@@ -51,17 +68,26 @@ public class SeatEntity extends Display.BlockDisplay {
             // code change to SEAT_HEIGHT takes effect everywhere the next time anything sits here,
             // not just on a seat's first-ever creation.
             existing.setPos(x, y, z);
+            existing.stoolBlockPos = stoolPos;
             return existing;
         }
         SeatEntity seat = new SeatEntity(ModEntities.SEAT.get(), level);
         seat.setPos(x, y, z);
+        seat.stoolBlockPos = stoolPos;
         level.addFreshEntity(seat);
         return seat;
     }
 
+    /**
+     * A generous, fixed-size box around the stool's own block position -- deliberately NOT scaled to
+     * {@code StoolBlock#SEAT_HEIGHT} (an earlier version inflated only 0.1 around the block itself,
+     * which could miss a seat entirely once SEAT_HEIGHT moved it far enough away) -- combined with the
+     * exact {@link #stoolBlockPos} identity check below, this stays correct regardless of how far the
+     * tunable height ever moves a seat from its stool.
+     */
     public static SeatEntity findAt(ServerLevel level, BlockPos stoolPos) {
-        AABB box = new AABB(stoolPos).inflate(0.1);
-        List<SeatEntity> found = level.getEntitiesOfClass(SeatEntity.class, box);
+        AABB box = new AABB(stoolPos).inflate(1.5);
+        List<SeatEntity> found = level.getEntitiesOfClass(SeatEntity.class, box, s -> stoolPos.equals(s.stoolBlockPos));
         return found.isEmpty() ? null : found.get(0);
     }
 
@@ -71,7 +97,7 @@ public class SeatEntity extends Display.BlockDisplay {
         if (!(level() instanceof ServerLevel serverLevel)) {
             return;
         }
-        boolean stoolStillHere = serverLevel.getBlockState(blockPosition()).getBlock() instanceof StoolBlock;
+        boolean stoolStillHere = stoolBlockPos != null && serverLevel.getBlockState(stoolBlockPos).getBlock() instanceof StoolBlock;
         if (!stoolStillHere || getPassengers().isEmpty()) {
             ejectPassengers();
             discard();
@@ -81,5 +107,17 @@ public class SeatEntity extends Display.BlockDisplay {
     @Override
     public boolean isPickable() {
         return false;
+    }
+
+    @Override
+    protected void addAdditionalSaveData(ValueOutput output) {
+        super.addAdditionalSaveData(output);
+        output.storeNullable("StoolBlockPos", BlockPos.CODEC, stoolBlockPos);
+    }
+
+    @Override
+    protected void readAdditionalSaveData(ValueInput input) {
+        super.readAdditionalSaveData(input);
+        stoolBlockPos = input.read("StoolBlockPos", BlockPos.CODEC).orElse(null);
     }
 }
