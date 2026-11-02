@@ -24,14 +24,16 @@ public class StoolBlock extends Block {
     private static final VoxelShape SHAPE = Block.box(4, 0, 4, 12, 8, 12);
 
     /**
-     * How far above the block's own Y the {@link SeatEntity} mount point sits -- roughly stool-seat
-     * height. Back to 0.3 (plus {@link SeatEntity}'s own 0.2-high {@code EntityAttachment.PASSENGER}
-     * fallback point, for 0.5 total -- the stool's own physical top), after a lower value alone was
-     * confirmed live NOT to fix the floating-rider report -- see {@link SeatEntity#shouldRiderSit}'s
-     * own doc for the real fix (disabling vanilla's bent-leg riding pose entirely) and why no height
-     * value could have worked around that pose by itself.
+     * How far above the block's own Y the {@link SeatEntity} mount point sits. Real user correction,
+     * 2026-11-01, after an attempt to disable vanilla's bent-leg riding pose entirely was reverted:
+     * "how does that sound like sitting, he was much closer, you just needed to lower it a little bit
+     * more down" -- the bent-leg pose itself reads as closer to a real seated look than disabling it
+     * did, confirmed by the user against the real screenshot; the first height-only attempt (0.3 ->
+     * 0.0, 0.2 total with {@link SeatEntity}'s own 0.2-high fallback point) just hadn't gone far
+     * enough. Lowered further, -0.2 (0.0 total with the Seat's own fallback -- ground level) -- not
+     * yet re-confirmed live, this may still need another round of tuning.
      */
-    public static final double SEAT_HEIGHT = 0.3;
+    public static final double SEAT_HEIGHT = -0.2;
 
     public StoolBlock(Properties properties) {
         super(properties);
