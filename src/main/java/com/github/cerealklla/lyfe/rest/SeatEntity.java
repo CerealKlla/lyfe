@@ -34,12 +34,27 @@ public class SeatEntity extends Display.BlockDisplay {
     }
 
     public static SeatEntity getOrCreate(ServerLevel level, BlockPos stoolPos) {
+        double x = stoolPos.getX() + 0.5;
+        double y = stoolPos.getY() + StoolBlock.SEAT_HEIGHT;
+        double z = stoolPos.getZ() + 0.5;
         SeatEntity existing = findAt(level, stoolPos);
         if (existing != null) {
+            // Real bug, caught 2026-11-01 during live tuning of SEAT_HEIGHT: a reused seat kept
+            // whatever position it was first created at -- it was already live from an earlier
+            // discard/respawn round (see TavernDailySpawnTicker#processStool, which routinely
+            // discards an NPC and immediately re-seats a fresh one, often before this seat's own
+            // tick() has had a chance to self-discard a now-passenger-less old instance) -- so a
+            // later SEAT_HEIGHT change had no visible effect on any seat that happened to survive
+            // reuse, while only a genuinely freshly-created one picked it up. This is exactly why
+            // two height tweaks in a row looked like they did nothing for 4 of 5 stools, and why one
+            // NPC sat visibly lower than the other four. Always refreshing position on reuse means a
+            // code change to SEAT_HEIGHT takes effect everywhere the next time anything sits here,
+            // not just on a seat's first-ever creation.
+            existing.setPos(x, y, z);
             return existing;
         }
         SeatEntity seat = new SeatEntity(ModEntities.SEAT.get(), level);
-        seat.setPos(stoolPos.getX() + 0.5, stoolPos.getY() + StoolBlock.SEAT_HEIGHT, stoolPos.getZ() + 0.5);
+        seat.setPos(x, y, z);
         level.addFreshEntity(seat);
         return seat;
     }
