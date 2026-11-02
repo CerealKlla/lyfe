@@ -74,7 +74,7 @@ public record CompanionTokenData(Identifier entityTypeId, List<EquipmentEntry> e
             ByteBufCodecs.VAR_LONG, CompanionTokenData::cooldownEndEpochMillis,
             ByteBufCodecs.optional(UUIDUtil.STREAM_CODEC), CompanionTokenData::summonedCompanionId,
             ByteBufCodecs.STRING_UTF8, CompanionTokenData::displayName,
-            ItemStack.STREAM_CODEC, CompanionTokenData::mountItem,
+            ItemStack.OPTIONAL_STREAM_CODEC, CompanionTokenData::mountItem,
             CompanionTokenData::new);
 
     public boolean onCooldown(long currentEpochMillis) {
