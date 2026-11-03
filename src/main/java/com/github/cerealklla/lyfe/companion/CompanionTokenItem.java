@@ -45,6 +45,19 @@ public final class CompanionTokenItem extends Item {
     public static final long COOLDOWN_MILLIS = 5L * 60L * 1000L; // 5 minutes, same default as Allay in a Bottle.
     private static final double SUMMON_BACK_OFFSET_BLOCKS = 2.0;
 
+    /**
+     * Explicit user spec, 2026-11-02: "the base mana regen of hired companions needs to be a
+     * minimum of .1/s." A Tavern Companion's entity type ({@code settlemynts:tavern_npc}) gets no
+     * per-type {@code MANA_REGEN} default override in {@code registration.ModAttributes} the way
+     * {@code EntityType.ALLAY} already does -- it falls through to the attribute's own unmodified
+     * 0.0 default. Applied here, generically, at summon time instead of adding a per-type default
+     * for a specific Settlemynts entity type, which would need a new reverse Lyfe -> Settlemynts
+     * compile dependency this suite doesn't otherwise have (Settlemynts depends on Lyfe via bridges,
+     * never the other way around). Matches {@code ALLAY_BASE_MANA_REGEN}'s own floor value for
+     * consistency. Only raises the *base* value -- gear/Rune bonuses still stack on top normally.
+     */
+    private static final double MIN_COMPANION_BASE_MANA_REGEN = 0.1;
+
     public CompanionTokenItem(Properties properties) {
         super(properties);
     }
@@ -114,6 +127,10 @@ public final class CompanionTokenItem extends Item {
         var back = player.getLookAngle().scale(-SUMMON_BACK_OFFSET_BLOCKS);
         companion.snapTo(player.getX() + back.x, player.getY(), player.getZ() + back.z, player.getYRot(), 0.0F);
         applyLoadout(companion, data);
+        var manaRegen = companion.getAttribute(com.github.cerealklla.lyfe.registration.ModAttributes.MANA_REGEN);
+        if (manaRegen != null && manaRegen.getBaseValue() < MIN_COMPANION_BASE_MANA_REGEN) {
+            manaRegen.setBaseValue(MIN_COMPANION_BASE_MANA_REGEN);
+        }
         serverLevel.addFreshEntity(companion);
         companion.setData(com.github.cerealklla.lyfe.registration.ModAttachments.SUMMONED_COMPANION_OWNER,
                 new SummonedCompanionOwner(player.getUUID()));
