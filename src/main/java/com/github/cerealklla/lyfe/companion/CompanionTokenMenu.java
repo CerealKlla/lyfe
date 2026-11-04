@@ -49,7 +49,12 @@ public final class CompanionTokenMenu extends AbstractContainerMenu {
     // client.CompanionTokenScreen) and the existing stats block, mirroring AllayBottleMenu's own
     // fixed layout shape.
     public static final int SLOT_X_START = 12;
-    public static final int SLOT_Y = 86;
+    // Pushed from 86 -> 114, 2026-11-03: the stats block (client.CompanionTokenScreen) grew from 2
+    // lines (Health/Attack) to 5 (Health/Attack/Mana/Mana Regen/Health Regen) once a Tavern Companion
+    // was confirmed to actually have mana like any other entity -- see that class's own doc for why
+    // that was wrong to omit. Same proportional gap AllayBottleMenu already uses between its own
+    // (shorter) stats block and its Equip/Gather row.
+    public static final int SLOT_Y = 114;
     public static final int SLOT_SPACING = 30;
     // The Mount slot (2026-11-01, "add 1 more slot on the companion where you are allowed to equip
     // a summon stone, which the companion can use to mount and ride around") sits on its own row
@@ -59,7 +64,7 @@ public final class CompanionTokenMenu extends AbstractContainerMenu {
     public static final int MOUNT_SLOT_X = SLOT_X_START;
     public static final int MOUNT_SLOT_Y = SLOT_Y + 30;
     public static final int MOUNT_SLOT_INDEX = SLOT_ORDER.length;
-    public static final int PLAYER_INV_Y = 150;
+    public static final int PLAYER_INV_Y = MOUNT_SLOT_Y + 34;
 
     private final Container container = new SimpleContainer(SLOT_ORDER.length + 1);
     private final Player owner;

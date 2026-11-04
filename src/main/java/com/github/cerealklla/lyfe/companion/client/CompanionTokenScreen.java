@@ -20,10 +20,9 @@ import net.minecraft.world.entity.player.Inventory;
 /**
  * The Companion Token's Equip GUI real screen -- same "beveled flat panel, no texture file" visual
  * style as {@code summoning.client.AllayBottleScreen}, which this directly mirrors (6 equipment
- * slots in a row instead of an equip/gather pair; a live Health/Attack readout instead of
- * Mana/Mana Regen, since a Tavern Companion has no mana of its own; a rename {@link EditBox}/button
- * baked directly into the screen, same idiom as Allay's own "Rename" -- real user request,
- * 2026-11-01, "I need to be able to rename these people").
+ * slots in a row instead of an equip/gather pair; a rename {@link EditBox}/button baked directly
+ * into the screen, same idiom as Allay's own "Rename" -- real user request, 2026-11-01, "I need to
+ * be able to rename these people").
  *
  * <p><b>Overlap fix, 2026-11-01</b> (real report: "This UI is overlapping everywhere") -- widened to
  * fit six slot labels without bleeding into each other, and the panel's vertical rows (title, rename,
@@ -34,6 +33,17 @@ import net.minecraft.world.entity.player.Inventory;
  * a summon stone, which the companion can use to mount and ride around." A 7th slot on its own row
  * below the 6 equipment slots, see {@link CompanionTokenMenu#MOUNT_SLOT_X}'s own doc. The actual
  * summon-and-mount behavior is driven by {@code CompanionMountTicker}, not this screen.
+ *
+ * <p><b>Mana/Mana Regen/Health Regen added to the stats block, 2026-11-03</b> -- real report: "Why
+ * doesn't this show my companions mana regen and other stats?" The original 2026-10-31 build's
+ * Health/Attack-only readout assumed a Tavern Companion had no mana of its own; that was wrong --
+ * {@code registration.ModAttributes#onEntityAttributeModification} attaches {@code MAX_MANA}/
+ * {@code MANA_REGEN}/{@code HEALTH_REGEN} to every entity type with an {@code AttributeSupplier} at
+ * all, companions included (confirmed by the 2026-11-02 companion-mana-regen-floor fix, which
+ * already relies on exactly this). Now a direct line-for-line port of
+ * {@code AllayBottleScreen#extractStats}'s own Mana/Mana Regen/Health Regen block, including its
+ * {@code ModAttachments.ENTITY_MANA} read for current mana (not just the max). See
+ * {@link CompanionTokenMenu#SLOT_Y}'s own doc for the matching layout shift this needed.
  */
 public final class CompanionTokenScreen extends AbstractContainerScreen<CompanionTokenMenu> {
 
@@ -105,6 +115,16 @@ public final class CompanionTokenScreen extends AbstractContainerScreen<Companio
             graphics.text(font, String.format(Locale.ROOT, "Attack: %.1f", attackAttr.getValue()),
                     10, STATS_TOP_Y + STATS_LINE_HEIGHT, TEXT_COLOR, false);
         }
+        double mana = companion.getData(com.github.cerealklla.lyfe.registration.ModAttachments.ENTITY_MANA).getCurrentMana();
+        double maxMana = companion.getAttributeValue(com.github.cerealklla.lyfe.registration.ModAttributes.MAX_MANA);
+        graphics.text(font, String.format(Locale.ROOT, "Mana: %.0f/%.0f", mana, maxMana),
+                10, STATS_TOP_Y + STATS_LINE_HEIGHT * 2, TEXT_COLOR, false);
+        double manaRegen = companion.getAttributeValue(com.github.cerealklla.lyfe.registration.ModAttributes.MANA_REGEN);
+        graphics.text(font, String.format(Locale.ROOT, "Mana Regen: +%.1f/s", manaRegen),
+                10, STATS_TOP_Y + STATS_LINE_HEIGHT * 3, TEXT_COLOR, false);
+        double healthRegen = companion.getAttributeValue(com.github.cerealklla.lyfe.registration.ModAttributes.HEALTH_REGEN);
+        graphics.text(font, String.format(Locale.ROOT, "Health Regen: +%.1f/s", healthRegen),
+                10, STATS_TOP_Y + STATS_LINE_HEIGHT * 4, TEXT_COLOR, false);
     }
 
     private LivingEntity resolveLiveCompanion() {
