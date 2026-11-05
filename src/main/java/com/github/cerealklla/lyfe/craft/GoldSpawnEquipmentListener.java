@@ -40,6 +40,18 @@ import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
  * summoning.AllayGoalInjectionListener}'s own precedent in this mod -- this also means an
  * already-existing Zombified Piglin from before this fix shipped self-corrects the next time its
  * chunk loads, with no need for a world wipe or manual cleanup.
+ *
+ * <p><b>Real bug found and fixed, 2026-11-05: "This is the second time now that my gold tool has
+ * changed to copper. I crafted these and have had them a long time."</b> {@link EntityJoinLevelEvent}
+ * fires for a {@code Player} too -- on login, respawn, and every dimension change -- and this
+ * listener had no check excluding one. So a player's own hand-crafted Tier 4 ("Mythical") Golden
+ * tool/armor piece, built on the same real vanilla item id this ladder maps Gold to (see {@code
+ * CraftingOverhaul}'s own "Gold-tier naming" entry), got silently swapped to a plain Tier 2 Copper
+ * item every time they rejoined the level -- not a cosmetic downgrade, a real loss of their actual
+ * crafted item and its Quality/attribute data, since {@link ItemStack#transmuteCopy} changes the
+ * item type itself. {@link #onJoin} now returns immediately for a {@code Player} -- this listener was
+ * only ever meant to stop *vanilla mob spawn equipment* (Piglins etc.), which is exactly what it's
+ * still scoped to.
  */
 public final class GoldSpawnEquipmentListener {
 
@@ -75,7 +87,7 @@ public final class GoldSpawnEquipmentListener {
     @SubscribeEvent
     public void onJoin(EntityJoinLevelEvent event) {
         Entity entity = event.getEntity();
-        if (!(entity instanceof LivingEntity living)) {
+        if (!(entity instanceof LivingEntity living) || entity instanceof net.minecraft.world.entity.player.Player) {
             return;
         }
         for (EquipmentSlot slot : EquipmentSlot.values()) {
