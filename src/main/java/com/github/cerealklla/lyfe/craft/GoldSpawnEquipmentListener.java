@@ -36,10 +36,10 @@ import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
  * a Zombie that found dropped Golden armor on the ground) is covered by the same fix, for the same
  * reason.
  *
- * <p>Hooked on {@link EntityJoinLevelEvent} rather than a spawn-only event, matching {@code
- * summoning.AllayGoalInjectionListener}'s own precedent in this mod -- this also means an
- * already-existing Zombified Piglin from before this fix shipped self-corrects the next time its
- * chunk loads, with no need for a world wipe or manual cleanup.
+ * <p>Hooked on {@link EntityJoinLevelEvent} rather than a dedicated spawn-only event, matching
+ * {@code summoning.AllayGoalInjectionListener}'s own precedent in this mod, but gated to a genuine
+ * fresh spawn only -- see this class's own "same day" correction below for why a pre-existing mob
+ * reloading from a saved chunk is deliberately left untouched now, not self-corrected.
  *
  * <p><b>Real bug found and fixed, 2026-11-05: "This is the second time now that my gold tool has
  * changed to copper. I crafted these and have had them a long time."</b> {@link EntityJoinLevelEvent}
@@ -49,9 +49,28 @@ import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
  * CraftingOverhaul}'s own "Gold-tier naming" entry), got silently swapped to a plain Tier 2 Copper
  * item every time they rejoined the level -- not a cosmetic downgrade, a real loss of their actual
  * crafted item and its Quality/attribute data, since {@link ItemStack#transmuteCopy} changes the
- * item type itself. {@link #onJoin} now returns immediately for a {@code Player} -- this listener was
- * only ever meant to stop *vanilla mob spawn equipment* (Piglins etc.), which is exactly what it's
- * still scoped to.
+ * item type itself.
+ *
+ * <p><b>Correction, same day</b>: a flat {@code !(entity instanceof Player)} check stops the player
+ * data loss, but the actual design intent (confirmed by the user) was always "this gear should never
+ * spawn as Gold in the first place," not "silently correct it one tick after the fact, for anything
+ * that happens to walk through the door." A bare {@code Player} check is also only ever a special
+ * case of the real, general distinction this event already exposes: {@link
+ * EntityJoinLevelEvent#loadedFromDisk()} is {@code true} for *any* entity re-entering the world from
+ * already-persisted data (a relogging/respawning/dimension-changing player, same as a previously-
+ * saved mob whose chunk simply reloads) and {@code false} only for a genuinely brand-new entity this
+ * exact spawn just created -- confirmed against the real NeoForge source
+ * ({@code event/entity/EntityJoinLevelEvent.java}/{@code FinalizeSpawnEvent.java}: {@code
+ * EntityJoinLevelEvent} is the very next step after a fresh {@code Mob#finalizeSpawn} call, which is
+ * what actually assigns spawn equipment via {@code populateDefaultEquipmentSlots} -- so for a genuine
+ * new spawn, this correction lands before the entity has ever been added to any client's world at
+ * all, matching "never spawn as Gold" in every observable sense). {@link #onJoin} now gates on {@code
+ * !event.loadedFromDisk()} as the real fix, with the explicit {@code Player} exclusion kept alongside
+ * it as a second, zero-cost, unambiguous safety net given how severe this exact bug class already
+ * proved to be -- and now also skips the client side entirely, since spawn equipment is only ever
+ * assigned server-side ({@link net.neoforged.neoforge.event.entity.living.FinalizeSpawnEvent}'s own
+ * doc) and a client-received mob already arrives with whatever the server already corrected, making a
+ * client-side re-check pure dead work.
  */
 public final class GoldSpawnEquipmentListener {
 
@@ -86,6 +105,9 @@ public final class GoldSpawnEquipmentListener {
 
     @SubscribeEvent
     public void onJoin(EntityJoinLevelEvent event) {
+        if (event.getLevel().isClientSide() || event.loadedFromDisk()) {
+            return;
+        }
         Entity entity = event.getEntity();
         if (!(entity instanceof LivingEntity living) || entity instanceof net.minecraft.world.entity.player.Player) {
             return;
