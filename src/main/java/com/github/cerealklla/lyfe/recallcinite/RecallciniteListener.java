@@ -400,7 +400,19 @@ public final class RecallciniteListener {
             player.sendSystemMessage(Component.literal("You can only bind within a settlement plot.").withStyle(ChatFormatting.RED), true);
             return;
         }
+        bindAt(player, level, pos);
+        player.sendSystemMessage(Component.literal("Recallcinite Totem bound to this location.").withStyle(ChatFormatting.LIGHT_PURPLE), true);
+    }
 
+    /**
+     * The real bind logic, factored out of {@link #handleBindConfirmed} so {@code api.Lyfe
+     * #bindRecallciniteTotem} (Arryval's new-player starting-settlement feature) can bind a player's
+     * Totem to a plot they're not physically standing at yet -- skips {@link #canBindHere} entirely,
+     * since that check is about a player standing somewhere right now, not relevant to a caller that
+     * already knows {@code pos} is a real, valid plot. Does not send any chat message -- that's the
+     * caller's own framing to own (a normal bind-confirm vs. "here's your new home").
+     */
+    public static void bindAt(ServerPlayer player, ServerLevel level, BlockPos pos) {
         RecallciniteData data = player.getData(ModAttachments.RECALLCINITE_DATA);
         data.bind(GlobalPos.of(level.dimension(), pos));
         data.setBoundPlotTier(recallciniteStonePlotTier(level, pos));
@@ -413,7 +425,6 @@ public final class RecallciniteListener {
             Lyfe.addXp(player, Skills.RECALLCRAFT_ID, XP_BIND);
         }
         player.syncData(ModAttachments.RECALLCINITE_DATA);
-        player.sendSystemMessage(Component.literal("Recallcinite Totem bound to this location.").withStyle(ChatFormatting.LIGHT_PURPLE), true);
     }
 
     private static void performRecall(ServerPlayer player) {

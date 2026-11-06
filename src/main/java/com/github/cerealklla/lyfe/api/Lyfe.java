@@ -688,4 +688,20 @@ public final class Lyfe {
         int manaCost = com.github.cerealklla.lyfe.magician.SpellProficiencyCurve.manaCost(proficiencyLevel);
         return getCurrentMana(caster) >= manaCost;
     }
+
+    /**
+     * Binds {@code player}'s Recallcinite Totem to {@code pos} directly -- for Arryval's new-player
+     * starting-settlement feature, which already knows {@code pos} is a real, valid plot and doesn't
+     * need the player to be physically standing there first. Wraps the same real logic {@code
+     * recallcinite.RecallciniteListener#handleBindConfirmed} uses (tier freeze, once-per-settlement
+     * XP, the mandatory attachment sync) minus its "are you standing in a plot right now" check,
+     * which doesn't apply to this caller.
+     */
+    public static void bindRecallciniteTotem(net.minecraft.server.level.ServerPlayer player, net.minecraft.core.GlobalPos pos) {
+        net.minecraft.server.MinecraftServer server = ((net.minecraft.server.level.ServerLevel) player.level()).getServer();
+        if (!(server.getLevel(pos.dimension()) instanceof net.minecraft.server.level.ServerLevel level)) {
+            return;
+        }
+        com.github.cerealklla.lyfe.recallcinite.RecallciniteListener.bindAt(player, level, pos.pos());
+    }
 }
