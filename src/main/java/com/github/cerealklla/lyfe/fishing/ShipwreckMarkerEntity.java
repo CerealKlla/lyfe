@@ -71,6 +71,13 @@ public class ShipwreckMarkerEntity extends Display.BlockDisplay implements Pinga
         return marker;
     }
 
+    /** This Pingable's own real trigger radius -- see Nuclyus' own {@code ping.Pingable#radiusBlocks}
+     *  doc for why there's no shared value to inherit instead. */
+    @Override
+    public double radiusBlocks() {
+        return PING_RANGE_BLOCKS;
+    }
+
     @Override
     public void onPing(PingPacket ping) {
         if (ping.distanceToPlayer() > PING_RANGE_BLOCKS || !(level() instanceof ServerLevel level)) {
