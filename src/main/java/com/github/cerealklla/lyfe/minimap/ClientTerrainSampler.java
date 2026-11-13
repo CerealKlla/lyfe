@@ -168,6 +168,19 @@ public final class ClientTerrainSampler {
     private static NativeImage sample(ClientLevel level, int centerX, int centerZ, int radiusX, int radiusZ,
             int imageWidth, int imageHeight, boolean flatShading, OptionalInt startYOverride, Optional<ClipBounds> clipBounds) {
         NativeImage image = new NativeImage(NativeImage.Format.RGBA, imageWidth, imageHeight, false);
+        // A freshly allocated NativeImage is NOT guaranteed to start fully transparent -- found
+        // 2026-11-13, a real live incident right after ClipBounds shipped: unrelated OVERWORLD
+        // terrain flashed into the Wyrld Space minimap, because every cell ClipBounds (or the
+        // pre-existing "chunk not loaded" skip) leaves unwritten keeps whatever raw memory the
+        // allocation happened to reuse -- and since every sample call allocates the exact same
+        // IMAGE_SIZE x IMAGE_SIZE RGBA buffer, that's very often the just-freed PREVIOUS sample's own
+        // pixel data (the last real overworld sample, taken moments before walking into the Wyrld).
+        // Before ClipBounds this was a latent, practically invisible issue -- unwritten cells were
+        // only ever a rare unloaded-chunk sliver. ClipBounds deliberately leaves most of the image
+        // unwritten on every call, turning a theoretical gap into a routine, highly visible one.
+        // Explicitly clearing to transparent up front removes the dependency on the allocator's
+        // memory having been zeroed at all.
+        image.fillRect(0, 0, imageWidth, imageHeight, 0);
         sampleGrid(level, centerX, centerZ, radiusX, radiusZ, imageWidth, imageHeight, flatShading, startYOverride, clipBounds,
                 (col, row, color, brightness) -> image.setPixelABGR(col, row, argbToAbgr(color.calculateARGBColor(brightness))));
         return image;
