@@ -119,8 +119,12 @@ public final class MinimapOverlay implements GuiLayer {
     // How many extra blocks of margin to sample past a piece's own real footprint, so its walls
     // are visible rather than cropped exactly at the edge.
     private static final int WYRLD_ROOM_VIEW_MARGIN_BLOCKS = 3;
-    // Real-world radius is divided by this before sampling -- explicit user request 2026-11-13
+    // How much to visually zoom in on the Wyrld room view -- explicit user request 2026-11-13
     // ("zoom in maybe 2x"), the fit-the-whole-room default having looked too zoomed out live.
+    // Applied as a display-time crop in drawTerrainTexture (see its own doc), NOT by shrinking the
+    // real sampled radius -- an earlier attempt that divided the radius directly collided with
+    // ClientTerrainSampler's scaleBlocksFor floor of 1 block/pixel against the fixed 128x128 image,
+    // which made the room render as a tiny, mostly-black sliver instead of zoomed in (confirmed live).
     private static final int WYRLD_ROOM_VIEW_ZOOM = 2;
     // How far above the player's own feet the downward height-scan starts -- enough to clear a
     // standing player's own head inside a typically-sized authored room, so the scan begins in
@@ -199,7 +203,7 @@ public final class MinimapOverlay implements GuiLayer {
         // for the whole content block and then issued each row's scissor *while already rotated*,
         // which is wrong -- a scissor rect is meant to be given in absolute screen space, not the
         // current (possibly rotated) local space.
-        drawTerrainTexture(guiGraphics, left, top, autoRotate, rotationRadians, cx, cz, player);
+        drawTerrainTexture(guiGraphics, left, top, autoRotate, rotationRadians, cx, cz, player, inWyrldSpace);
 
         // Outlines/stakes/the Building Locator preview don't need per-row scissoring at all -- a
         // single rotation block around all three (exactly like the terrain conceptually wants, but
@@ -301,18 +305,31 @@ public final class MinimapOverlay implements GuiLayer {
      * the drift (in the same world-to-screen convention every other overlay already uses) keeps the
      * live player position -- not the stale sample center -- as what's actually centered on screen.
      */
-    private void drawTerrainTexture(GuiGraphicsExtractor guiGraphics, int left, int top, boolean autoRotate, float rotationRadians, float cx, float cz, LocalPlayer player) {
+    private void drawTerrainTexture(GuiGraphicsExtractor guiGraphics, int left, int top, boolean autoRotate, float rotationRadians, float cx, float cz, LocalPlayer player, boolean inWyrldSpace) {
         if (!ClientMinimapState.hasTexture()) {
             return;
         }
         int radius = SIZE / 2;
         int cxInt = left + radius;
 
+        // Wyrld Space's "zoom in 2x" is applied here, as a display-time crop of the already-sampled
+        // image, rather than by shrinking the real sampled radius (see maybeResampleWyrldRoom's own
+        // doc for why that collided badly with ClientTerrainSampler's scaleBlocksFor floor). Cropping
+        // to the center cropSize x cropSize region and stretching it to the same SIZE x SIZE
+        // destination doubles how large each sampled block appears on screen, without the sample
+        // itself ever changing.
+        int zoomFactor = inWyrldSpace ? WYRLD_ROOM_VIEW_ZOOM : 1;
+        int cropSize = ClientTerrainSampler.IMAGE_SIZE / zoomFactor;
+        int cropOffset = (ClientTerrainSampler.IMAGE_SIZE - cropSize) / 2;
+
         int sampledRadius = ClientMinimapState.sampledEffectiveRadius();
         int shiftX = 0;
         int shiftZ = 0;
         if (sampledRadius > 0) {
-            double pixelsPerBlock = (double) SIZE / (sampledRadius * 2);
+            // Multiplied by zoomFactor -- the crop above makes each sampled block occupy zoomFactor
+            // times as many screen pixels, so the drift-compensation shift (computed in screen
+            // pixels) must scale by the same factor to stay aligned with the now-zoomed-in image.
+            double pixelsPerBlock = zoomFactor * (double) SIZE / (sampledRadius * 2);
             shiftX = (int) Math.round((ClientMinimapState.sampledCenterX() - player.getX()) * pixelsPerBlock);
             shiftZ = (int) Math.round((ClientMinimapState.sampledCenterZ() - player.getZ()) * pixelsPerBlock);
         }
@@ -336,8 +353,8 @@ public final class MinimapOverlay implements GuiLayer {
                 guiGraphics.pose().pushMatrix();
                 guiGraphics.pose().rotateAbout(rotationRadians, cx, cz);
             }
-            guiGraphics.blit(RenderPipelines.GUI_TEXTURED, ClientMinimapState.textureId(), blitLeft, blitTop, 0, 0,
-                    SIZE, SIZE, ClientTerrainSampler.IMAGE_SIZE, ClientTerrainSampler.IMAGE_SIZE,
+            guiGraphics.blit(RenderPipelines.GUI_TEXTURED, ClientMinimapState.textureId(), blitLeft, blitTop, cropOffset, cropOffset,
+                    SIZE, SIZE, cropSize, cropSize,
                     ClientTerrainSampler.IMAGE_SIZE, ClientTerrainSampler.IMAGE_SIZE);
             if (autoRotate) {
                 guiGraphics.pose().popMatrix();
@@ -482,7 +499,17 @@ public final class MinimapOverlay implements GuiLayer {
             centerZ = (min.getZ() + max.getZ()) / 2;
             int halfWidth = (max.getX() - min.getX()) / 2;
             int halfLength = (max.getZ() - min.getZ()) / 2;
-            radius = Math.max(1, (Math.max(halfWidth, halfLength) + WYRLD_ROOM_VIEW_MARGIN_BLOCKS) / WYRLD_ROOM_VIEW_ZOOM);
+            // Deliberately NOT divided by any zoom factor here -- found 2026-11-13, a real live
+            // regression: halving this real-world sample radius collided with ClientTerrainSampler's
+            // existing scaleBlocksFor floor of 1 block/pixel against the fixed 128x128 image grid.
+            // Once the requested radius drops below imageSize/2 (64), shrinking it further doesn't
+            // sample a smaller area at all -- the real coverage silently balloons back up to the
+            // clamp's own floor (64), which is what ClientMinimapState's sampledEffectiveRadius
+            // correctly (if confusingly) reported, making the room render as a tiny, mostly-black
+            // sliver instead of zoomed in. The zoom itself is applied purely as a display-time crop
+            // in drawTerrainTexture, which never touches the real sampled radius -- see
+            // WYRLD_ROOM_VIEW_ZOOM's own doc.
+            radius = Math.max(1, Math.max(halfWidth, halfLength) + WYRLD_ROOM_VIEW_MARGIN_BLOCKS);
             // Clipped to the piece's own real bounds -- see ClipBounds' own doc: rooms are packed
             // with no guaranteed gap, so without this a sample near a wall can show a neighboring,
             // unrelated generated Wyrld instance's own content (confirmed live via screenshot).
