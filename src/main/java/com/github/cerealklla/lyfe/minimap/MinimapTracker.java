@@ -35,10 +35,16 @@ import net.neoforged.neoforge.network.PacketDistributor;
  */
 public final class MinimapTracker {
 
-    // Lowered from 10/8, user request 2026-09-29 ("increase the refresh rate of the minimap") --
-    // kept in step with MinimapOverlay's own resample throttle above so outlines don't lag noticeably
-    // behind the terrain texture itself.
-    private static final int CHECK_INTERVAL_TICKS = 5;
+    // Lowered 5 -> 1, 2026-11-13 (real user report: plot outlines visibly lagged behind the terrain
+    // texture while walking through a settlement). This was meant to stay "in step with
+    // MinimapOverlay's own resample throttle," but that promise went stale: MinimapOverlay's own
+    // RESAMPLE_INTERVAL_TICKS was tightened several more times after this value was last set (most
+    // recently to 1, 2026-10-02's "let's try 1"), and this one was never revisited to match. Safe to
+    // drop straight to 1 -- the actual expensive work (the whole-dimension Cartography#findEntities
+    // scan + packet send) is still gated by MOVE_THRESHOLD_BLOCKS below regardless of how often this
+    // check itself runs; lowering this just means that gate gets checked immediately once crossed,
+    // instead of up to 5 ticks (0.25s) late.
+    private static final int CHECK_INTERVAL_TICKS = 1;
     private static final int MOVE_THRESHOLD_BLOCKS = 4;
     private static final int QUERY_RADIUS_BLOCKS = MinimapZoom.MAX_RADIUS_BLOCKS;
 
