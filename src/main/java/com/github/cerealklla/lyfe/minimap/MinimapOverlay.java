@@ -230,12 +230,17 @@ public final class MinimapOverlay implements GuiLayer {
         // on, the pose is rotated so "up" matches the player's facing, and north is wherever that
         // rotation now puts it; drawing the arrow at its default "straight up" position *inside* the
         // rotation swings it around the perimeter to the correct real-world-north angle for free, the
-        // same trick drawOutlines/the stakes/the Building Locator preview already rely on. When
-        // Auto-Rotate is off, this block never pushes a rotation at all, so the arrow just stays at
-        // the top -- correct, since Fixed orientation is already north-up. Separate, higher
+        // same trick drawOutlines/the stakes/the Building Locator preview already rely on.
+        //
+        // Only drawn at all when autoRotate is true -- corrected 2026-11-13 (explicit user report).
+        // The original reasoning ("Fixed is already north-up, so the arrow just stays at the top") was
+        // backwards: a north arrow only tells you anything when the map itself doesn't already show
+        // north as "up" by definition. In Fixed mode (including every Wyrld Space view, where rotation
+        // is always forced off -- see WYRLD_SPACE_DIMENSION's own doc) it would just sit pointing
+        // straight up forever, redundant clutter rather than real information. Separate, higher
         // Expeditionist gate than the minimap's own (level 5 vs. 1) -- the minimap can be unlocked
         // without the North indicator yet.
-        if (Lyfe.getLevel(player, Skills.EXPEDITIONIST_ID) >= ExpeditionistConstants.NORTH_INDICATOR_UNLOCK_LEVEL) {
+        if (autoRotate && Lyfe.getLevel(player, Skills.EXPEDITIONIST_ID) >= ExpeditionistConstants.NORTH_INDICATOR_UNLOCK_LEVEL) {
             drawBearingArrow(guiGraphics, cx, cz, radius, 0f, NORTH_ARROW_HALF_WIDTH, NORTH_ARROW_HEIGHT, NORTH_ARROW_COLOR);
         }
         // Waypoint arrow, drawn after (on top of) the North arrow -- see WAYPOINT_ARROW_* doc.
