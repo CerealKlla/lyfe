@@ -17,7 +17,10 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import net.neoforged.neoforge.client.gui.GuiLayer;
 
@@ -101,6 +104,25 @@ public final class MinimapOverlay implements GuiLayer {
     // waypoint arrow above, own color so the two are distinguishable when both are active at once.
     private static final int QUEST_WAYPOINT_ARROW_COLOR = 0xFFFF8800;
 
+    // Wyrld Space special case, explicit user request 2026-11-12 (screenshot: "I don't like how
+    // the mini-map works in TinyWyrlds... disable rotation, and show only the full room/connector/
+    // entrance/tunnel room that we are inside... skip the topmost [block] and ignore solid blocks
+    // until we see air again, and then show the next solid block" -- refined the same conversation
+    // to seed that scan from the player's own Y specifically, so a room with multiple real floors
+    // at different heights, e.g. a winding ramp tunnel, always shows whichever one the player is
+    // currently on). Matched by a hardcoded Identifier, not a compiled dependency -- see {@code
+    // minimap.TinyWyrldsMinimapBridge}'s own doc for why only the piece-lookup itself (not this
+    // dimension check) goes through a real cross-mod call.
+    private static final ResourceKey<Level> WYRLD_SPACE_DIMENSION =
+            ResourceKey.create(Registries.DIMENSION, Identifier.fromNamespaceAndPath("tinywyrlds", "wyrld_space"));
+    // How many extra blocks of margin to sample past a piece's own real footprint, so its walls
+    // are visible rather than cropped exactly at the edge.
+    private static final int WYRLD_ROOM_VIEW_MARGIN_BLOCKS = 3;
+    // How far above the player's own feet the downward height-scan starts -- enough to clear a
+    // standing player's own head inside a typically-sized authored room, so the scan begins in
+    // real air rather than inside whatever block is at their exact eye level.
+    private static final int WYRLD_ROOM_VIEW_START_Y_MARGIN = 4;
+
     private int ticksSinceLastSample = RESAMPLE_INTERVAL_TICKS;
 
     @Override
@@ -158,8 +180,11 @@ public final class MinimapOverlay implements GuiLayer {
         // keybind itself is also a no-op below that level (see LyfeModClient), so the stored value
         // never actually changes until the player can reach this level, at which point it's already
         // ClientMinimapState's own default (true/Auto-Rotate) unless they've since toggled it off.
+        // Rotation is always off inside Wyrld Space, regardless of the player's own stored toggle/
+        // skill level -- see WYRLD_SPACE_DIMENSION's own doc.
+        boolean inWyrldSpace = level.dimension().equals(WYRLD_SPACE_DIMENSION);
         boolean orientationToggleUnlocked = Lyfe.getLevel(player, Skills.EXPEDITIONIST_ID) >= ExpeditionistConstants.ORIENTATION_TOGGLE_UNLOCK_LEVEL;
-        boolean autoRotate = orientationToggleUnlocked && ClientMinimapState.autoRotate();
+        boolean autoRotate = !inWyrldSpace && orientationToggleUnlocked && ClientMinimapState.autoRotate();
         float rotationRadians = autoRotate ? (float) Math.toRadians(180.0 - player.getYRot()) : 0f;
 
         // Terrain gets its own per-row scissor+rotate+blit+unrotate+unscissor cycle (see
@@ -389,6 +414,11 @@ public final class MinimapOverlay implements GuiLayer {
         }
         ticksSinceLastSample++;
 
+        if (level.dimension().equals(WYRLD_SPACE_DIMENSION)) {
+            maybeResampleWyrldRoom(level, player);
+            return;
+        }
+
         int expeditionistLevel = Lyfe.getLevel(player, Skills.EXPEDITIONIST_ID);
         int uncappedRadius = MinimapZoom.radiusFor(expeditionistLevel);
         // Never sample further than the client can actually guarantee is loaded -- real bug found
@@ -418,6 +448,47 @@ public final class MinimapOverlay implements GuiLayer {
             ClientTerrainSampler.sampleAsync(level, playerX, playerZ, radius,
                     image -> ClientMinimapState.setTexture(image, playerX, playerZ, radius));
         }
+    }
+
+    /** The Wyrld Space branch of {@link #maybeResample} -- centers/sizes the sample on the
+     *  player's own current piece (see {@link ClientWyrldPieceState}) instead of their live
+     *  position/skill-scaled radius, and seeds the height scan from their own current Y instead of
+     *  the heightmap. The sampled center/radius only actually change when the player walks into a
+     *  different piece (a room's own footprint doesn't move while they're standing in it), but this
+     *  still resamples on the same {@code due} cadence as the overworld path regardless -- cheap
+     *  (self-throttled, async, same as everywhere else in this class) and means the view re-seeds
+     *  from the player's current Y as they walk up/down within one piece (e.g. a winding ramp),
+     *  not just when the piece itself changes. Falls back to a small view centered on the player
+     *  directly if no piece is currently known (not in any single piece's own footprint, or
+     *  TinyWyrlds isn't loaded at all) -- same fallback a connecting corridor cell already needs. */
+    private void maybeResampleWyrldRoom(ClientLevel level, LocalPlayer player) {
+        boolean due = ticksSinceLastSample >= RESAMPLE_INTERVAL_TICKS;
+        if (ClientMinimapState.hasTexture() && !due) {
+            return;
+        }
+
+        int centerX;
+        int centerZ;
+        int radius;
+        if (ClientWyrldPieceState.present()) {
+            BlockPos min = ClientWyrldPieceState.min();
+            BlockPos max = ClientWyrldPieceState.maxExclusive();
+            centerX = (min.getX() + max.getX()) / 2;
+            centerZ = (min.getZ() + max.getZ()) / 2;
+            int halfWidth = (max.getX() - min.getX()) / 2;
+            int halfLength = (max.getZ() - min.getZ()) / 2;
+            radius = Math.max(halfWidth, halfLength) + WYRLD_ROOM_VIEW_MARGIN_BLOCKS;
+        } else {
+            centerX = player.getBlockX();
+            centerZ = player.getBlockZ();
+            radius = SIZE / 2;
+        }
+
+        ticksSinceLastSample = 0;
+        ClientMinimapState.beginSampling();
+        int startY = player.getBlockY() + WYRLD_ROOM_VIEW_START_Y_MARGIN;
+        ClientTerrainSampler.sampleAsync(level, centerX, centerZ, radius, startY,
+                image -> ClientMinimapState.setTexture(image, centerX, centerZ, radius));
     }
 
     private void drawOutlines(GuiGraphicsExtractor guiGraphics, int left, int top, float cx, float cz, int panelRadius) {

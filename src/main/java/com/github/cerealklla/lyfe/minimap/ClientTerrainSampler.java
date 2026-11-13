@@ -1,5 +1,6 @@
 package com.github.cerealklla.lyfe.minimap;
 
+import java.util.OptionalInt;
 import java.util.function.Consumer;
 
 import com.google.common.collect.Iterables;
@@ -68,7 +69,20 @@ public final class ClientTerrainSampler {
 
     /** Samples an {@code IMAGE_SIZE x IMAGE_SIZE} image covering {@code radius} blocks in every direction from {@code (centerX, centerZ)}, then hands the result to {@code onComplete} on the render thread. */
     public static void sampleAsync(ClientLevel level, int centerX, int centerZ, int radius, Consumer<NativeImage> onComplete) {
-        sampleAsync(level, centerX, centerZ, radius, IMAGE_SIZE, false, onComplete);
+        sampleAsync(level, centerX, centerZ, radius, IMAGE_SIZE, false, OptionalInt.empty(), onComplete);
+    }
+
+    /** Same as the above, but starts every column's downward scan from {@code startY} instead of
+     *  the heightmap's own cached surface -- built for the minimap's Wyrld Space special case
+     *  (explicit user request, 2026-11-12: a sealed room's real ceiling is the first "surface" a
+     *  normal sky-down scan finds, not the floor the player is actually standing on; starting from
+     *  the player's own Y instead, with a small margin to clear their head, also means a room with
+     *  multiple real floors at different heights -- e.g. a winding ramp tunnel -- always shows
+     *  whichever one the player is currently on, since this gets re-seeded fresh from their
+     *  then-current Y every time a resample happens). See {@link #sampleGrid}'s own doc for exactly
+     *  what the scan does once seeded. */
+    public static void sampleAsync(ClientLevel level, int centerX, int centerZ, int radius, int startY, Consumer<NativeImage> onComplete) {
+        sampleAsync(level, centerX, centerZ, radius, IMAGE_SIZE, false, OptionalInt.of(startY), onComplete);
     }
 
     /**
@@ -89,7 +103,12 @@ public final class ClientTerrainSampler {
      * Brightness.NORMAL}, for a flatter, cleaner look; the minimap keeps the textured default.
      */
     public static void sampleAsync(ClientLevel level, int centerX, int centerZ, int radius, int imageSize, boolean flatShading, Consumer<NativeImage> onComplete) {
-        sampleAsync(level, centerX, centerZ, radius, radius, imageSize, imageSize, flatShading, onComplete);
+        sampleAsync(level, centerX, centerZ, radius, imageSize, flatShading, OptionalInt.empty(), onComplete);
+    }
+
+    /** Same as the above, with a {@link #sampleAsync(ClientLevel, int, int, int, int, Consumer)}-style {@code startYOverride} -- see that overload's own doc. */
+    public static void sampleAsync(ClientLevel level, int centerX, int centerZ, int radius, int imageSize, boolean flatShading, OptionalInt startYOverride, Consumer<NativeImage> onComplete) {
+        sampleAsync(level, centerX, centerZ, radius, radius, imageSize, imageSize, flatShading, startYOverride, onComplete);
     }
 
     /**
@@ -105,16 +124,22 @@ public final class ClientTerrainSampler {
      */
     public static void sampleAsync(ClientLevel level, int centerX, int centerZ, int radiusX, int radiusZ,
             int imageWidth, int imageHeight, boolean flatShading, Consumer<NativeImage> onComplete) {
+        sampleAsync(level, centerX, centerZ, radiusX, radiusZ, imageWidth, imageHeight, flatShading, OptionalInt.empty(), onComplete);
+    }
+
+    /** Same as the above, with a {@link #sampleAsync(ClientLevel, int, int, int, int, Consumer)}-style {@code startYOverride} -- see that overload's own doc. */
+    public static void sampleAsync(ClientLevel level, int centerX, int centerZ, int radiusX, int radiusZ,
+            int imageWidth, int imageHeight, boolean flatShading, OptionalInt startYOverride, Consumer<NativeImage> onComplete) {
         Util.backgroundExecutor().execute(() -> {
-            NativeImage image = sample(level, centerX, centerZ, radiusX, radiusZ, imageWidth, imageHeight, flatShading);
+            NativeImage image = sample(level, centerX, centerZ, radiusX, radiusZ, imageWidth, imageHeight, flatShading, startYOverride);
             Minecraft.getInstance().execute(() -> onComplete.accept(image));
         });
     }
 
     private static NativeImage sample(ClientLevel level, int centerX, int centerZ, int radiusX, int radiusZ,
-            int imageWidth, int imageHeight, boolean flatShading) {
+            int imageWidth, int imageHeight, boolean flatShading, OptionalInt startYOverride) {
         NativeImage image = new NativeImage(NativeImage.Format.RGBA, imageWidth, imageHeight, false);
-        sampleGrid(level, centerX, centerZ, radiusX, radiusZ, imageWidth, imageHeight, flatShading,
+        sampleGrid(level, centerX, centerZ, radiusX, radiusZ, imageWidth, imageHeight, flatShading, startYOverride,
                 (col, row, color, brightness) -> image.setPixelABGR(col, row, argbToAbgr(color.calculateARGBColor(brightness))));
         return image;
     }
@@ -137,6 +162,16 @@ public final class ClientTerrainSampler {
      */
     public static void sampleGrid(ClientLevel level, int centerX, int centerZ, int radiusX, int radiusZ,
             int cols, int rows, boolean flatShading, CellWriter writer) {
+        sampleGrid(level, centerX, centerZ, radiusX, radiusZ, cols, rows, flatShading, OptionalInt.empty(), writer);
+    }
+
+    /** Same as the above, but starts every column's downward scan from {@code startYOverride} (if
+     *  present) instead of the heightmap's own cached {@code WORLD_SURFACE} -- see {@link
+     *  #sampleAsync(ClientLevel, int, int, int, int, Consumer)}'s own doc for why. Everything past
+     *  that one starting value -- walking down to the first real {@link MapColor}, the fluid-depth
+     *  follow-through, the dominant-color/brightness resolution -- is completely unchanged. */
+    public static void sampleGrid(ClientLevel level, int centerX, int centerZ, int radiusX, int radiusZ,
+            int cols, int rows, boolean flatShading, OptionalInt startYOverride, CellWriter writer) {
         int scaleBlocksX = scaleBlocksFor(radiusX, cols);
         int scaleBlocksZ = scaleBlocksFor(radiusZ, rows);
         BlockPos.MutableBlockPos blockPos = new BlockPos.MutableBlockPos();
@@ -160,7 +195,9 @@ public final class ClientTerrainSampler {
                 for (int dx = 0; dx < scaleBlocksX; dx++) {
                     for (int dz = 0; dz < scaleBlocksZ; dz++) {
                         blockPos.set(areaMinX + dx, 0, areaMinZ + dz);
-                        int columnY = chunk.getHeight(Heightmap.Types.WORLD_SURFACE, blockPos.getX(), blockPos.getZ()) + 1;
+                        int columnY = startYOverride.isPresent()
+                                ? startYOverride.getAsInt()
+                                : chunk.getHeight(Heightmap.Types.WORLD_SURFACE, blockPos.getX(), blockPos.getZ()) + 1;
                         BlockState state;
                         if (columnY <= level.getMinY()) {
                             state = Blocks.BEDROCK.defaultBlockState();

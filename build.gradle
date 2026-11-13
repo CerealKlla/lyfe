@@ -185,6 +185,16 @@ dependencies {
     // a record containing a Cartographyr Geometry.Polygon field, which javac must fully resolve.
     compileOnly files("../Settlemynts/build/libs/settlemynts-${settlemynts_version}.jar")
 
+    // Same optional-soft-dependency shape as above, added 2026-11-12 for the minimap's Wyrld Space
+    // special case (bridge.TinyWyrldsMinimapBridge calling api.TinyWyrlds#isWyrldSpace/
+    // #getCurrentPiece), gated behind ModList.get().isLoaded("tinywyrlds") at every actual call
+    // site (see LyfeMod/minimap.WyrldPieceTracker). The minimap's own dimension-id CHECK (used in
+    // the client render path) deliberately does NOT go through this dependency at all -- it uses a
+    // hardcoded ResourceKey, same "match by Identifier, no compiled dependency" precedent this
+    // file's own Settlemynts/Blueprynts minimap-overlay code already established, since that check
+    // runs every frame and a real cross-mod call for a pure dimension-key comparison is unnecessary.
+    compileOnly files("../TinyWyrlds/build/libs/tinywyrlds-${tinywyrlds_version}.jar")
+
     // For more info:
     // http://www.gradle.org/docs/current/userguide/artifact_dependencies_tutorial.html
     // http://www.gradle.org/docs/current/userguide/dependency_management.html

@@ -38,8 +38,11 @@ import com.github.cerealklla.lyfe.map.MapSettlementsPayload;
 import com.github.cerealklla.lyfe.map.QuestWaypointPayload;
 import com.github.cerealklla.lyfe.map.RequestMapDataPayload;
 import com.github.cerealklla.lyfe.minimap.ClientMinimapState;
+import com.github.cerealklla.lyfe.minimap.ClientWyrldPieceState;
 import com.github.cerealklla.lyfe.minimap.MinimapEntitiesPayload;
 import com.github.cerealklla.lyfe.minimap.MinimapTracker;
+import com.github.cerealklla.lyfe.minimap.WyrldPieceSyncPayload;
+import com.github.cerealklla.lyfe.minimap.WyrldPieceTracker;
 import com.github.cerealklla.lyfe.repair.RepairInteractionListener;
 import com.github.cerealklla.lyfe.socket.GemDropListener;
 import com.github.cerealklla.lyfe.socket.PreSocketedGearInjector;
@@ -224,6 +227,15 @@ public class LyfeMod {
         if (ModList.get().isLoaded("settlemynts")) {
             com.github.cerealklla.lyfe.structure.ShopSeedCatalogs.registerAll();
         }
+
+        // Minimap Wyrld Space special case (explicit user request, 2026-11-12) -- the terrain
+        // sampling/rendering side needs no TinyWyrlds data at all (same "pure client-side" shape
+        // as the rest of the minimap), only this tracker, which resolves which real piece a player
+        // is standing inside. See minimap.TinyWyrldsMinimapBridge's own doc for why the minimap's
+        // dimension-id CHECK itself still doesn't need this dependency at all.
+        if (ModList.get().isLoaded("tinywyrlds")) {
+            NeoForge.EVENT_BUS.register(new WyrldPieceTracker());
+        }
     }
 
     private void commonSetup(FMLCommonSetupEvent event) {
@@ -335,6 +347,11 @@ public class LyfeMod {
         // but the handler itself must exist regardless (one global network registry per modid).
         event.registrar("1").playToClient(MinimapEntitiesPayload.TYPE, MinimapEntitiesPayload.STREAM_CODEC,
                 (payload, context) -> ClientMinimapState.setOutlines(payload.outlines()));
+
+        // Registered unconditionally, same reasoning as MinimapEntitiesPayload above -- WyrldPieceTracker
+        // is only ever constructed (and so only ever actually sends this) when TinyWyrlds is loaded.
+        event.registrar("1").playToClient(WyrldPieceSyncPayload.TYPE, WyrldPieceSyncPayload.STREAM_CODEC,
+                (payload, context) -> ClientWyrldPieceState.set(payload.present(), payload.min(), payload.maxExclusive()));
 
         // Client-side handler writes into the zero-Cartographyr-refs ClientWritingRequest bridge
         // (see its own class doc) rather than opening the Screen directly here -- this method must

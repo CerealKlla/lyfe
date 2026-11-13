@@ -140,6 +140,18 @@ config="${mod_id}_summoning.mixins.json"
     ordering="NONE"
     side="BOTH"
 
+# TinyWyrlds is an optional soft dependency, added 2026-11-12 -- the minimap scopes itself to the
+# player's current room/piece (and disables rotation, and samples height from the player's own Y)
+# while inside TinyWyrlds' Wyrld Space dimension; without it, the minimap just never enters that
+# special case (its dimension check is a hardcoded Identifier, not this dependency -- see
+# bridge.TinyWyrldsMinimapBridge's own doc for why only the piece-lookup itself needs this).
+[[dependencies.${mod_id}]]
+    modId="tinywyrlds"
+    type="optional"
+    reason="Scopes the minimap to the player's current room while inside a Wyrld (Tunnel, tutorial dungeon, etc)."
+    ordering="NONE"
+    side="BOTH"
+
 # Features are specific properties of the game environment, that you may want to declare you require. This example declares
 # that your mod requires GL version 3.2 or higher. Other features will be added. They are side aware so declaring this won't
 # stop your mod loading on the server for example.
