@@ -28,8 +28,8 @@ public final class TinyWyrldsMinimapBridge {
     private TinyWyrldsMinimapBridge() {
     }
 
-    /** @param min/@param maxExclusive the piece's own real-world AABB, in whatever dimension the
-     *  player was actually in when this was resolved (always Wyrld Space in practice). */
+    /** @param min/@param maxExclusive the real-world AABB, in whatever dimension the player was
+     *  actually in when this was resolved (always Wyrld Space in practice). */
     public record PieceBounds(BlockPos min, BlockPos maxExclusive) {
     }
 
@@ -37,9 +37,15 @@ public final class TinyWyrldsMinimapBridge {
         return com.github.cerealklla.tinywyrlds.api.TinyWyrlds.isWyrldSpace(dimension);
     }
 
-    /** @return empty if {@code player} isn't currently inside any TinyWyrlds Wyrld at all. */
+    /** The whole current Wyrld instance's own bounds (every room/connector/entrance it contains),
+     *  not just whichever single piece {@code player} happens to be standing in -- switched from
+     *  the single-piece {@code getCurrentPiece} 2026-11-13, see {@code
+     *  api.TinyWyrlds#getCurrentInstanceBounds}'s own doc for why: clipping to one piece was too
+     *  tight, cutting off the rest of the same tunnel the player is actually walking through, not
+     *  just unrelated neighboring instances.
+     *  @return empty if {@code player} isn't currently inside any TinyWyrlds Wyrld at all. */
     public static Optional<PieceBounds> getCurrentPiece(ServerPlayer player) {
-        return com.github.cerealklla.tinywyrlds.api.TinyWyrlds.getCurrentPiece(player)
+        return com.github.cerealklla.tinywyrlds.api.TinyWyrlds.getCurrentInstanceBounds(player)
                 .map(info -> new PieceBounds(info.minCorner(), info.maxCornerExclusive()));
     }
 }

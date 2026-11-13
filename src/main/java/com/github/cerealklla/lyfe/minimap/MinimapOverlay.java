@@ -477,16 +477,20 @@ public final class MinimapOverlay implements GuiLayer {
     }
 
     /** The Wyrld Space branch of {@link #maybeResample} -- centers/sizes the sample on the
-     *  player's own current piece (see {@link ClientWyrldPieceState}) instead of their live
+     *  player's own current Wyrld INSTANCE (see {@link ClientWyrldPieceState}) instead of their live
      *  position/skill-scaled radius, and seeds the height scan from their own current Y instead of
-     *  the heightmap. The sampled center/radius only actually change when the player walks into a
-     *  different piece (a room's own footprint doesn't move while they're standing in it), but this
-     *  still resamples on the same {@code due} cadence as the overworld path regardless -- cheap
-     *  (self-throttled, async, same as everywhere else in this class) and means the view re-seeds
-     *  from the player's current Y as they walk up/down within one piece (e.g. a winding ramp),
-     *  not just when the piece itself changes. Falls back to a small view centered on the player
-     *  directly if no piece is currently known (not in any single piece's own footprint, or
-     *  TinyWyrlds isn't loaded at all) -- same fallback a connecting corridor cell already needs. */
+     *  the heightmap. Corrected 2026-11-13 from an earlier version scoped to the single current
+     *  piece (room/connector) -- that clipped too tightly, cutting off the rest of the same tunnel
+     *  the player is actually walking through; the whole instance's own bounds still can't leak a
+     *  different, unrelated Wyrld's content, since each instance gets its own non-overlapping
+     *  allocated space (see {@code TinyWyrldsMinimapBridge#getCurrentPiece}'s own doc). The sampled
+     *  center/radius only actually change when the player enters a different instance entirely, but
+     *  this still resamples on the same {@code due} cadence as the overworld path regardless --
+     *  cheap (self-throttled, async, same as everywhere else in this class) and means the view
+     *  re-seeds from the player's current Y as they walk up/down (e.g. a winding ramp), not just
+     *  when the instance itself changes. Falls back to a small view centered on the player directly
+     *  if no instance is currently known (TinyWyrlds isn't loaded, or this Wyrld predates the
+     *  feature) -- same fallback a pre-feature Wyrld already needs. */
     private void maybeResampleWyrldRoom(ClientLevel level, LocalPlayer player) {
         boolean due = ticksSinceLastSample >= RESAMPLE_INTERVAL_TICKS;
         if (ClientMinimapState.hasTexture() && !due) {
