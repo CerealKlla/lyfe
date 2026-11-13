@@ -223,7 +223,7 @@ public final class MinimapOverlay implements GuiLayer {
         // extent (+-MARKER_DOT_RADIUS) poking past it. Lines get the same, slightly more generous
         // margin for free -- harmless, they just stop a couple pixels earlier.
         int contentRadius = radius - BORDER_THICKNESS - MARKER_DOT_RADIUS;
-        drawOutlines(guiGraphics, left, top, cx, cz, contentRadius);
+        drawOutlines(guiGraphics, left, top, cx, cz, contentRadius, player);
         drawInProgressStakes(guiGraphics, left, top, level, player, cx, cz, contentRadius);
         drawBuildingLocatorPreview(guiGraphics, left, top, level, player, cx, cz, contentRadius);
         // Drawn inside this same (conditionally rotated) block, not after it -- when Auto-Rotate is
@@ -538,12 +538,17 @@ public final class MinimapOverlay implements GuiLayer {
                 image -> ClientMinimapState.setTexture(image, centerX, centerZ, radius));
     }
 
-    private void drawOutlines(GuiGraphicsExtractor guiGraphics, int left, int top, float cx, float cz, int panelRadius) {
+    private void drawOutlines(GuiGraphicsExtractor guiGraphics, int left, int top, float cx, float cz, int panelRadius, LocalPlayer player) {
         int radius = ClientMinimapState.sampledEffectiveRadius();
         if (radius <= 0) {
             return;
         }
         double pixelsPerBlock = (double) SIZE / (radius * 2);
+        // Subtracts the player's own LIVE position every frame, not a stale offset baked in back
+        // when the payload was last sent -- see MinimapEntitiesPayload's own class doc for the real
+        // drift bug this replaced (2026-11-13).
+        double playerX = player.getX();
+        double playerZ = player.getZ();
         for (MinimapEntitiesPayload.Outline outline : ClientMinimapState.outlines()) {
             int color = switch (outline.kind()) {
                 case SETTLEMENT_CORE -> 0xFFFFFFFF;
@@ -551,15 +556,15 @@ public final class MinimapOverlay implements GuiLayer {
                 case NATURAL_SETTLEMENT -> 0xFFFFD24C; // gold -- distinct from player-founded white/light-blue
                 case NATURAL_PLOT -> 0xFFFF55FF; // magenta -- distinct from all three above
             };
-            var xs = outline.relativeX();
-            var zs = outline.relativeZ();
+            var xs = outline.worldX();
+            var zs = outline.worldZ();
             int count = xs.size();
             for (int i = 0; i < count; i++) {
                 int j = (i + 1) % count;
-                int x1 = left + SIZE / 2 + (int) Math.round(xs.get(i) * pixelsPerBlock);
-                int y1 = top + SIZE / 2 + (int) Math.round(zs.get(i) * pixelsPerBlock);
-                int x2 = left + SIZE / 2 + (int) Math.round(xs.get(j) * pixelsPerBlock);
-                int y2 = top + SIZE / 2 + (int) Math.round(zs.get(j) * pixelsPerBlock);
+                int x1 = left + SIZE / 2 + (int) Math.round((xs.get(i) - playerX) * pixelsPerBlock);
+                int y1 = top + SIZE / 2 + (int) Math.round((zs.get(i) - playerZ) * pixelsPerBlock);
+                int x2 = left + SIZE / 2 + (int) Math.round((xs.get(j) - playerX) * pixelsPerBlock);
+                int y2 = top + SIZE / 2 + (int) Math.round((zs.get(j) - playerZ) * pixelsPerBlock);
                 drawLine(guiGraphics, x1, y1, x2, y2, color, cx, cz, panelRadius);
             }
         }

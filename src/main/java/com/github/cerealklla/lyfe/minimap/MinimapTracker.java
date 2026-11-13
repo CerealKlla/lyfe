@@ -97,20 +97,23 @@ public final class MinimapTracker {
                                     ? MinimapEntitiesPayload.Kind.NATURAL_PLOT
                                     : MinimapEntitiesPayload.Kind.NATURAL_SETTLEMENT;
 
-            List<Integer> relX = new ArrayList<>(polygon.vertices().size());
-            List<Integer> relZ = new ArrayList<>(polygon.vertices().size());
+            // Sent as absolute world coordinates, not offsets relative to pos -- see
+            // MinimapEntitiesPayload's own class doc for why (a real live drift bug: offsets baked
+            // in at send time went stale the instant the player moved again, with no equivalent to
+            // the terrain texture's own live shift correction).
+            List<Integer> worldX = new ArrayList<>(polygon.vertices().size());
+            List<Integer> worldZ = new ArrayList<>(polygon.vertices().size());
             boolean withinRange = false;
             for (Geometry.Polygon.Vertex vertex : polygon.vertices()) {
-                int dx = vertex.x() - pos.getX();
-                int dz = vertex.z() - pos.getZ();
-                if (Math.abs(dx) <= QUERY_RADIUS_BLOCKS && Math.abs(dz) <= QUERY_RADIUS_BLOCKS) {
+                if (Math.abs(vertex.x() - pos.getX()) <= QUERY_RADIUS_BLOCKS
+                        && Math.abs(vertex.z() - pos.getZ()) <= QUERY_RADIUS_BLOCKS) {
                     withinRange = true;
                 }
-                relX.add(dx);
-                relZ.add(dz);
+                worldX.add(vertex.x());
+                worldZ.add(vertex.z());
             }
             if (withinRange) {
-                outlines.add(new MinimapEntitiesPayload.Outline(kind, relX, relZ));
+                outlines.add(new MinimapEntitiesPayload.Outline(kind, worldX, worldZ));
             }
         }
 
