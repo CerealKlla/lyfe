@@ -1,5 +1,6 @@
 package com.github.cerealklla.lyfe.minimap;
 
+import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.function.Consumer;
 
@@ -108,7 +109,29 @@ public final class ClientTerrainSampler {
 
     /** Same as the above, with a {@link #sampleAsync(ClientLevel, int, int, int, int, Consumer)}-style {@code startYOverride} -- see that overload's own doc. */
     public static void sampleAsync(ClientLevel level, int centerX, int centerZ, int radius, int imageSize, boolean flatShading, OptionalInt startYOverride, Consumer<NativeImage> onComplete) {
-        sampleAsync(level, centerX, centerZ, radius, radius, imageSize, imageSize, flatShading, startYOverride, onComplete);
+        sampleAsync(level, centerX, centerZ, radius, radius, imageSize, imageSize, flatShading, startYOverride, Optional.empty(), onComplete);
+    }
+
+    /**
+     * A real-world {@code [minX, maxX) x [minZ, maxZ)} box -- cells sampled outside it are left
+     * unwritten (transparent), same as an unloaded chunk already is. Built for the minimap's Wyrld
+     * Space special case, 2026-11-13: rooms are packed into the shared void dimension with no
+     * guaranteed gap between neighbors, so a sampled cell near a room's own wall can be real terrain
+     * belonging to a completely different, unrelated generated Wyrld instance sitting right next
+     * door -- confirmed live (a screenshot showing unrelated room/corridor shapes outside the current
+     * room's own walls). Clipping to the current piece's own bounds, independent of margin/radius,
+     * is correct regardless of how tightly instances happen to be packed.
+     */
+    public record ClipBounds(int minX, int maxX, int minZ, int maxZ) {
+        boolean contains(int x, int z) {
+            return x >= minX && x < maxX && z >= minZ && z < maxZ;
+        }
+    }
+
+    /** Same as the above, with an optional {@link ClipBounds} -- see its own doc. */
+    public static void sampleAsync(ClientLevel level, int centerX, int centerZ, int radius, int imageSize,
+            boolean flatShading, OptionalInt startYOverride, Optional<ClipBounds> clipBounds, Consumer<NativeImage> onComplete) {
+        sampleAsync(level, centerX, centerZ, radius, radius, imageSize, imageSize, flatShading, startYOverride, clipBounds, onComplete);
     }
 
     /**
@@ -124,22 +147,28 @@ public final class ClientTerrainSampler {
      */
     public static void sampleAsync(ClientLevel level, int centerX, int centerZ, int radiusX, int radiusZ,
             int imageWidth, int imageHeight, boolean flatShading, Consumer<NativeImage> onComplete) {
-        sampleAsync(level, centerX, centerZ, radiusX, radiusZ, imageWidth, imageHeight, flatShading, OptionalInt.empty(), onComplete);
+        sampleAsync(level, centerX, centerZ, radiusX, radiusZ, imageWidth, imageHeight, flatShading, OptionalInt.empty(), Optional.empty(), onComplete);
     }
 
     /** Same as the above, with a {@link #sampleAsync(ClientLevel, int, int, int, int, Consumer)}-style {@code startYOverride} -- see that overload's own doc. */
     public static void sampleAsync(ClientLevel level, int centerX, int centerZ, int radiusX, int radiusZ,
             int imageWidth, int imageHeight, boolean flatShading, OptionalInt startYOverride, Consumer<NativeImage> onComplete) {
+        sampleAsync(level, centerX, centerZ, radiusX, radiusZ, imageWidth, imageHeight, flatShading, startYOverride, Optional.empty(), onComplete);
+    }
+
+    /** Same as the above, with an optional {@link ClipBounds} -- see its own doc. */
+    public static void sampleAsync(ClientLevel level, int centerX, int centerZ, int radiusX, int radiusZ,
+            int imageWidth, int imageHeight, boolean flatShading, OptionalInt startYOverride, Optional<ClipBounds> clipBounds, Consumer<NativeImage> onComplete) {
         Util.backgroundExecutor().execute(() -> {
-            NativeImage image = sample(level, centerX, centerZ, radiusX, radiusZ, imageWidth, imageHeight, flatShading, startYOverride);
+            NativeImage image = sample(level, centerX, centerZ, radiusX, radiusZ, imageWidth, imageHeight, flatShading, startYOverride, clipBounds);
             Minecraft.getInstance().execute(() -> onComplete.accept(image));
         });
     }
 
     private static NativeImage sample(ClientLevel level, int centerX, int centerZ, int radiusX, int radiusZ,
-            int imageWidth, int imageHeight, boolean flatShading, OptionalInt startYOverride) {
+            int imageWidth, int imageHeight, boolean flatShading, OptionalInt startYOverride, Optional<ClipBounds> clipBounds) {
         NativeImage image = new NativeImage(NativeImage.Format.RGBA, imageWidth, imageHeight, false);
-        sampleGrid(level, centerX, centerZ, radiusX, radiusZ, imageWidth, imageHeight, flatShading, startYOverride,
+        sampleGrid(level, centerX, centerZ, radiusX, radiusZ, imageWidth, imageHeight, flatShading, startYOverride, clipBounds,
                 (col, row, color, brightness) -> image.setPixelABGR(col, row, argbToAbgr(color.calculateARGBColor(brightness))));
         return image;
     }
@@ -162,7 +191,7 @@ public final class ClientTerrainSampler {
      */
     public static void sampleGrid(ClientLevel level, int centerX, int centerZ, int radiusX, int radiusZ,
             int cols, int rows, boolean flatShading, CellWriter writer) {
-        sampleGrid(level, centerX, centerZ, radiusX, radiusZ, cols, rows, flatShading, OptionalInt.empty(), writer);
+        sampleGrid(level, centerX, centerZ, radiusX, radiusZ, cols, rows, flatShading, OptionalInt.empty(), Optional.empty(), writer);
     }
 
     /** Same as the above, but starts every column's downward scan from {@code startYOverride} (if
@@ -172,6 +201,12 @@ public final class ClientTerrainSampler {
      *  follow-through, the dominant-color/brightness resolution -- is completely unchanged. */
     public static void sampleGrid(ClientLevel level, int centerX, int centerZ, int radiusX, int radiusZ,
             int cols, int rows, boolean flatShading, OptionalInt startYOverride, CellWriter writer) {
+        sampleGrid(level, centerX, centerZ, radiusX, radiusZ, cols, rows, flatShading, startYOverride, Optional.empty(), writer);
+    }
+
+    /** Same as the above, with an optional {@link ClipBounds} -- see its own doc. */
+    public static void sampleGrid(ClientLevel level, int centerX, int centerZ, int radiusX, int radiusZ,
+            int cols, int rows, boolean flatShading, OptionalInt startYOverride, Optional<ClipBounds> clipBounds, CellWriter writer) {
         int scaleBlocksX = scaleBlocksFor(radiusX, cols);
         int scaleBlocksZ = scaleBlocksFor(radiusZ, rows);
         BlockPos.MutableBlockPos blockPos = new BlockPos.MutableBlockPos();
@@ -183,6 +218,11 @@ public final class ClientTerrainSampler {
             for (int row = 0; row < rows; row++) {
                 int areaMinX = centerX + (col - cols / 2) * scaleBlocksX;
                 int areaMinZ = centerZ + (row - rows / 2) * scaleBlocksZ;
+
+                if (clipBounds.isPresent()
+                        && !clipBounds.get().contains(areaMinX + scaleBlocksX / 2, areaMinZ + scaleBlocksZ / 2)) {
+                    continue; // Outside the current piece's own bounds -- leave the cell unwritten (see ClipBounds' own doc).
+                }
 
                 LevelChunk chunk = level.getChunk(SectionPos.blockToSectionCoord(areaMinX), SectionPos.blockToSectionCoord(areaMinZ));
                 if (chunk.isEmpty()) {

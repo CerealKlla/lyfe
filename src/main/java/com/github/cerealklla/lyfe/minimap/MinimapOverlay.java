@@ -3,6 +3,7 @@ package com.github.cerealklla.lyfe.minimap;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.OptionalInt;
 
 import com.github.cerealklla.lyfe.api.Lyfe;
 import com.github.cerealklla.lyfe.expeditionist.ExpeditionistConstants;
@@ -118,6 +119,9 @@ public final class MinimapOverlay implements GuiLayer {
     // How many extra blocks of margin to sample past a piece's own real footprint, so its walls
     // are visible rather than cropped exactly at the edge.
     private static final int WYRLD_ROOM_VIEW_MARGIN_BLOCKS = 3;
+    // Real-world radius is divided by this before sampling -- explicit user request 2026-11-13
+    // ("zoom in maybe 2x"), the fit-the-whole-room default having looked too zoomed out live.
+    private static final int WYRLD_ROOM_VIEW_ZOOM = 2;
     // How far above the player's own feet the downward height-scan starts -- enough to clear a
     // standing player's own head inside a typically-sized authored room, so the scan begins in
     // real air rather than inside whatever block is at their exact eye level.
@@ -470,6 +474,7 @@ public final class MinimapOverlay implements GuiLayer {
         int centerX;
         int centerZ;
         int radius;
+        Optional<ClientTerrainSampler.ClipBounds> clipBounds;
         if (ClientWyrldPieceState.present()) {
             BlockPos min = ClientWyrldPieceState.min();
             BlockPos max = ClientWyrldPieceState.maxExclusive();
@@ -477,17 +482,23 @@ public final class MinimapOverlay implements GuiLayer {
             centerZ = (min.getZ() + max.getZ()) / 2;
             int halfWidth = (max.getX() - min.getX()) / 2;
             int halfLength = (max.getZ() - min.getZ()) / 2;
-            radius = Math.max(halfWidth, halfLength) + WYRLD_ROOM_VIEW_MARGIN_BLOCKS;
+            radius = Math.max(1, (Math.max(halfWidth, halfLength) + WYRLD_ROOM_VIEW_MARGIN_BLOCKS) / WYRLD_ROOM_VIEW_ZOOM);
+            // Clipped to the piece's own real bounds -- see ClipBounds' own doc: rooms are packed
+            // with no guaranteed gap, so without this a sample near a wall can show a neighboring,
+            // unrelated generated Wyrld instance's own content (confirmed live via screenshot).
+            clipBounds = Optional.of(new ClientTerrainSampler.ClipBounds(min.getX(), max.getX(), min.getZ(), max.getZ()));
         } else {
             centerX = player.getBlockX();
             centerZ = player.getBlockZ();
             radius = SIZE / 2;
+            clipBounds = Optional.empty();
         }
 
         ticksSinceLastSample = 0;
         ClientMinimapState.beginSampling();
         int startY = player.getBlockY() + WYRLD_ROOM_VIEW_START_Y_MARGIN;
-        ClientTerrainSampler.sampleAsync(level, centerX, centerZ, radius, startY,
+        ClientTerrainSampler.sampleAsync(level, centerX, centerZ, radius, ClientTerrainSampler.IMAGE_SIZE,
+                false, OptionalInt.of(startY), clipBounds,
                 image -> ClientMinimapState.setTexture(image, centerX, centerZ, radius));
     }
 
