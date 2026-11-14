@@ -145,7 +145,11 @@ public final class RunewordEffectListener {
         if (!(event.getEntity().level() instanceof ServerLevel level) || !(event.getSource().getEntity() instanceof ServerPlayer killer)) {
             return;
         }
-        for (ItemStack stack : List.of(killer.getMainHandItem())) {
+        // Both hands -- same "no main-hand/off-hand distinction" rule onIncomingDamage's attacker
+        // side already follows (explicit user spec, 2026-10-30). Real gap found 2026-11-15: this
+        // loop only ever checked the mainhand item, so an ON_KILL_* Runeword (e.g. Worldbreaker)
+        // socketed into an off-hand Focus could never proc at all, silently contradicting that rule.
+        for (ItemStack stack : List.of(killer.getMainHandItem(), killer.getOffhandItem())) {
             RunewordDefinition active = activeRuneword(stack);
             if (active == null) {
                 continue;
