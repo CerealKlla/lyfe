@@ -417,3 +417,10 @@ NPC directly and captures it itself, so Settlemynts' own `bridge.LyfeTavernBridg
 that logic. `./gradlew build`/`test` green, whole-suite (14 mods) rebuild + `runServer`
 boot-smoke-test clean. **Not yet live-tested** -- summon/dispel, the death-then-cooldown cycle, and
 the dimension-change despawn path all still need a real playtest.
+
+**Real bug fixed, 2026-11-14: Tavern Companion Token wasn't protected by Reincarnation like other
+companions** (see [context/decisions.md](context/decisions.md),
+[context/classes/Reincarnation.md](context/classes/Reincarnation.md)) -- real report, "the tavern
+NPC was dropped when I died and should not have." `reincarnation.ItemClassification#isBoundCompanion`
+only ever checked Allay in a Bottle/the Summoning Stone; `ModItems.COMPANION_TOKEN` (added a week
+after that check was written) was never added. Fixed. `./gradlew build` green.

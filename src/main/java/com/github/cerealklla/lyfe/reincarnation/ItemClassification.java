@@ -68,12 +68,21 @@ public final class ItemClassification {
     /**
      * Explicit user request, 2026-10-24: "Allay in a Bottle and Summoning stones need to be
      * preserved if in a slot protected by Reincarnation." Unlike the Recallcinite Totem (its own
-     * dedicated, Reincarnation-level-independent always-protected mechanic), these two are meant to
+     * dedicated, Reincarnation-level-independent always-protected mechanic), these are meant to
      * ride the normal leveled hotbar/offhand protection like any other real weapon/tool -- a player
      * still needs to have earned a protected slot for it to matter.
+     *
+     * <p><b>Real gap found 2026-11-14</b>: "all companions should be protected like allays with
+     * reincarnation" -- {@code companion.CompanionTokenItem} (Settlemynts' Tavern hire, added
+     * 2026-10-31, a week after this method was written) was never added here, so a hired companion
+     * sitting in an otherwise-protected slot still dropped on death, unlike Allay in a Bottle/the
+     * Summoning Stone. These three are the complete set of companion-carrying items in this
+     * codebase (confirmed via a full registry check before fixing, not guessed) -- any future
+     * companion-carrying item type must be added here too, the same way this one was missed.
      */
     private static boolean isBoundCompanion(ItemStack stack) {
         return stack.is(com.github.cerealklla.lyfe.registration.ModItems.SUMMONING_STONE.get())
-                || stack.is(com.github.cerealklla.lyfe.registration.ModItems.ALLAY_BOTTLE.get());
+                || stack.is(com.github.cerealklla.lyfe.registration.ModItems.ALLAY_BOTTLE.get())
+                || stack.is(com.github.cerealklla.lyfe.registration.ModItems.COMPANION_TOKEN.get());
     }
 }
