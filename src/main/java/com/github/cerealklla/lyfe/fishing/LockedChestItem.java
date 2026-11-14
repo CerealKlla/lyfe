@@ -100,6 +100,7 @@ public class LockedChestItem extends Item {
         if (player.containerMenu != null) {
             player.containerMenu.slotsChanged(player.getInventory());
         }
+        SunkenTreasureItem.recordRuneDiscovery(player, result.removed());
         return true;
     }
 
@@ -123,6 +124,7 @@ public class LockedChestItem extends Item {
         if (result.contents().isEmpty()) {
             chest.shrink(1);
         }
+        SunkenTreasureItem.recordRuneDiscovery(player, result.removed());
         return InteractionResult.SUCCESS_SERVER;
     }
 }

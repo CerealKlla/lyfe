@@ -42,6 +42,12 @@ public final class RuneCodexTab implements NuclyusMenu {
     private static final int MARGIN = 10;
     private static final int SUB_TAB_HEIGHT = 20;
     private static final int ROW_HEIGHT = 12;
+    // Real report, 2026-11-14: "Runes Found" used a single narrow column, so most of the 30 real
+    // Runes were cut off below the viewport with no visible scrollbar hinting that more existed --
+    // a plain grid uses the tab's actual width and fits far more per screen without relying on an
+    // undiscoverable scroll (still kept, for a narrow window with too many rows regardless). 100px
+    // comfortably fits the longest real label ("Lorn Rune" etc., 4-letter RuneId + " Rune").
+    private static final int COLUMN_WIDTH = 100;
     private static final int SUB_TAB_BG = 0xFF373737;
     private static final int SUB_TAB_ACTIVE_BG = 0xFFC6C6C6;
     private static final int SUB_TAB_TEXT_COLOR = 0xFF202020;
@@ -110,7 +116,14 @@ public final class RuneCodexTab implements NuclyusMenu {
 
     @Override
     public boolean mouseScrolled(Rect2i area, double mouseX, double mouseY, double scrollX, double scrollY) {
-        int contentHeight = subTab == 0 ? discoveredRunes().size() * ROW_HEIGHT : RunewordCatalog.all().size() * ROW_HEIGHT * 2;
+        int contentHeight;
+        if (subTab == 0) {
+            int columns = Math.max(1, (area.getWidth() - 2 * MARGIN) / COLUMN_WIDTH);
+            int rows = (discoveredRunes().size() + columns - 1) / columns;
+            contentHeight = rows * ROW_HEIGHT;
+        } else {
+            contentHeight = RunewordCatalog.all().size() * ROW_HEIGHT * 2;
+        }
         int viewport = area.getHeight() - SUB_TAB_HEIGHT - 2 * MARGIN;
         int maxScroll = Math.max(0, contentHeight - viewport);
         scrollOffset = Math.max(0, Math.min(maxScroll, scrollOffset - (int) (scrollY * ROW_HEIGHT * 2)));
@@ -154,13 +167,16 @@ public final class RuneCodexTab implements NuclyusMenu {
         }
         List<RuneId> sorted = new ArrayList<>(discovered);
         sorted.sort((a, b) -> a.displayName().compareTo(b.displayName()));
-        int y = top - scrollOffset;
+        int columns = Math.max(1, (right - left) / COLUMN_WIDTH);
         Component hoveredTooltip = null;
-        for (RuneId id : sorted) {
+        for (int i = 0; i < sorted.size(); i++) {
+            RuneId id = sorted.get(i);
+            int x = left + (i % columns) * COLUMN_WIDTH;
+            int y = top + (i / columns) * ROW_HEIGHT - scrollOffset;
             if (y + ROW_HEIGHT >= top && y <= bottom) {
                 String label = id.displayName() + " Rune";
-                graphics.text(font, Component.literal(label), left, y, ITEM_COLOR, false);
-                if (mouseX >= left && mouseX < right && mouseY >= y && mouseY < y + ROW_HEIGHT) {
+                graphics.text(font, Component.literal(label), x, y, ITEM_COLOR, false);
+                if (mouseX >= x && mouseX < x + COLUMN_WIDTH && mouseY >= y && mouseY < y + ROW_HEIGHT) {
                     RuneCatalog.RuneStat stat = RuneCatalog.of(id);
                     if (stat != null) {
                         String sign = stat.amount() >= 0 ? "+" : "";
@@ -168,7 +184,6 @@ public final class RuneCodexTab implements NuclyusMenu {
                     }
                 }
             }
-            y += ROW_HEIGHT;
         }
         if (hoveredTooltip != null) {
             graphics.setTooltipForNextFrame(font, hoveredTooltip, mouseX, mouseY);

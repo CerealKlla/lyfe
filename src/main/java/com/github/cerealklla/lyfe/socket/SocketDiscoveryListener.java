@@ -6,9 +6,11 @@ import com.github.cerealklla.lyfe.research.PlayerResearch;
 
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.neoforge.event.entity.player.ItemEntityPickupEvent;
+import net.neoforged.neoforge.event.entity.player.PlayerContainerEvent;
 
 /**
  * "Players should learn the recipe for the die grinder and pry bar the first time they find a rune
@@ -50,8 +52,42 @@ public final class SocketDiscoveryListener {
         }
     }
 
-    /** @return true if at least one previously-undiscovered {@link RuneId} was just recorded. */
-    static boolean recordDiscoveredRunes(ServerPlayer player, ItemStack stack) {
+    /**
+     * Real gap found 2026-11-14 -- a Rune taken out of a container via the inventory GUI (a loot
+     * chest, any chest, a Construction Box, etc.) never fires {@link ItemEntityPickupEvent} at all
+     * (nothing was picked up off the ground), so it silently never got recorded -- confirmed live:
+     * "Wyn" was visibly held/tooltipped but absent from an otherwise-alphabetically-complete Codex
+     * list. {@link RuneBackfillListener} can't help either, since it's a genuine one-time migration,
+     * gated to never run twice for the same player. Same "react to container interaction instead of
+     * polling" fix this exact gap already got elsewhere in this suite (`GuardEquipBoxChangeListener`/
+     * `CoinPurseListener`/`RecallciniteListener` all use this identical event for this identical
+     * reason) -- scans the player's whole inventory on every container close, same scan
+     * {@link RuneBackfillListener} itself already uses, just not limited to running once.
+     */
+    @SubscribeEvent
+    public void onContainerClose(PlayerContainerEvent.Close event) {
+        if (!(event.getEntity() instanceof ServerPlayer player)) {
+            return;
+        }
+        boolean any = false;
+        Inventory inventory = player.getInventory();
+        for (int slot = 0; slot < inventory.getContainerSize(); slot++) {
+            ItemStack stack = inventory.getItem(slot);
+            if (!stack.isEmpty()) {
+                any |= recordDiscoveredRunes(player, stack);
+            }
+        }
+        if (any) {
+            player.syncData(ModAttachments.PLAYER_DISCOVERED_RUNES);
+        }
+    }
+
+    /**
+     * @return true if at least one previously-undiscovered {@link RuneId} was just recorded.
+     * Public, not package-private -- widened 2026-11-14 for {@code fishing.SunkenTreasureItem}/
+     * {@code LockedChestItem}'s own direct call sites (see their own doc for why).
+     */
+    public static boolean recordDiscoveredRunes(ServerPlayer player, ItemStack stack) {
         var discovered = player.getData(ModAttachments.PLAYER_DISCOVERED_RUNES);
         boolean any = false;
         RuneId bareRuneId = RuneItem.runeIdOf(stack);

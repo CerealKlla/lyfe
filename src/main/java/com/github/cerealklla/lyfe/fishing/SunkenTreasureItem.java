@@ -3,9 +3,12 @@ package com.github.cerealklla.lyfe.fishing;
 import java.util.Optional;
 
 import com.github.cerealklla.lyfe.LyfeMod;
+import com.github.cerealklla.lyfe.registration.ModAttachments;
 import com.github.cerealklla.lyfe.registration.ModItems;
+import com.github.cerealklla.lyfe.socket.SocketDiscoveryListener;
 
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
@@ -76,6 +79,7 @@ public class SunkenTreasureItem extends Item {
         if (player.containerMenu != null) {
             player.containerMenu.slotsChanged(player.getInventory());
         }
+        recordRuneDiscovery(player, result.removed());
         return true;
     }
 
@@ -99,6 +103,22 @@ public class SunkenTreasureItem extends Item {
         if (result.contents().isEmpty()) {
             bag.shrink(1);
         }
+        recordRuneDiscovery(player, result.removed());
         return InteractionResult.SUCCESS_SERVER;
+    }
+
+    /**
+     * Real gap found 2026-11-14: popping an item out of a Sunken Treasure Bag inserts it directly
+     * into the player's inventory via {@code player.getInventory().add}/{@code slot.set} -- no
+     * ground {@code ItemEntity} and no container GUI involved at all, so neither of
+     * {@code socket.SocketDiscoveryListener}'s two existing hooks (ground pickup, container close)
+     * would see a Rune the instant it's popped out, same as {@link LockedChestItem}'s identical
+     * shape. Direct call here, same established precedent as the Diamond Pry Bar extraction fix.
+     */
+    static void recordRuneDiscovery(Player player, ItemStack stack) {
+        if (player instanceof ServerPlayer serverPlayer
+                && SocketDiscoveryListener.recordDiscoveredRunes(serverPlayer, stack)) {
+            serverPlayer.syncData(ModAttachments.PLAYER_DISCOVERED_RUNES);
+        }
     }
 }
