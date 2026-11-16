@@ -23,13 +23,18 @@ import net.minecraft.resources.Identifier;
  * surrounding natural region, otherwise absent); {@code line2} is one of "Town Proper"/"No Man's
  * Land"/"Outskirts"/a plot's own name (or "Residence"), or absent if neither applies -- see {@code
  * LocationTracker#resolve} for the full resolution order.
+ *
+ * <p><b>Gained {@code kingdomLine}, 2026-11-15</b> -- explicit user spec: "if I'm in a kingdom
+ * right now then the very top line of the location text should be the kingdom name." Always the
+ * topmost line when present, independent of {@code line1}/{@code line2}.
  */
-public record LocationPayload(Optional<String> line1, Optional<String> line2) implements CustomPacketPayload {
+public record LocationPayload(Optional<String> kingdomLine, Optional<String> line1, Optional<String> line2) implements CustomPacketPayload {
 
     public static final Type<LocationPayload> TYPE =
             new Type<>(Identifier.fromNamespaceAndPath(LyfeMod.MODID, "location"));
 
     public static final StreamCodec<ByteBuf, LocationPayload> STREAM_CODEC = StreamCodec.composite(
+            ByteBufCodecs.optional(ByteBufCodecs.STRING_UTF8), LocationPayload::kingdomLine,
             ByteBufCodecs.optional(ByteBufCodecs.STRING_UTF8), LocationPayload::line1,
             ByteBufCodecs.optional(ByteBufCodecs.STRING_UTF8), LocationPayload::line2,
             LocationPayload::new);

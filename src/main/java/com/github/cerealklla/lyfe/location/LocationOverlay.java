@@ -1,6 +1,7 @@
 package com.github.cerealklla.lyfe.location;
 
 import java.util.Optional;
+import java.util.stream.Stream;
 
 import com.github.cerealklla.lyfe.minimap.MinimapOverlay;
 
@@ -29,6 +30,11 @@ import net.neoforged.neoforge.client.gui.GuiLayer;
  * minimap.MinimapOverlay}'s own doc) -- its top offset is {@link MinimapOverlay#RESERVED_HEIGHT}
  * plus this class's own {@link #MARGIN}, not just {@code MARGIN} alone, so the two stack as one
  * top-right column regardless of the minimap's own size.
+ *
+ * <p><b>Gained a Kingdom line, 2026-11-15</b> (explicit user spec: "if I'm in a kingdom right now
+ * then the very top line of the location text should be the kingdom name") -- always rendered
+ * first/topmost when present, above both existing lines, which otherwise keep their own relative
+ * order and independence from each other exactly as before.
  */
 public final class LocationOverlay implements GuiLayer {
 
@@ -39,16 +45,17 @@ public final class LocationOverlay implements GuiLayer {
 
     @Override
     public void render(GuiGraphicsExtractor guiGraphics, DeltaTracker deltaTracker) {
+        Optional<String> kingdomLine = ClientLocationState.getKingdomLine();
         Optional<String> line1 = ClientLocationState.getLine1();
         Optional<String> line2 = ClientLocationState.getLine2();
-        if (line1.isEmpty() && line2.isEmpty()) {
+        if (kingdomLine.isEmpty() && line1.isEmpty() && line2.isEmpty()) {
             return;
         }
 
         Font font = Minecraft.getInstance().font;
-        String[] texts = line1.isPresent() && line2.isPresent()
-                ? new String[] {line1.get(), line2.get()}
-                : line1.isPresent() ? new String[] {line1.get()} : new String[] {line2.get()};
+        String[] texts = Stream.of(kingdomLine, line1, line2)
+                .flatMap(Optional::stream)
+                .toArray(String[]::new);
 
         int maxWidth = 0;
         for (String text : texts) {

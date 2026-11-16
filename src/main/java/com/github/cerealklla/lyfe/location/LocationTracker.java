@@ -1,5 +1,6 @@
 package com.github.cerealklla.lyfe.location;
 
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -63,14 +64,22 @@ public final class LocationTracker {
     // needs its own check here too or standing inside one never resolves past "Outskirts"/"Town Proper".
     private static final EntityType NATURAL_PLOT_TYPE = new EntityType(Identifier.fromNamespaceAndPath("settlemynts", "natural_plot"));
 
+    // Terrytories' Kingdom layer (added 2026-11-15) -- a single polygon that can span thousands of
+    // blocks around origin (the convex hull of the nearest several settlements, padded outward), far
+    // bigger than any settlement/region this class otherwise deals with. Matched by a hardcoded
+    // Identifier, not a compiled dependency -- Lyfe has no build-time dependency on Terrytories, same
+    // soft cross-mod contract as the Settlemynts ids above. See the real regression this fixes, noted
+    // at its one use below.
+    private static final Identifier KINGDOM_LAYER_ID = Identifier.fromNamespaceAndPath("terrytories", "kingdom");
+
     // Matched by exact label text, not an id -- Cartographyr's designation field only ever stores
     // Settlemynts' ZoneType#label() string (see FinalizePlotPayload's handler), not its Identifier.
     // Same soft cross-mod contract as the class doc's own note.
     private static final String PRIVATE_RESIDENCE_LABEL = "Private Residence";
 
-    /** What the HUD should show right now -- also doubles as the debounce/change-detection key (see {@link #notifyIfChanged}), so two genuinely different places that happen to render identical text are treated as "no change." An accepted simplification, not expected to matter in practice. */
-    private record LocationSnapshot(Optional<String> line1, Optional<String> line2) {
-        static final LocationSnapshot EMPTY = new LocationSnapshot(Optional.empty(), Optional.empty());
+    /** What the HUD should show right now -- also doubles as the debounce/change-detection key (see {@link #notifyIfChanged}), so two genuinely different places that happen to render identical text are treated as "no change." An accepted simplification, not expected to matter in practice. {@code kingdomLine} (added 2026-11-15, explicit user spec: "if I'm in a kingdom right now then the very top line of the location text should be the kingdom name") sits above both -- see {@link #resolve}'s own doc. */
+    private record LocationSnapshot(Optional<String> kingdomLine, Optional<String> line1, Optional<String> line2) {
+        static final LocationSnapshot EMPTY = new LocationSnapshot(Optional.empty(), Optional.empty(), Optional.empty());
     }
 
     // Session-only (in-memory, never persisted) -- a live mirror of Cartographyr's truth, not yet
@@ -181,13 +190,27 @@ public final class LocationTracker {
     private LocationSnapshot resolve(ServerLevel level, ServerPlayer player) {
         boolean genuineDiscovery = false;
         Set<GeographicEntity> here = Cartography.getEntitiesAt(level, player.getBlockX(), player.getBlockZ());
-        if (here.isEmpty()) {
+        // Real regression, 2026-11-15, found live the day Terrytories' Kingdom shipped: "I can see
+        // the town name when I'm in town but when I left town I don't see anything." This used to
+        // gate on `here.isEmpty()` alone -- correct back when the only things Cartographyr could ever
+        // register at a point were settlements/regions/plots, all genuinely "something real is known
+        // here." Kingdom's own polygon blankets the open wilderness around a settlement too, so `here`
+        // is now non-empty almost everywhere near spawn even in genuinely undiscovered ground --
+        // silently skipping natural-region discovery there forever, with nothing else in this method
+        // ever resolving a Kingdom entity into either HUD line either. Widened to also attempt
+        // discovery when the only thing present is Kingdom itself.
+        boolean onlyKingdomOrNothing = here.stream().allMatch(e -> e.layerId().equals(KINGDOM_LAYER_ID));
+        if (onlyKingdomOrNothing) {
             Optional<GeographicEntity> discovered = Cartography.discoverNaturalRegion(level, player.blockPosition());
-            here = discovered.map(Set::of).orElse(Set.of());
+            if (discovered.isPresent()) {
+                here = new HashSet<>(here);
+                here.add(discovered.get());
+            }
             genuineDiscovery = discovered.isPresent();
         }
 
         PlayerKnowledge knowledge = player.getData(ModAttachments.PLAYER_KNOWLEDGE);
+        GeographicEntity kingdom = null;
         GeographicEntity region = null;
         GeographicEntity settlementPadded = null;
         GeographicEntity settlementCore = null;
@@ -213,7 +236,9 @@ public final class LocationTracker {
                 continue;
             }
 
-            if (entity.layerId().equals(Layer.REGION_ID)) {
+            if (entity.layerId().equals(KINGDOM_LAYER_ID)) {
+                kingdom = entity;
+            } else if (entity.layerId().equals(Layer.REGION_ID)) {
                 region = entity;
             } else if (entity.layerId().equals(Layer.SETTLEMENT_ID)) {
                 // A natural village (Cartographyr's own EntityType.SETTLEMENT, discovered without any
@@ -254,6 +279,11 @@ public final class LocationTracker {
         // so a natural village (which has no separate padded entity at all) stopped showing its town
         // name entirely, dropping straight to region/absent. settlementPadded still wins when both
         // exist (a player-founded settlement's outer buffer, unchanged from before).
+        // Explicit user spec, 2026-11-15: "if I'm in a kingdom right now then the very top line of
+        // the location text should be the kingdom name" -- its own separate line, always above the
+        // settlement/region line regardless of whether that line is also present.
+        Optional<String> kingdomLine = kingdom != null ? Optional.of(DisplayText.forEntity(kingdom)) : Optional.empty();
+
         Optional<String> line1 = settlementPadded != null ? Optional.of(DisplayText.forEntity(settlementPadded))
                 : settlementCore != null ? Optional.of(DisplayText.forEntity(settlementCore))
                 : region != null ? Optional.of(DisplayText.forEntity(region))
@@ -278,7 +308,7 @@ public final class LocationTracker {
             line2 = Optional.empty();
         }
 
-        return new LocationSnapshot(line1, line2);
+        return new LocationSnapshot(kingdomLine, line1, line2);
     }
 
     private void notifyIfChanged(ServerPlayer player, LocationSnapshot snapshot) {
@@ -303,8 +333,8 @@ public final class LocationTracker {
     }
 
     private void sendLocation(ServerPlayer player, LocationSnapshot snapshot) {
-        LyfeMod.LOGGER.info("Player {} location updated: line1={}, line2={}",
-                player.getName().getString(), snapshot.line1(), snapshot.line2());
-        PacketDistributor.sendToPlayer(player, new LocationPayload(snapshot.line1(), snapshot.line2()));
+        LyfeMod.LOGGER.info("Player {} location updated: kingdomLine={}, line1={}, line2={}",
+                player.getName().getString(), snapshot.kingdomLine(), snapshot.line1(), snapshot.line2());
+        PacketDistributor.sendToPlayer(player, new LocationPayload(snapshot.kingdomLine(), snapshot.line1(), snapshot.line2()));
     }
 }
