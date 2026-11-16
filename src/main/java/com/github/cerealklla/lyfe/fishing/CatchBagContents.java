@@ -8,6 +8,7 @@ import com.mojang.serialization.Codec;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 
 import com.github.cerealklla.lyfe.registration.ModItems;
@@ -80,9 +81,50 @@ public record CatchBagContents(List<ItemStack> stacks) {
         return new RemoveResult(new CatchBagContents(next), removed);
     }
 
+    /**
+     * Total count of real stacks matching {@code item} by base item type (ignoring the per-catch
+     * {@link FishWeight}/custom-name components every entry here carries, which is exactly why a
+     * flat inventory scan elsewhere -- e.g. a quest's own gather-milestone check -- never finds
+     * fish once they're tucked into a Catch Bag, confirmed as the real root cause of a live bug
+     * report, 2026-11-16). Used by {@link com.github.cerealklla.lyfe.api.Lyfe
+     * #countFishInCatchBags}.
+     */
+    public int countMatching(Item item) {
+        int total = 0;
+        for (ItemStack stack : stacks) {
+            if (stack.getItem() == item) {
+                total += stack.getCount();
+            }
+        }
+        return total;
+    }
+
+    /** Removes up to {@code amount} of {@code item} (by base item type), list order, splitting a stack's own count if only part of it is needed. See {@link #countMatching} for why this is keyed on item type alone. */
+    public RemoveMatchingResult removeMatching(Item item, int amount) {
+        List<ItemStack> next = new ArrayList<>();
+        int removed = 0;
+        for (ItemStack stack : stacks) {
+            if (removed < amount && stack.getItem() == item) {
+                int take = Math.min(amount - removed, stack.getCount());
+                removed += take;
+                if (take < stack.getCount()) {
+                    ItemStack remainder = stack.copy();
+                    remainder.shrink(take);
+                    next.add(remainder);
+                }
+            } else {
+                next.add(stack);
+            }
+        }
+        return new RemoveMatchingResult(new CatchBagContents(next), removed);
+    }
+
     public record InsertResult(CatchBagContents contents, boolean inserted) {
     }
 
     public record RemoveResult(CatchBagContents contents, ItemStack removed) {
+    }
+
+    public record RemoveMatchingResult(CatchBagContents contents, int removed) {
     }
 }

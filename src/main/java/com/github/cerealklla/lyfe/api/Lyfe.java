@@ -8,11 +8,14 @@ import java.util.UUID;
 import com.mojang.authlib.GameProfile;
 
 import com.github.cerealklla.lyfe.LyfeMod;
+import com.github.cerealklla.lyfe.fishing.CatchBagContents;
+import com.github.cerealklla.lyfe.fishing.CatchBagItem;
 import com.github.cerealklla.lyfe.knowledge.KnowledgeFactor;
 import com.github.cerealklla.lyfe.map.QuestWaypointPayload;
 import com.github.cerealklla.lyfe.merchant.MerchantListener;
 import com.github.cerealklla.lyfe.registration.ModAttachments;
 import com.github.cerealklla.lyfe.registration.ModAttributes;
+import com.github.cerealklla.lyfe.registration.ModItems;
 import com.github.cerealklla.lyfe.registration.ModMobEffects;
 import com.github.cerealklla.lyfe.rest.RestConstants;
 import com.github.cerealklla.lyfe.skill.SkillDefinition;
@@ -28,6 +31,8 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.players.NameAndId;
 import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.storage.PlayerDataStorage;
 import net.minecraft.world.level.storage.TagValueInput;
 import net.minecraft.world.level.storage.ValueInput;
@@ -703,5 +708,43 @@ public final class Lyfe {
             return;
         }
         com.github.cerealklla.lyfe.recallcinite.RecallciniteListener.bindAt(player, level, pos.pos());
+    }
+
+    /**
+     * Total count of {@code item} currently stored inside any Catch Bag in {@code player}'s
+     * inventory -- real live bug found 2026-11-16 (Myssions' "Fresh Catch" gather quest): every
+     * caught fish carries its own per-catch weight/custom-name component, so it never stacks with
+     * another catch of the same type, and a player actively fishing almost always keeps them in a
+     * Catch Bag rather than letting 10 individually-unstackable fish eat up flat inventory slots --
+     * a quest (or anything else) that only scans {@code player.getInventory()} directly never sees
+     * them at all. See {@code fishing.CatchBagContents#countMatching} for why this is keyed on base
+     * item type, ignoring those per-catch components.
+     */
+    public static int countFishInCatchBags(ServerPlayer player, Item item) {
+        int total = 0;
+        for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
+            ItemStack stack = player.getInventory().getItem(i);
+            if (stack.getItem() instanceof CatchBagItem) {
+                total += stack.getOrDefault(ModItems.CATCH_BAG_CONTENTS, CatchBagContents.EMPTY).countMatching(item);
+            }
+        }
+        return total;
+    }
+
+    /** Removes up to {@code amount} of {@code item} from any Catch Bag in {@code player}'s inventory -- see {@link #countFishInCatchBags}'s own doc. Returns how many were actually removed (never more than {@code amount}, possibly fewer if that many weren't actually there). */
+    public static int removeFishFromCatchBags(ServerPlayer player, Item item, int amount) {
+        int removedTotal = 0;
+        for (int i = 0; i < player.getInventory().getContainerSize() && removedTotal < amount; i++) {
+            ItemStack stack = player.getInventory().getItem(i);
+            if (stack.getItem() instanceof CatchBagItem) {
+                CatchBagContents contents = stack.getOrDefault(ModItems.CATCH_BAG_CONTENTS, CatchBagContents.EMPTY);
+                CatchBagContents.RemoveMatchingResult result = contents.removeMatching(item, amount - removedTotal);
+                if (result.removed() > 0) {
+                    stack.set(ModItems.CATCH_BAG_CONTENTS, result.contents());
+                    removedTotal += result.removed();
+                }
+            }
+        }
+        return removedTotal;
     }
 }
