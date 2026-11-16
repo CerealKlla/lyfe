@@ -30,7 +30,7 @@ import net.minecraft.resources.Identifier;
  * rather than small deltas, costing a little more over the wire per vertex -- negligible at this
  * payload's size and send frequency.
  */
-public record MinimapEntitiesPayload(List<Outline> outlines) implements CustomPacketPayload {
+public record MinimapEntitiesPayload(List<Outline> outlines, List<PriorityMarker> priorityMarkers) implements CustomPacketPayload {
 
     /** Picks the outline color client-side (a fixed small palette -- see {@code MinimapOverlay#drawOutlines}, since Settlemynts' own per-zone-type wall color isn't reachable from Lyfe without a compile dependency). */
     public enum Kind {
@@ -53,11 +53,33 @@ public record MinimapEntitiesPayload(List<Outline> outlines) implements CustomPa
                 Outline::new);
     }
 
+    /**
+     * A Settlemynts Priority Location's position, current escalation level, and real alert radius
+     * (see {@code settlemynts.api.Settlemynts#findNearbyPriorityLocations}) -- added 2026-11-15,
+     * real follow-up request to that feature's own launch: "Priority Locations should show upon a
+     * player's minimap if they are nearby." Absolute world coordinates, same "let the client
+     * subtract its own live position every frame" convention {@link Outline} already established
+     * (see that record's own class doc) -- a location is comparatively long-lived (a whole ongoing
+     * fight), so baking in a player-relative offset at send time would drift exactly the same way
+     * outlines used to. {@code alertRadiusBlocks} (same day, follow-up: "I'd like to see a circle
+     * showing the radius of the alert region, not just a dot") is Settlemynts' own real
+     * cluster/cleanup radius, read through rather than guessed/duplicated client-side.
+     */
+    public record PriorityMarker(int worldX, int worldZ, int level, float alertRadiusBlocks) {
+        public static final StreamCodec<ByteBuf, PriorityMarker> STREAM_CODEC = StreamCodec.composite(
+                ByteBufCodecs.VAR_INT, PriorityMarker::worldX,
+                ByteBufCodecs.VAR_INT, PriorityMarker::worldZ,
+                ByteBufCodecs.VAR_INT, PriorityMarker::level,
+                ByteBufCodecs.FLOAT, PriorityMarker::alertRadiusBlocks,
+                PriorityMarker::new);
+    }
+
     public static final Type<MinimapEntitiesPayload> TYPE =
             new Type<>(Identifier.fromNamespaceAndPath(LyfeMod.MODID, "minimap_entities"));
 
     public static final StreamCodec<ByteBuf, MinimapEntitiesPayload> STREAM_CODEC = StreamCodec.composite(
             ByteBufCodecs.collection(ArrayList::new, Outline.STREAM_CODEC), MinimapEntitiesPayload::outlines,
+            ByteBufCodecs.collection(ArrayList::new, PriorityMarker.STREAM_CODEC), MinimapEntitiesPayload::priorityMarkers,
             MinimapEntitiesPayload::new);
 
     @Override

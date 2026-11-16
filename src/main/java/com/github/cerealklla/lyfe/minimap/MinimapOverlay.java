@@ -75,6 +75,11 @@ public final class MinimapOverlay implements GuiLayer {
     private static final int BUILDING_FIT_COLOR = 0xFF55FF55;
     private static final int BUILDING_NO_FIT_COLOR = 0xFFFF5555;
 
+    // Settlemynts' Priority Locations ({@code guardhouse.PriorityLocationRegistry}) -- a fixed,
+    // distinct "something's actively wrong here" red, deliberately not scaled/tinted by level: the
+    // request was just to show where they are, not to encode the escalation level visually too.
+    private static final int PRIORITY_LOCATION_COLOR = 0xFFFF2222;
+
     // North arrow -- gated behind ExpeditionistConstants.NORTH_INDICATOR_UNLOCK_LEVEL (level 5 as of
     // the 2026-10-15 re-shuffle, originally 10), added 2026-10-07 once the Expeditionist skill
     // existed to gate it with, per the user's own original design for this arrow ("this arrow can be
@@ -226,6 +231,7 @@ public final class MinimapOverlay implements GuiLayer {
         drawOutlines(guiGraphics, left, top, cx, cz, contentRadius, player);
         drawInProgressStakes(guiGraphics, left, top, level, player, cx, cz, contentRadius);
         drawBuildingLocatorPreview(guiGraphics, left, top, level, player, cx, cz, contentRadius);
+        drawPriorityLocations(guiGraphics, left, top, cx, cz, contentRadius, player);
         // Drawn inside this same (conditionally rotated) block, not after it -- when Auto-Rotate is
         // on, the pose is rotated so "up" matches the player's facing, and north is wherever that
         // rotation now puts it; drawing the arrow at its default "straight up" position *inside* the
@@ -566,6 +572,55 @@ public final class MinimapOverlay implements GuiLayer {
                 int x2 = left + SIZE / 2 + (int) Math.round((xs.get(j) - playerX) * pixelsPerBlock);
                 int y2 = top + SIZE / 2 + (int) Math.round((zs.get(j) - playerZ) * pixelsPerBlock);
                 drawLine(guiGraphics, x1, y1, x2, y2, color, cx, cz, panelRadius);
+            }
+        }
+    }
+
+    /**
+     * Settlemynts' Priority Locations ({@link MinimapEntitiesPayload.PriorityMarker}) -- real
+     * follow-up request, 2026-11-15: "Priority Locations should show upon a player's minimap if
+     * they are nearby." Absolute world coordinates, same live-drift-correction convention {@link
+     * #drawOutlines} already established (see {@link MinimapEntitiesPayload}'s own class doc) --
+     * these persist for the duration of a fight, not just a single frame, so baking in a
+     * player-relative offset at send time would go stale the same way outlines used to.
+     *
+     * <p>Draws a real ring at the location's own alert radius, not just a center dot (same-day
+     * follow-up: "I'd like to see a circle showing the radius of the alert region, not just a
+     * dot") -- {@link #drawRing} walks the circumference directly rather than reusing {@link
+     * #circleHalfWidthAt}'s per-row scan, since that helper only knows how to fill a disc/band
+     * centered on the minimap's own panel, not draw an outline centered anywhere else on it.
+     */
+    private void drawPriorityLocations(GuiGraphicsExtractor guiGraphics, int left, int top, float cx, float cz, int panelRadius, LocalPlayer player) {
+        int radius = ClientMinimapState.sampledEffectiveRadius();
+        if (radius <= 0) {
+            return;
+        }
+        double pixelsPerBlock = (double) SIZE / (radius * 2);
+        double playerX = player.getX();
+        double playerZ = player.getZ();
+        for (MinimapEntitiesPayload.PriorityMarker marker : ClientMinimapState.priorityMarkers()) {
+            int x = left + SIZE / 2 + (int) Math.round((marker.worldX() - playerX) * pixelsPerBlock);
+            int y = top + SIZE / 2 + (int) Math.round((marker.worldZ() - playerZ) * pixelsPerBlock);
+            if (isWithinPanel(x, y, cx, cz, panelRadius)) {
+                guiGraphics.fill(x - MARKER_DOT_RADIUS, y - MARKER_DOT_RADIUS, x + MARKER_DOT_RADIUS, y + MARKER_DOT_RADIUS, PRIORITY_LOCATION_COLOR);
+            }
+            double ringPixelRadius = marker.alertRadiusBlocks() * pixelsPerBlock;
+            drawRing(guiGraphics, x, y, ringPixelRadius, PRIORITY_LOCATION_COLOR, cx, cz, panelRadius);
+        }
+    }
+
+    /** An unfilled circle of {@code pixelRadius} centered on {@code (centerX, centerY)}, clipped to the minimap's own circular panel -- walks the circumference by angle rather than by row, since (unlike {@link #drawCircularBorder}) its center isn't necessarily the panel's own center. */
+    private static void drawRing(GuiGraphicsExtractor guiGraphics, int centerX, int centerY, double pixelRadius, int color, float cx, float cz, int panelRadius) {
+        if (pixelRadius <= 0) {
+            return;
+        }
+        int steps = Math.max(32, (int) Math.round(2 * Math.PI * pixelRadius));
+        for (int i = 0; i < steps; i++) {
+            double angle = 2 * Math.PI * i / steps;
+            int x = centerX + (int) Math.round(pixelRadius * Math.sin(angle));
+            int y = centerY - (int) Math.round(pixelRadius * Math.cos(angle));
+            if (isWithinPanel(x, y, cx, cz, panelRadius)) {
+                guiGraphics.fill(x, y, x + 1, y + 1, color);
             }
         }
     }

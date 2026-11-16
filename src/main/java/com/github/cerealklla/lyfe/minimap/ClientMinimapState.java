@@ -30,6 +30,7 @@ public final class ClientMinimapState {
     private static int sampledEffectiveRadius = -1;
 
     private static List<MinimapEntitiesPayload.Outline> outlines = List.of();
+    private static List<MinimapEntitiesPayload.PriorityMarker> priorityMarkers = List.of();
 
     // Auto-Rotate mode, wired up 2026-09-29 for a live test (user request: "turn on rotating mini
     // map for a test... I suspect no one will ever want that with this refresh rate"), which at the
@@ -110,5 +111,13 @@ public final class ClientMinimapState {
 
     public static List<MinimapEntitiesPayload.Outline> outlines() {
         return outlines;
+    }
+
+    public static void setPriorityMarkers(List<MinimapEntitiesPayload.PriorityMarker> newMarkers) {
+        priorityMarkers = newMarkers;
+    }
+
+    public static List<MinimapEntitiesPayload.PriorityMarker> priorityMarkers() {
+        return priorityMarkers;
     }
 }

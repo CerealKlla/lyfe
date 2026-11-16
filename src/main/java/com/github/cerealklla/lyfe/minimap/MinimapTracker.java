@@ -32,6 +32,14 @@ import net.neoforged.neoforge.network.PacketDistributor;
  * Cartography.findEntities(level, Classification.CONSTRUCTED)} whole-dimension scan and filters to
  * a bounding box around the player here, the same "Lyfe treats Cartographyr as read-only" boundary
  * already used everywhere else in this mod. Fine at this suite's scale.
+ *
+ * <p><b>Also sends nearby Priority Location markers, 2026-11-15</b> (real follow-up request: "Priority
+ * Locations should show upon a player's minimap if they are nearby") -- via {@code
+ * structure.SettlemyntsStructureBridge#findNearbyPriorityLocations}, gated behind {@code
+ * SettlemyntsStructureBridge.isAvailable()}. Unlike the plot/settlement outlines above, this one
+ * genuinely does go through Lyfe's existing real (optional) compile dependency on Settlemynts --
+ * Priority Locations are plain server-memory bookkeeping, not Cartographyr-registered geographic
+ * data, so there's no Cartographyr-mediated path to read them through.
  */
 public final class MinimapTracker {
 
@@ -122,6 +130,16 @@ public final class MinimapTracker {
             com.github.cerealklla.lyfe.LyfeMod.LOGGER.info(
                     "MinimapTracker: sending {} outline(s) to {} ({} NATURAL_PLOT)", outlines.size(), player.getName().getString(), naturalPlotCount);
         }
-        PacketDistributor.sendToPlayer(player, new MinimapEntitiesPayload(outlines));
+
+        List<MinimapEntitiesPayload.PriorityMarker> priorityMarkers = new ArrayList<>();
+        if (com.github.cerealklla.lyfe.structure.SettlemyntsStructureBridge.isAvailable()) {
+            for (var nearby : com.github.cerealklla.lyfe.structure.SettlemyntsStructureBridge
+                    .findNearbyPriorityLocations(level, pos, QUERY_RADIUS_BLOCKS)) {
+                priorityMarkers.add(new MinimapEntitiesPayload.PriorityMarker(
+                        nearby.pos().getX(), nearby.pos().getZ(), nearby.level(), (float) nearby.alertRadiusBlocks()));
+            }
+        }
+
+        PacketDistributor.sendToPlayer(player, new MinimapEntitiesPayload(outlines, priorityMarkers));
     }
 }

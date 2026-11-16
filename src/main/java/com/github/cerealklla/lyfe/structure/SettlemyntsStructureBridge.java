@@ -81,6 +81,28 @@ public final class SettlemyntsStructureBridge {
                 .toList();
     }
 
+    /**
+     * A nearby active Priority Location's position, escalation level, and real alert radius -- see
+     * {@link #findNearbyPriorityLocations}. {@code alertRadiusBlocks} (added 2026-11-15, same day as
+     * this record itself, real follow-up request: "I'd like to see a circle showing the radius of
+     * the alert region, not just a dot") is Settlemynts' own real cluster/cleanup radius -- read
+     * through, never duplicated as a separate guessed constant on this side.
+     */
+    public record NearbyPriorityLocation(BlockPos pos, int level, double alertRadiusBlocks) {
+    }
+
+    /**
+     * Added 2026-11-15 for {@code minimap.MinimapTracker}'s own real follow-up request ("Priority
+     * Locations should show upon a player's minimap if they are nearby") -- the one place in this
+     * mod that reads Settlemynts' guard-response Priority Location data, same isolation rule as
+     * every other call through this class.
+     */
+    public static List<NearbyPriorityLocation> findNearbyPriorityLocations(ServerLevel level, BlockPos origin, double radiusBlocks) {
+        return Settlemynts.findNearbyPriorityLocations(level, origin, radiusBlocks).stream()
+                .map(h -> new NearbyPriorityLocation(h.pos(), h.level(), h.alertRadiusBlocks()))
+                .toList();
+    }
+
     public record PurchaseResult(int filled, int nuggetsCharged) {
     }
 
