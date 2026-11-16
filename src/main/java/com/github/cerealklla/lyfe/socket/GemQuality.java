@@ -27,4 +27,10 @@ public enum GemQuality {
     public int index() {
         return ordinal();
     }
+
+    /** The next tier up, or {@code null} at {@link #PERFECT} -- see {@code GemUpgradeRecipe}. */
+    public GemQuality next() {
+        int nextIndex = ordinal() + 1;
+        return nextIndex < values().length ? values()[nextIndex] : null;
+    }
 }
