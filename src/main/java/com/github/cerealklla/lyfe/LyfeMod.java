@@ -78,6 +78,7 @@ import com.github.cerealklla.lyfe.registration.ModFoodItems;
 import com.github.cerealklla.lyfe.registration.ModItems;
 import com.github.cerealklla.lyfe.registration.ModMenus;
 import com.github.cerealklla.lyfe.registration.ModMobEffects;
+import com.github.cerealklla.lyfe.registration.ModRecipes;
 import com.github.cerealklla.lyfe.rest.BedRestListener;
 import com.github.cerealklla.lyfe.skill.Skills;
 import com.github.cerealklla.lyfe.swim.SwimmerListener;
@@ -120,6 +121,7 @@ public class LyfeMod {
         ModMobEffects.MOB_EFFECTS.register(modEventBus);
         ModEntities.ENTITIES.register(modEventBus);
         ModAttributes.ATTRIBUTES.register(modEventBus);
+        ModRecipes.RECIPE_SERIALIZERS.register(modEventBus);
         Skills.bootstrap();
 
         modEventBus.addListener(this::commonSetup);
@@ -259,7 +261,7 @@ public class LyfeMod {
     // fixed once in Cartographyr's own version of this feature; see that mod's decisions.md).
     private void registerPayloads(RegisterPayloadHandlersEvent event) {
         event.registrar("1").playToClient(LocationPayload.TYPE, LocationPayload.STREAM_CODEC,
-                (payload, context) -> ClientLocationState.set(payload.line1(), payload.line2()));
+                (payload, context) -> ClientLocationState.set(payload.kingdomLine(), payload.line1(), payload.line2()));
 
         // Drives the transient XP bar HUD (replaces the old per-skill chat announcements,
         // 2026-10-02) -- sent centrally from api.Lyfe#addXp, so this handler covers every skill.
@@ -346,7 +348,10 @@ public class LyfeMod {
         // only ever constructed (and so only ever actually sends this) when Cartographyr is loaded,
         // but the handler itself must exist regardless (one global network registry per modid).
         event.registrar("1").playToClient(MinimapEntitiesPayload.TYPE, MinimapEntitiesPayload.STREAM_CODEC,
-                (payload, context) -> ClientMinimapState.setOutlines(payload.outlines()));
+                (payload, context) -> {
+                    ClientMinimapState.setOutlines(payload.outlines());
+                    ClientMinimapState.setPriorityMarkers(payload.priorityMarkers());
+                });
 
         // Registered unconditionally, same reasoning as MinimapEntitiesPayload above -- WyrldPieceTracker
         // is only ever constructed (and so only ever actually sends this) when TinyWyrlds is loaded.
