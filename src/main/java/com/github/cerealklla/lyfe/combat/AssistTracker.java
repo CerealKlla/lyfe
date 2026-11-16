@@ -13,7 +13,7 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.Attribute;
 import net.minecraft.world.entity.player.Player;
 import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
+import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
 
 /**
  * "Injuring a mob puts an assist marker for the player on that mob, which expires after 15
@@ -24,9 +24,24 @@ import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
  * bridge.LyfeAssistBridge} on that side) and Huntsman's own Quarry Knowledge ({@code
  * huntsman.HuntsmanListener}) are built on.
  *
- * <p>Registers a marker only on real dealt damage (mirrors {@code combat.CombatSkillListener}'s
- * own {@code getHealthDamage() <= 0} guard -- a blocked/absorbed "hit" shouldn't start or refresh a
- * marker).
+ * <p>Registers a marker only on real dealt damage -- {@code event.getAmount() <= 0} on {@link
+ * LivingIncomingDamageEvent}, same idiom {@code terrytories.reputation.CombatReputationListener}/
+ * {@code durability.UnbreakableToolListener} already use, so a blocked/absorbed "hit" shouldn't
+ * start or refresh a marker.
+ *
+ * <p><b>Moved from {@code LivingDamageEvent.Post} to {@link LivingIncomingDamageEvent}, 2026-11-15</b>
+ * -- real bug found live on Production via temporary {@code [KillCreditDebug]} logging: a mob's
+ * killing blow consistently produced an EMPTY credited set at the moment {@code LivingDeathEvent}
+ * read it, with that exact hit's own marker only appearing in the log a few milliseconds *after*
+ * the death line. Confirmed directly from real timestamped log output, not assumed -- for the
+ * lethal hit specifically, vanilla/NeoForge fires {@code LivingDamageEvent.Post} *after* {@code
+ * die()}/{@code LivingDeathEvent} within the same {@code hurtServer} call, not before it. That
+ * silently dropped credit for any kill where the fatal blow was the *only* assist on record (e.g.
+ * a Tavern Companion soloing an enemy with no prior damage from the player or anyone else) --
+ * exactly the reported symptom. {@code LivingIncomingDamageEvent} fires before the death check (same
+ * event {@code UnbreakableToolListener}/{@code ProficiencyDurabilityListener} already rely on
+ * running early), so the marker is now always written before any {@code LivingDeathEvent} handler
+ * -- this class's own or any consumer's -- can read it.
  *
  * <p><b>Widened from player-only to any {@code LivingEntity} attacker, 2026-10-23</b> (explicit
  * user spec: loot-pool/gold-find bonuses "should extend further to include NPCs and Minions/
@@ -58,8 +73,8 @@ public final class AssistTracker {
     public static final int ASSIST_DURATION_TICKS = 15 * 20;
 
     @SubscribeEvent
-    public void onDamagePost(LivingDamageEvent.Post event) {
-        if (event.getHealthDamage() <= 0) {
+    public void onIncomingDamage(LivingIncomingDamageEvent event) {
+        if (event.getAmount() <= 0) {
             return;
         }
         LivingEntity victim = event.getEntity();
