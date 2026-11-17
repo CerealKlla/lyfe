@@ -711,6 +711,17 @@ public final class Lyfe {
     }
 
     /**
+     * Where {@code player}'s Recallcinite Totem is currently bound, if anywhere -- for Arryval's
+     * one-off remediation of {@code starttown.StartingSettlementCoreState} records that were left
+     * permanently empty by a bind that predates that attachment's existence (see that class's own
+     * doc). Not otherwise exposed before now since nothing else needed to read the bound location
+     * back out, only ever recall to it.
+     */
+    public static java.util.Optional<net.minecraft.core.GlobalPos> getRecallciniteBoundLocation(net.minecraft.server.level.ServerPlayer player) {
+        return player.getData(com.github.cerealklla.lyfe.registration.ModAttachments.RECALLCINITE_DATA).boundLocation();
+    }
+
+    /**
      * Total count of {@code item} currently stored inside any Catch Bag in {@code player}'s
      * inventory -- real live bug found 2026-11-16 (Myssions' "Fresh Catch" gather quest): every
      * caught fish carries its own per-catch weight/custom-name component, so it never stacks with
