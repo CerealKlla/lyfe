@@ -47,14 +47,16 @@ final class MaterialPool {
             // Any Coal (below) -- Coal and Charcoal are interchangeable here, same reasoning as the
             // Any Log/Any Plank groups. Budget-neutral: one specific item swapped for one group, so
             // the combined total stays exactly 10 (see the tally note below).
-            0, idList("stick", "wheat_seeds", "string", "flint"),
+            // "flint" removed 2026-11-18 (explicit user request).
+            0, idList("stick", "wheat_seeds", "string"),
             // "coarse_dirt" replaced 2026-10-21 (explicit user request: "add the various types of
             // stone in the normal world") with the generic group Any Stone (below) -- again
             // budget-neutral, one item swapped for one group.
             1, idList("cobblestone", "gravel"),
             // Combined generic (items + groups) budget caps at 10 unique entries (user's explicit
-            // limit) -- already reached below at Tier 1 (4 items + 4 groups + 2 items = 10), so
-            // every tier above introduces no further generics of their own, only specialized.
+            // limit) -- currently at 9 (3 items + 3 groups at Tier 0, 2 items + 1 group at Tier 1),
+            // one under budget since "flint" was removed 2026-11-18; every tier above still
+            // introduces no further generics of their own, only specialized.
             2, idList(),
             3, idList(),
             4, idList(),

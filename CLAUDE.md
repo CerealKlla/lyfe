@@ -445,3 +445,8 @@ so a proc activation grants a little extra Axeman/Swordsman/Pikeman XP and durab
 the swing that triggered it -- a one-line, low-impact consequence of fixing the real bug correctly
 rather than patching around it. `./gradlew build` green, whole-suite (17 mods) rebuild + `runServer`
 boot-smoke-test clean. **Not yet live-tested.**
+
+**"flint" removed from the Wood tier (Tier 0) crafting material pool, 2026-11-18** -- explicit user
+request. `craft.MaterialPool#TIER_GENERIC_ITEMS`'s Tier 0 entry dropped `flint` (kept:
+`stick`/`wheat_seeds`/`string`), lowering the combined generic items+groups tally one under its
+10-entry budget. `./gradlew build`/`test` green.
