@@ -81,7 +81,18 @@ public final class RunewordEffectListener {
             }
             case ON_HIT_DAMAGE_PROC -> {
                 if (roll(level, effect.chance())) {
-                    TaggedEffectDamage.receiveDamage(victim, level.damageSources().generic(), effect.combinedTags(), (float) effect.magnitude());
+                    // Real bug fix, 2026-11-17 -- real report: a player Friendly with a settlement
+                    // still "accidentally" injured one of its Guards with a direct axe hit, losing
+                    // reputation. Root cause: this used level.damageSources().generic(), which
+                    // carries no attacking entity at all, so terrytories.reputation
+                    // .CombatReputationListener's `event.getSource().getEntity() instanceof
+                    // ServerPlayer` immunity/loss check could never recognize this proc as
+                    // player-caused in the first place -- it bypassed Friendly immunity entirely,
+                    // independently of the main hit (which WAS correctly zeroed). Attributed to the
+                    // attacker now, same magician.SpellEffects#DAMAGE_ENEMY_ORGANIC_LIFE convention
+                    // already used elsewhere in this mod for "a player's gear causes indirect
+                    // damage."
+                    TaggedEffectDamage.receiveDamage(victim, level.damageSources().indirectMagic(attacker, attacker), effect.combinedTags(), (float) effect.magnitude());
                 }
             }
             case ON_HIT_SLOW_TARGET -> {
@@ -115,7 +126,9 @@ public final class RunewordEffectListener {
         switch (effect.type()) {
             case ON_DAMAGED_REFLECT -> {
                 if (roll(level, effect.chance()) && attackerEntity instanceof LivingEntity attacker) {
-                    TaggedEffectDamage.receiveDamage(attacker, level.damageSources().generic(), effect.combinedTags(), (float) (amount * effect.magnitude()));
+                    // Same attribution fix as ON_HIT_DAMAGE_PROC above, same day -- the reflect is
+                    // genuinely caused by victim (the armor wearer), not an untraceable source.
+                    TaggedEffectDamage.receiveDamage(attacker, level.damageSources().indirectMagic(victim, victim), effect.combinedTags(), (float) (amount * effect.magnitude()));
                 }
             }
             case ON_DAMAGED_HEAL -> {
@@ -163,7 +176,8 @@ public final class RunewordEffectListener {
                     for (LivingEntity nearby : level.getEntitiesOfClass(LivingEntity.class,
                             event.getEntity().getBoundingBox().inflate(effect.radius()))) {
                         if (nearby != event.getEntity() && nearby instanceof net.minecraft.world.entity.monster.Enemy) {
-                            TaggedEffectDamage.receiveDamage(nearby, level.damageSources().generic(), effect.combinedTags(), (float) effect.magnitude());
+                            // Same attribution fix as ON_HIT_DAMAGE_PROC above, same day -- caused by killer.
+                            TaggedEffectDamage.receiveDamage(nearby, level.damageSources().indirectMagic(killer, killer), effect.combinedTags(), (float) effect.magnitude());
                         }
                     }
                 }

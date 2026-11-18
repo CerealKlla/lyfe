@@ -424,3 +424,24 @@ companions** (see [context/decisions.md](context/decisions.md),
 NPC was dropped when I died and should not have." `reincarnation.ItemClassification#isBoundCompanion`
 only ever checked Allay in a Bottle/the Summoning Stone; `ModItems.COMPANION_TOKEN` (added a week
 after that check was written) was never added. Fixed. `./gradlew build` green.
+
+**Real bug fixed, 2026-11-17: a Runeword's `ON_HIT_DAMAGE_PROC` bypassed Terrytories' Friendly
+combat immunity entirely** -- real report, a direct axe hit still injured (and cost reputation
+against) a Guard in a settlement the player was Friendly with, even after Terrytories' own Guard-
+identity fix (Build 445) shipped. Root cause: `socket.RunewordEffectListener#applyOnHit`'s
+`ON_HIT_DAMAGE_PROC` case applied its proc damage via `level.damageSources().generic()` -- a damage
+source with no attacking entity at all, so `terrytories.reputation.CombatReputationListener`'s
+`event.getSource().getEntity() instanceof ServerPlayer` check could never recognize the proc as
+player-caused, letting it land as real, un-blockable, un-penalized damage independently of the main
+hit (which the Friendly check correctly zeroed). Fixed by attributing the proc to the attacker via
+`damageSources().indirectMagic(attacker, attacker)` -- the exact convention `magician
+.SpellEffects#DAMAGE_ENEMY_ORGANIC_LIFE` already established in this mod for "a player's gear causes
+indirect damage." The same unattributed-`generic()` pattern existed in two more places in the same
+file (`ON_DAMAGED_REFLECT`, `ON_KILL_EXPLOSION`) and was fixed identically for consistency, though
+neither was the reported bug. Accepted minor side effect: a proc hit now also counts toward
+`craft.ProficiencyDurabilityListener`/`combat.CombatSkillListener`'s weapon-XP/durability-wear
+checks (neither distinguishes direct vs. indirect player-sourced damage except the Bo Staff case),
+so a proc activation grants a little extra Axeman/Swordsman/Pikeman XP and durability wear on top of
+the swing that triggered it -- a one-line, low-impact consequence of fixing the real bug correctly
+rather than patching around it. `./gradlew build` green, whole-suite (17 mods) rebuild + `runServer`
+boot-smoke-test clean. **Not yet live-tested.**
